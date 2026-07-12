@@ -44,7 +44,7 @@ mkdir %gamePath%/BepInEx/plugins
 
 cls
 title Seralyth Menu Installer // [#####-----] Downloading latest config
-curl https://raw.githubusercontent.com/iiDk-the-actual/ModInfo/refs/heads/main/BepInEx.cfg -o %gamePath%/BepInEx/config/BepInEx.cfg
+curl https://github.com/Seralyth/Seralyth-Menu/raw/refs/heads/master/Resources/GitHub/BepInEx.cfg -o %gamePath%/BepInEx/config/BepInEx.cfg
 
 cls
 title Seralyth Menu Installer // [#######---] Downloading menu
