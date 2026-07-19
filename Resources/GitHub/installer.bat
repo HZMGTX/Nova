@@ -11,9 +11,7 @@ color 0e
 
 :: Thanks to tdcvoid for telling me the new path for Oculus
 set steamPath1="C:/Program Files (x86)/Steam/steamapps/common/Gorilla Tag"
-set steamPath2="D:/SteamLibrary/steamapps/common/Gorilla Tag"
-set steamPath3="C:/Program Files/Meta Horizon/Software/Software/another-axiom-gorilla-tag" 
-set steamPath4="D:/Steam/steamapps/common/Gorilla Tag"
+set steamPath2="C:/Program Files/Meta Horizon/Software/Software/another-axiom-gorilla-tag" 
 
 if exist %steamPath1% (
     set gamePath=%steamPath1%
@@ -30,6 +28,19 @@ if exist %steamPath1% (
     exit /b
 )
 
+if not defined gamePath (
+    for %%D in (E F G H I J K L M N O P Q R S T U V W X Y Z) do (
+        if exist "%%D:/SteamLibrary/steamapps/common/Gorilla Tag" (
+            set "gamePath=%%D:/SteamLibrary/steamapps/common/Gorilla Tag"
+            goto afterDriveSearch
+        )
+        if exist "%%D:/Steam/steamapps/common/Gorilla Tag" (
+            set "gamePath=%%D:/Steam/steamapps/common/Gorilla Tag"
+            goto afterDriveSearch
+        )
+    )
+)
+
 color 0e
 cls
 title Seralyth Menu Installer // [###-------] Downloading BepInEx
@@ -44,7 +55,7 @@ mkdir %gamePath%/BepInEx/plugins
 
 cls
 title Seralyth Menu Installer // [#####-----] Downloading latest config
-curl https://raw.githubusercontent.com/iiDk-the-actual/ModInfo/refs/heads/main/BepInEx.cfg -o %gamePath%/BepInEx/config/BepInEx.cfg
+curl https://github.com/Seralyth/Seralyth-Menu/raw/refs/heads/master/Resources/GitHub/BepInEx.cfg -o %gamePath%/BepInEx/config/BepInEx.cfg
 
 cls
 title Seralyth Menu Installer // [#######---] Downloading menu
