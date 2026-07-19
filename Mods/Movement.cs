@@ -24,6 +24,7 @@ using GorillaExtensions;
 using GorillaLocomotion;
 using GorillaLocomotion.Climbing;
 using GorillaLocomotion.Swimming;
+using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
 using Seralyth.Classes.Menu;
@@ -44,7 +45,6 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
-using UnityEngine.UIElements;
 using UnityEngine.XR;
 using Valve.Newtonsoft.Json.Linq;
 using static Seralyth.Menu.Main;
@@ -59,55 +59,16 @@ namespace Seralyth.Mods
     public static class Movement
     {
         public static int platformMode;
-        public static void ChangePlatformType(bool positive = true)
-        {
-            string[] platformNames = {
-                "Normal",
-                "Invisible",
-                "Rainbow",
-                "Random Color",
-                "Noclip",
-                "Glass",
-                "Projectile"
-            };
-
-            if (positive)
-                platformMode++;
-            else
-                platformMode--;
-
-            platformMode %= platformNames.Length;
-            if (platformMode < 0)
-                platformMode = platformNames.Length - 1;
-
-            Buttons.GetIndex("Change Platform Type").overlapText = "Change Platform Type <color=grey>[</color><color=green>" + platformNames[platformMode] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] PlatformTypeNames = {
+            "Normal", "Invisible", "Rainbow", "Random Color", "Noclip", "Glass", "Projectile"
+        };
+        public static void ApplyPlatformType(int index) => platformMode = index;
 
         public static int platformShape;
-        public static void ChangePlatformShape(bool positive = true)
-        {
-            string[] platformShapes = {
-                "Sphere",
-                "Cube",
-                "Cylinder",
-                "Legacy",
-                "Small",
-                "Long",
-                "1x1",
-                "Massive"
-            };
-
-            if (positive)
-                platformShape++;
-            else
-                platformShape--;
-
-            platformShape %= platformShapes.Length;
-            if (platformShape < 0)
-                platformShape = platformShapes.Length - 1;
-
-            Buttons.GetIndex("Change Platform Shape").overlapText = "Change Platform Shape <color=grey>[</color><color=green>" + platformShapes[platformShape] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] PlatformShapeNames = {
+            "Sphere", "Cube", "Cylinder", "Legacy", "Small", "Long", "1x1", "Massive"
+        };
+        public static void ApplyPlatformShape(int index) => platformShape = index;
 
         public static PrimitiveType GetPlatformPrimitiveType()
         {
@@ -327,26 +288,10 @@ namespace Seralyth.Mods
             GorillaTagger.Instance.bodyCollider.enabled = !(leftGrab || rightGrab);
         }
 
-        public static void ChangeSpeedBoostAmount(bool positive = true)
-        {
-            float[] jspeedamounts = { 2f, 7.5f, 8f, 9f, 200f };
-            float[] jmultiamounts = { 0.5f, 1.1f, 1.5f, 2f, 10f };
-            string[] speedNames = { "Slow", "Normal", "Middle", "Fast", "Ultra Fast" };
-
-            if (positive)
-                speedboostCycle++;
-            else
-                speedboostCycle--;
-
-            speedboostCycle %= jspeedamounts.Length;
-            if (speedboostCycle < 0)
-                speedboostCycle = jspeedamounts.Length - 1;
-
-            jspeed = jspeedamounts[speedboostCycle];
-            jmulti = jmultiamounts[speedboostCycle];
-
-            Buttons.GetIndex("Change Speed Boost Amount").overlapText = "Change Speed Boost Amount <color=grey>[</color><color=green>" + speedNames[speedboostCycle] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] SpeedBoostAmounts = { 2f, 7.5f, 8f, 9f, 200f };
+        public static readonly float[] SpeedBoostMultipliers = { 0.5f, 1.1f, 1.5f, 2f, 10f };
+        public static readonly string[] SpeedBoostNames = { "Slow", "Normal", "Middle", "Fast", "Ultra Fast" };
+        public static void ApplySpeedBoostAmount(int index) { jspeed = SpeedBoostAmounts[index]; jmulti = SpeedBoostMultipliers[index]; }
 
         public static void PlatformSpam()
         {
@@ -386,62 +331,18 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void ChangeFlySpeed(bool positive = true)
-        {
-            float[] speedamounts = { 5f, 10f, 30f, 60f, 0.5f };
-            string[] speedNames = { "Slow", "Normal", "Fast", "Extra Fast", "Extra Slow" };
-
-            if (positive)
-                flySpeedCycle++;
-            else
-                flySpeedCycle--;
-
-            flySpeedCycle %= speedamounts.Length;
-            if (flySpeedCycle < 0)
-                flySpeedCycle = speedamounts.Length - 1;
-
-            FlySpeed = speedamounts[flySpeedCycle];
-
-            Buttons.GetIndex("Change Fly Speed").overlapText = "Change Fly Speed <color=grey>[</color><color=green>" + speedNames[flySpeedCycle] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] FlySpeedAmounts = { 5f, 10f, 30f, 60f, 0.5f };
+        public static readonly string[] FlySpeedNames = { "Slow", "Normal", "Fast", "Extra Fast", "Extra Slow" };
+        public static void ApplyFlySpeed(int index) => FlySpeed = FlySpeedAmounts[index];
 
         public static int playspaceAbuseIndex;
-        public static void ChangePlayspaceAbuseSpeed(bool positive = true)
-        {
-            float[] speedamounts = { 0.004f, 0.01f, 0.1f, 0.001f, 0.002f };
-            string[] speedNames = { "Normal", "Fast", "Extra Fast", "Extra Slow", "Slow" };
+        public static readonly float[] PlayspaceAbuseAmounts = { 0.004f, 0.01f, 0.1f, 0.001f, 0.002f };
+        public static readonly string[] PlayspaceAbuseNames = { "Normal", "Fast", "Extra Fast", "Extra Slow", "Slow" };
+        public static void ApplyPlayspaceAbuseSpeed(int index) => playspaceAbusePower = PlayspaceAbuseAmounts[index];
 
-            if (positive)
-                playspaceAbuseIndex++;
-            else
-                playspaceAbuseIndex--;
-
-            playspaceAbuseIndex %= speedamounts.Length;
-            if (playspaceAbuseIndex < 0)
-                playspaceAbuseIndex = speedamounts.Length - 1;
-
-            playspaceAbusePower = speedamounts[playspaceAbuseIndex];
-
-            Buttons.GetIndex("Change Playspace Abuse Speed").overlapText = "Change Playspace Abuse Speed <color=grey>[</color><color=green>" + speedNames[playspaceAbuseIndex] + "</color><color=grey>]</color>";
-        }
-
-        public static void ChangeArmLength(bool positive = true)
-        {
-            float[] lengthAmounts = { 0.75f, 1.1f, 1.25f, 1.5f, 2f };
-            string[] lengthNames = { "Shorter", "Unnoticable", "Normal", "Long", "Extreme" };
-
-            if (positive)
-                longarmCycle++;
-            else
-                longarmCycle--;
-
-            longarmCycle %= lengthAmounts.Length;
-            if (longarmCycle < 0)
-                longarmCycle = lengthAmounts.Length - 1;
-
-            armlength = lengthAmounts[longarmCycle];
-            Buttons.GetIndex("Change Arm Length").overlapText = "Change Arm Length <color=grey>[</color><color=green>" + lengthNames[longarmCycle] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] ArmLengthAmounts = { 0.75f, 1.1f, 1.25f, 1.5f, 2f };
+        public static readonly string[] ArmLengthNames = { "Shorter", "Unnoticable", "Normal", "Long", "Extreme" };
+        public static void ApplyArmLength(int index) => armlength = ArmLengthAmounts[index];
 
         public static void Fly()
         {
@@ -686,42 +587,16 @@ namespace Seralyth.Mods
 
         private static float driveSpeed;
         public static int driveInt;
-        public static void ChangeDriveSpeed(bool positive = true)
-        {
-            float[] speedamounts = { 10f, 30f, 50f, 100f, 3f };
-            string[] speedNames = { "Normal", "Fast", "Ultra Fast", "The Flash", "Slow", };
-
-            if (positive)
-                driveInt++;
-            else
-                driveInt--;
-
-            driveInt %= speedamounts.Length;
-            if (driveInt < 0)
-                driveInt = speedamounts.Length - 1;
-
-            driveSpeed = speedamounts[driveInt];
-            Buttons.GetIndex("cdSpeed").overlapText = "Change Drive Speed <color=grey>[</color><color=green>" + speedNames[driveInt] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] DriveSpeedAmounts = { 10f, 30f, 50f, 100f, 3f };
+        public static readonly string[] DriveSpeedNames = { "Normal", "Fast", "Ultra Fast", "The Flash", "Slow" };
+        public static void ApplyDriveSpeed(int index) => driveSpeed = DriveSpeedAmounts[index];
 
         public static int fastRopesInt;
-        public static void ChangeFastRopesSpeed(bool positive = true)
-        {
-            float[] speedamounts = { 5f, 10f, 30f };
-            string[] speedNames = { "Normal", "Fast", "Ultra Fast", };
-
-            if (positive)
-                fastRopesInt++;
-            else
-                fastRopesInt--;
-
-            fastRopesInt %= speedamounts.Length;
-            if (fastRopesInt < 0)
-                fastRopesInt = speedamounts.Length - 1;
-
-            RopePatch.amplifier = speedamounts[driveInt];
-            Buttons.GetIndex("Change Fast Ropes Speed").overlapText = "Change Fast Ropes Speed <color=grey>[</color><color=green>" + speedNames[driveInt] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] FastRopesSpeedAmounts = { 5f, 10f, 30f };
+        public static readonly string[] FastRopesSpeedNames = { "Normal", "Fast", "Ultra Fast" };
+        // Fixed: previously read speedamounts[driveInt]/speedNames[driveInt] here instead of
+        // the fastRopesInt index it had just cycled - a pre-existing copy-paste bug.
+        public static void ApplyFastRopesSpeed(int index) => RopePatch.amplifier = FastRopesSpeedAmounts[index];
 
 
 
@@ -866,7 +741,7 @@ namespace Seralyth.Mods
                 {
                     isLeftGrappling = true;
                     GorillaTagger.Instance.rigidbody.linearVelocity += GorillaTagger.Instance.leftHandTransform.forward * 5f;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                     {
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, true, 999999f);
                     }
@@ -937,7 +812,7 @@ namespace Seralyth.Mods
                 {
                     isRightGrappling = true;
                     GorillaTagger.Instance.rigidbody.linearVelocity += GorillaTagger.Instance.rightHandTransform.forward * 5f;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                     {
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, false, 999999f);
                         RPCProtection();
@@ -1013,7 +888,7 @@ namespace Seralyth.Mods
                 {
                     isLeftGrappling = true;
                     GorillaTagger.Instance.rigidbody.linearVelocity += GorillaTagger.Instance.leftHandTransform.forward * 5f;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                     {
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, true, 999999f);
                     }
@@ -1072,7 +947,7 @@ namespace Seralyth.Mods
                 {
                     isRightGrappling = true;
                     GorillaTagger.Instance.rigidbody.linearVelocity += GorillaTagger.Instance.rightHandTransform.forward * 5f;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                     {
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, false, 999999f);
                         RPCProtection();
@@ -1749,12 +1624,16 @@ namespace Seralyth.Mods
 
         public static void ReverseGravity()
         {
-            GorillaTagger.Instance.rigidbody.AddForce(Vector3.up * 19.62f, ForceMode.Acceleration);
-            GTPlayer.Instance.GetControllerTransform(false).parent.rotation = Quaternion.Euler(180f, 0f, 0f);
+            GTPlayer.Instance.SetGravityOverride(GTPlayer.Instance, p => p.AddForce(-Physics.gravity, ForceMode.Acceleration));
+            GTPlayerTransform.ApplyRotationOverride(Quaternion.Euler(180f, 0f, 0f), Time.frameCount);
         }
 
-        public static void UnflipCharacter() =>
-            GTPlayer.Instance.GetControllerTransform(false).parent.rotation = Quaternion.identity;
+        public static void UnflipCharacter()
+        {
+            GTPlayer.Instance.UnsetGravityOverride(GTPlayer.Instance);
+            GTPlayerTransform.ApplyRotationOverride(Quaternion.identity, Time.frameCount);
+
+        }
 
         private static readonly List<object[]> playerPositions = new List<object[]>();
         public static void Rewind()
@@ -1801,23 +1680,9 @@ namespace Seralyth.Mods
 
         public static float macroPlaybackRange = 1f;
         public static int macroPlaybackRangeIndex = 1;
-        public static void ChangeMacroPlaybackRange(bool positive = true)
-        {
-            float[] rangeAmounts = { 0.5f, 1f, 2f, 3f, 0.25f };
-            string[] rangeNames = { "Small", "Normal", "Large", "Extra Large", "Extra Small", };
-
-            if (positive)
-                macroPlaybackRangeIndex++;
-            else
-                macroPlaybackRangeIndex--;
-
-            macroPlaybackRangeIndex %= rangeNames.Length;
-            if (macroPlaybackRangeIndex < 0)
-                macroPlaybackRangeIndex = rangeNames.Length - 1;
-
-            macroPlaybackRange = rangeAmounts[macroPlaybackRangeIndex];
-            Buttons.GetIndex("Change Macro Playback Range").overlapText = "Change Macro Playback Range <color=grey>[</color><color=green>" + rangeNames[macroPlaybackRangeIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] MacroPlaybackRangeAmounts = { 0.5f, 1f, 2f, 3f, 0.25f };
+        public static readonly string[] MacroPlaybackRangeNames = { "Small", "Normal", "Large", "Extra Large", "Extra Small" };
+        public static void ApplyMacroPlaybackRange(int index) => macroPlaybackRange = MacroPlaybackRangeAmounts[index];
 
         public struct PlayerPosition
         {
@@ -2018,7 +1883,7 @@ namespace Seralyth.Mods
 
             buttons.AddRange(new[]
             {
-                new ButtonInfo { buttonText = "Record <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = RecordMacro, toolTip = "Record your macros with your <color=green>left trigger</color>." },
+                new ButtonInfo { buttonText = "Record <color=grey>[</color><color=green>LT</color><color=grey>]</color>", method = RecordMacro, toolTip = "Record your macros with your <color=green>left trigger</color>." },
                 new ButtonInfo { buttonText = "Open Macros Folder", method = OpenMacrosFolder, isTogglable = false, toolTip = "Opens the folder in which your plugins are located." },
                 new ButtonInfo { buttonText = "Reload Macros", method = LoadMacros, isTogglable = false, toolTip = "Reloads your macros." },
                 new ButtonInfo
@@ -2105,7 +1970,7 @@ namespace Seralyth.Mods
                 }
 
                 if (recordingMacro && recordingData.Count > 0)
-                    VisualizePlayerPosition(recordingData[0], Color.green);
+                    VisualizePlayerPosition(recordingData[0], Color.green, indexIdOffset: 2000);
             }
             else
             {
@@ -2170,7 +2035,6 @@ namespace Seralyth.Mods
                 float stepElapsed = elapsed % macro.macroStepDuration;
 
                 int currentMacroPosition = Mathf.FloorToInt(elapsed / macro.macroStepDuration);
-
                 currentMacroPosition = Mathf.Clamp(currentMacroPosition, 0, positions.Count);
 
                 PlayerPosition lastPosition = currentMacroPosition - 1 < 0 ? startPosition : positions[currentMacroPosition - 1];
@@ -2192,7 +2056,7 @@ namespace Seralyth.Mods
                 ControllerInputPoller.instance.leftControllerGripFloat = Mathf.Lerp(lastPosition.leftGrip ? 1f : 0f, currentPosition.leftGrip ? 1f : 0f, t);
                 ControllerInputPoller.instance.rightControllerGripFloat = Mathf.Lerp(lastPosition.rightGrip ? 1f : 0f, currentPosition.rightGrip ? 1f : 0f, t);
                 ControllerInputPoller.instance.leftControllerIndexFloat = Mathf.Lerp(lastPosition.leftTrigger ? 1f : 0f, currentPosition.leftTrigger ? 1f : 0f, t);
-                // Unity race condition bug. Fuck you. ControllerInputPoller.instance.rightControllerIndexFloat = Mathf.Lerp(lastPosition.rightTrigger ? 1f : 0f, currentPosition.rightTrigger ? 1f : 0f, t);
+                //ControllerInputPoller.instance.rightControllerIndexFloat = Mathf.Lerp(lastPosition.rightTrigger ? 1f : 0f, currentPosition.rightTrigger ? 1f : 0f, t);
 
                 NotificationManager.information["Macro Time"] = $"{macroEndTime - elapsed:F1}s";
                 NotificationManager.information["Macro Name"] = macro.name;
@@ -2202,12 +2066,10 @@ namespace Seralyth.Mods
                 if (currentMacroPosition + (int)(1 / macro.macroStepDuration) < positions.Count)
                 {
                     PlayerPosition futurePosition = positions[currentMacroPosition + (int)(1 / macro.macroStepDuration)];
-                    VisualizePositionCoroutine(futurePosition, Color.cyan);
+                    VisualizePlayerPosition(futurePosition, Color.cyan, indexIdOffset: 0);
                 }
-                else
-                    RemovePosition(Color.cyan);
 
-                VisualizePositionCoroutine(positions[^1], Color.red);
+                VisualizePlayerPosition(positions[^1], Color.red, indexIdOffset: 1000);
             }
 
             StopMacro();
@@ -2224,45 +2086,14 @@ namespace Seralyth.Mods
 
             NotificationManager.information.Remove("Macro Time");
             NotificationManager.information.Remove("Macro Name");
-
-            RemovePosition(Color.cyan);
-            RemovePosition(Color.red);
         }
 
-        public static void VisualizePlayerPosition(PlayerPosition position, Color color, float alpha = 0.15f)
+        public static void VisualizePlayerPosition(PlayerPosition position, Color color, float alpha = 0.15f, long indexIdOffset = 0)
         {
-            Visuals.VisualizeCube(position.position, Quaternion.LookRotation(position.velocity), new Vector3(0.1f, 0.1f, 0.25f), color, -39228393, alpha);
-            Visuals.VisualizeCube(position.position + position.velocity.normalized * 0.125f, Quaternion.LookRotation(position.velocity), new Vector3(0.15f, 0.15f, 0.05f), color, -48492012, alpha);
-            Visuals.VisualizeAura(position.leftHand.position, 0.15f, color, null, alpha);
-            Visuals.VisualizeAura(position.rightHand.position, 0.15f, color, null, alpha);
-        }
-
-        // Unity decided to vomit on my day and not let me run my VisualizeCube or VisualizeAura methods properly, so here's my bad workaround.
-        public static Dictionary<Color, (GameObject head, GameObject leftHand, GameObject rightHand)> positions = new Dictionary<Color, (GameObject head, GameObject leftHand, GameObject rightHand)>();
-        public static void VisualizePositionCoroutine(PlayerPosition position, Color color)
-        {
-            if (!positions.TryGetValue(color, out var data))
-            {
-                data = (Visuals.VisualizeCubeObject(position.position, Quaternion.LookRotation(position.velocity), new Vector3(0.1f, 0.1f, 0.25f), color), Visuals.VisualizeAuraObject(position.leftHand.position, 0.15f, color), Visuals.VisualizeAuraObject(position.rightHand.position, 0.15f, color));
-                positions[color] = data;
-            }
-
-            data.head.transform.position = position.position;
-            data.head.transform.rotation = Quaternion.LookRotation(position.velocity);
-            data.leftHand.transform.position = position.leftHand.position;
-            data.rightHand.transform.position = position.rightHand.position;
-        }
-
-        public static void RemovePosition(Color color)
-        {
-            if (positions.TryGetValue(color, out var data))
-            {
-                Object.Destroy(data.head);
-                Object.Destroy(data.leftHand);
-                Object.Destroy(data.rightHand);
-
-                positions.Remove(color);
-            }
+            Visuals.Visualize(PrimitiveType.Cube, position.position, Quaternion.LookRotation(position.velocity), new Vector3(0.1f, 0.1f, 0.25f), color, -39228393 + indexIdOffset, alpha);
+            Visuals.Visualize(PrimitiveType.Cube, position.position + position.velocity.normalized * 0.125f, Quaternion.LookRotation(position.velocity), new Vector3(0.15f, 0.15f, 0.05f), color, -48492012 + indexIdOffset, alpha);
+            Visuals.Visualize(PrimitiveType.Sphere, position.leftHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -39228393 + indexIdOffset, alpha);
+            Visuals.Visualize(PrimitiveType.Sphere, position.rightHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -39228393 + indexIdOffset, alpha);
         }
 
         public static bool frameStepper;
@@ -2316,7 +2147,7 @@ namespace Seralyth.Mods
 
             VisualizePlayerPosition(startPosition, doMacro ? buttonColors[1].GetCurrentColor() : Color.white, doMacro ? 0.15f : 0.05f);
             if (doMacro)
-                Visuals.VisualizeAura(startPosition.position, 1f, buttonColors[1].GetCurrentColor(), null, 0.05f);
+                Visuals.Visualize(PrimitiveType.Sphere, startPosition.position, Quaternion.identity, new Vector3(1f, 1f, 1f), buttonColors[1].GetCurrentColor(), -1, 0.05f);
             else
                 return;
 
@@ -2333,24 +2164,9 @@ namespace Seralyth.Mods
         public static bool leftWallWalk;
         public static bool bothWallWalk;
 
-        public static void ChangeWallWalkStrength(bool positive = true)
-        {
-            float[] strengthAmounts = { 2f, 5f, 9.81f, 15f, 50f };
-            string[] strengthNames = { "Very Weak", "Weak", "Normal", "Strong", "Very Strong" };
-
-            if (positive)
-                wallWalkStrengthIndex++;
-            else
-                wallWalkStrengthIndex--;
-
-            wallWalkStrengthIndex %= strengthAmounts.Length;
-            if (wallWalkStrengthIndex < 0)
-                wallWalkStrengthIndex = strengthAmounts.Length - 1;
-
-            wallWalkStrength = strengthAmounts[wallWalkStrengthIndex];
-
-            Buttons.GetIndex("Change Wall Walk Strength").overlapText = "Change Wall Walk Strength <color=grey>[</color><color=green>" + strengthNames[wallWalkStrengthIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] WallWalkStrengthAmounts = { 2f, 5f, 9.81f, 15f, 50f };
+        public static readonly string[] WallWalkStrengthNames = { "Very Weak", "Weak", "Normal", "Strong", "Very Strong" };
+        public static void ApplyWallWalkStrength(int index) => wallWalkStrength = WallWalkStrengthAmounts[index];
 
         public static void WallWalk()
         {
@@ -2395,27 +2211,29 @@ namespace Seralyth.Mods
             }
         }
 
+
+        static Quaternion spiderRot;
+        static Quaternion tappedRot;
         public static void SpiderWalk()
         {
             if (GTPlayer.Instance.IsHandTouching(true) || GTPlayer.Instance.IsHandTouching(false))
             {
                 RaycastHit ray = GTPlayer.Instance.lastHitInfoHand;
-                walkPos = ray.point;
-                walkNormal = ray.normal;
+                Vector3 up = ray.normal.normalized;
+                Vector3 forward = Vector3.Cross(Vector3.right, up);
+                tappedRot = Quaternion.LookRotation(forward, up);
             }
 
-            if (walkPos != Vector3.zero)
-            {
-                GorillaTagger.Instance.rigidbody.AddForce(walkNormal * -9.81f, ForceMode.Acceleration);
-                GTPlayer.Instance.GetControllerTransform(false).parent.rotation = Quaternion.Lerp(GTPlayer.Instance.GetControllerTransform(false).parent.rotation, Quaternion.LookRotation(walkNormal) * Quaternion.Euler(90f, 0f, 0f), Time.deltaTime);
-                ZeroGravity();
-            }
+            float t = 1f - Mathf.Exp(-5f * Time.deltaTime);
+            spiderRot = Quaternion.Slerp(spiderRot, tappedRot, t);
+            GTPlayerTransform.ApplyRotationOverride(spiderRot, Time.frameCount);
+            GTPlayer.Instance.SetGravityOverride(GTPlayer.Instance, p => p.AddForce(spiderRot * Physics.gravity, ForceMode.Acceleration));
         }
 
         public static void TeleportToRandom()
         {
             closePosition = Vector3.zero;
-            TeleportPlayer(GetRandomVRRig(false).transform.position);
+            TeleportPlayer(GetRandomVRRig().transform.position);
             GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
         }
 
@@ -2428,142 +2246,67 @@ namespace Seralyth.Mods
         }
 
         private static int rememberPageNumber;
-        public static readonly string[][] mapData = {
-            new[] // Forest
-            {
-                "Forest",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/TreeRoomSpawnForestZone",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Forest, Tree Exit"
-            },
-            new[] // City
-            {
-                "City",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/ForestToCity",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - City Front"
-            },
-            new[] // Canyons
-            {
-                "Canyons",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/ForestCanyonTransition",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Canyon"
-            },
-            new[] // Clouds
-            {
-                "Clouds",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityToSkyJungle",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Clouds From Computer"
-            },
-            new[] // Caves
-            {
-                "Caves",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/ForestToCave",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Cave"
-            },
-            new[] // Beach
-            {
-                "Beach",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/BeachToForest",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Beach for Computer"
-            },
-            new[] // Mountains
-            {
-                "Mountains",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityToMountain",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Mountain"
-            },
-            new[] // Basement
-            {
-                "Basement",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityToBasement",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Basement For Computer"
-            },
-            new[] // Metropolis
-            {
-                "Metropolis",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/MetropolisOnly",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Metropolis from Computer"
-            },
-            new[] // Arcade
-            {
-                "Arcade",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityToArcade",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - City frm Arcade"
-            },
-            new[] // Critters
-            {
-                "Critters",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityCrittersTransition",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - City from Critters"
-            },
-            new[] // Skate Park / Hoverboard
-            {
-                "Skate Park",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/ForestToHoverboard",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Hoverboard from Forest"
-            },
-            new[] // Monke Blocks
-            {
-                "Monke Blocks",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/MonkeBlocksElevatorExit",
-                "Environment Objects/05Maze_PersistentObjects/GhostReactorElevatorManager/MonkeBlocksElevator/Triggers/JoinRoomTrigger"
-            },
-            new[] // Rotating
-            {
-                "Rotating",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/CityToRotating",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - Rotating Map"
-            },
-            new[] // Bayou
-            {
-                "Bayou",
-                "Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/Regional Transition/BayouOnly",
-                "Environment Objects/TriggerZones_Prefab/JoinRoomTriggers_Prefab/JoinPublicRoom - BayouComputer2"
-            },
-            new[] // Virtual Stump
-            {
-                "Virtual Stump",
-                "VSTUMP",
-                "VSTUMP"
-            },
-            new[] // Lava Forest
-            {
-                "Lava Forest",
-                "Environment Objects/05Maze_PersistentObjects/GhostReactorElevatorManager/VIMForestLavaElevator/Triggers/VIMExp1_SetZoneTrigger",
-                "Environment Objects/05Maze_PersistentObjects/GhostReactorElevatorManager/VIMForestLavaElevator/Triggers/JoinRoomTrigger"
-            },
-
+        public static readonly Dictionary<string, GTZone> mapData = new Dictionary<string, GTZone>()
+        {
+            { "Forest", GTZone.forest },
+            { "Ranked Forest", GTZone.ranked },
+            { "City", GTZone.city },
+            { "Canyons", GTZone.canyon },
+            { "Clouds", GTZone.skyJungle },
+            { "Caves", GTZone.cave },
+            { "Beach", GTZone.beach },
+            { "Mountains", GTZone.mountain },
+            { "Basement", GTZone.basement },
+            { "Metropolis", GTZone.Metropolis },
+            { "Arcade", GTZone.arcade },
+            { "Critters", GTZone.critters },
+            { "Skate Park", GTZone.hoverboard },
+            { "Monke Blocks", GTZone.monkeBlocks },
+            { "Ghost Reactor", GTZone.ghostReactor },
+            { "Rotating", GTZone.rotating },
+            { "Bayou", GTZone.bayou },
+            { "Virtual Stump", GTZone.customMaps },
+            { "GTFC", GTZone.GTFC },
+            { "Lava Forest", GTZone.VIMExperience1 },
+            { "Space Map", GTZone.spaceMap },
         };
 
-        public static void EnterTeleportToMap() // Credits to Malachi for some of the positions
+        public static void EnterTeleportToMap()
         {
             rememberPageNumber = pageNumber;
+            List<ButtonInfo> tpbuttons = new List<ButtonInfo>
+            {
+                new ButtonInfo
+                {
+                    buttonText = "Exit Teleport to Map",
+                    method = ExitTeleportToMap,
+                    isTogglable = false,
+                    toolTip = "Returns you back to the movement mods."
+                }
+            };
 
-            List<ButtonInfo> tpbuttons = new List<ButtonInfo> { new ButtonInfo { buttonText = "Exit Teleport to Map", method = ExitTeleportToMap, isTogglable = false, toolTip = "Returns you back to the movement mods." } };
-
-            foreach (string[] Data in mapData)
-                tpbuttons.Add(new ButtonInfo { buttonText = "TeleportMap" + tpbuttons.Count, overlapText = Data[0], method = () => TeleportToMap(Data[1], Data[2]), isTogglable = false, toolTip = "Teleports you to the " + Data[0] + " map." });
+            foreach (KeyValuePair<string, GTZone> entry in mapData)
+            {
+                tpbuttons.Add(new ButtonInfo
+                {
+                    buttonText = "TeleportMap" + tpbuttons.Count,
+                    overlapText = entry.Key,
+                    method = () => TeleportToMap(entry.Value),
+                    isTogglable = false,
+                    toolTip = "Teleports you to the " + entry.Key + " map."
+                });
+            }
 
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = tpbuttons.ToArray();
-
             Buttons.CurrentCategoryName = "Temporary Category";
         }
 
-        public static void TeleportToMap(string zone, string pos)
+        public static void TeleportToMap(GTZone zone)
         {
-            if (zone == "VSTUMP")
-            {
-                VirtualStumpTeleporter tele = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/VirtualStump_HeadsetTeleporter/TeleporterTrigger").GetComponent<VirtualStumpTeleporter>();
-
-                tele.gameObject.transform.parent.parent.parent.parent.parent.parent.gameObject.SetActive(true); // wtf
-                tele.gameObject.transform.parent.parent.parent.parent.gameObject.SetActive(true);
-
-                tele.TeleportPlayer();
-            }
-            else
-            {
-                GetObject(zone)?.GetComponent<GorillaSetZoneTrigger>()?.OnBoxTriggered();
-                TeleportPlayer(GetObject(pos)?.transform.position ?? VRRig.LocalRig.transform.position);
-            }
+            GorillaNetworkJoinTrigger trigger = PhotonNetworkController.Instance.allJoinTriggers.FirstOrDefault(t => t.zone == zone);
+            ZoneManagement.SetActiveZone(zone);
+            trigger?.OnBoxTriggered();
+            TeleportPlayer(trigger?.transform.position ?? VRRig.LocalRig.transform.position);
         }
 
         public static bool previousTeleportTrigger;
@@ -2826,7 +2569,7 @@ namespace Seralyth.Mods
                     if (Ray.collider != null)
                     {
                         TeleportPlayer(pearl.transform.position);
-                        if (PhotonNetwork.InRoom)
+                        if (NetworkSystem.Instance.InRoom)
                             GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 84, true, 999999f);
                         else
                             VRRig.LocalRig.PlayHandTapLocal(84, true, 999999f);
@@ -2873,7 +2616,7 @@ namespace Seralyth.Mods
         {
             bool isTagged = VRRig.LocalRig.IsTagged();
 
-            VRRig closestRig = VRRigCache.ActiveRigs
+            VRRig closestRig = VRRigExtensions.ActiveRigs
                 .Where(rig => rig != null && !rig.isLocal &&
                                   (isTagged ? !rig.IsTagged() : rig.IsTagged()))
                 .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position))
@@ -2918,10 +2661,15 @@ namespace Seralyth.Mods
             playspace.enabled = false;
         }
 
+        static List<MeshCollider> colliders = new List<MeshCollider>();
         public static void UpdateClipColliders(bool enabled)
         {
-            foreach (MeshCollider v in Resources.FindObjectsOfTypeAll<MeshCollider>())
-                v.enabled = enabled;
+            if (!colliders.Any())
+                foreach (MeshCollider v in Resources.FindObjectsOfTypeAll<MeshCollider>())
+                    if (v.enabled)
+                        colliders.Add(v);
+
+            colliders.ForEach(collider => collider.enabled = enabled);
         }
 
         public static void Noclip()
@@ -2974,7 +2722,6 @@ namespace Seralyth.Mods
 
         public static bool lastHit;
         public static bool lastHit2;
-        public static bool lastRG;
 
         public static void Invisible()
         {
@@ -3604,7 +3351,7 @@ namespace Seralyth.Mods
 
         public static void EyeContact()
         {
-            foreach (VRRig rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()))
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
             {
                 if (Physics.SphereCast(rig.headMesh.transform.position + (rig.headMesh.transform.forward * 0.25f), 0.25f, rig.headMesh.transform.forward, out _, 512f, NoInvisLayerMask()))
                 {
@@ -3629,7 +3376,7 @@ namespace Seralyth.Mods
             VRRig.LocalRig.enabled = false;
             if (Time.time > beesDelay)
             {
-                VRRig target = GetRandomVRRig(false);
+                VRRig target = GetRandomVRRig();
 
                 VRRig.LocalRig.transform.position = target.transform.position + Vector3.up;
 
@@ -3669,6 +3416,14 @@ namespace Seralyth.Mods
             VRRig.LocalRig.NativeScale = sizeScale;
             GTPlayer.Instance.nativeScale = sizeScale;
         }
+        public static void DisableSizeChanger()
+        {
+            sizeScale = 1f;
+
+            VRRig.LocalRig.transform.localScale = Vector3.one * sizeScale;
+            VRRig.LocalRig.NativeScale = sizeScale;
+            GTPlayer.Instance.nativeScale = sizeScale;
+        }
 
         public static void SilentRotate(bool enable, Quaternion rot)
         {
@@ -3676,7 +3431,7 @@ namespace Seralyth.Mods
             {
                 SerializePatch.OverrideSerialization ??= () =>
                 {
-                    if (!PhotonNetwork.InRoom)
+                    if (!NetworkSystem.Instance.InRoom)
                         return true;
 
                     Quaternion archive = VRRig.LocalRig.transform.rotation;
@@ -3695,9 +3450,9 @@ namespace Seralyth.Mods
             VRRig.LocalRig.transform.rotation = rot;
 
         public static void VRRigLateUpdate_Dinnerbone() =>
-            VRRig.LocalRig.transform.RotateAround(VRRig.LocalRig.bodyTransform.position, Camera.main.transform.forward, 180f);
+            VRRig.LocalRig.transform.RotateAround(VRRig.LocalRig.bodyTransform.position, VRRig.LocalRig.bodyTransform.forward, 180f);
 
-        public static void VRRigLateUpdate_SpazBody() => Rotate(Random.rotationUniform);
+        public static void VRRigLateUpdate_SpazBody() => Rotate(Random.rotation);
 
         public static void VRRigLateUpdate_FakeFBT()
         {
@@ -3709,29 +3464,41 @@ namespace Seralyth.Mods
 
         private static Quaternion? vrrigJoystickRot;
 
-        public static void VRRigLateUpdate_Joystick()
+        public static void VRRigLateUpdate_Control()
         {
-            if (rightJoystickClick || leftJoystickClick)
+            if (rightJoystickClick || leftJoystickClick || UnityInput.GetKeyDown(Key.Enter))
                 vrrigJoystickRot = null;
 
             Vector2 r = rightJoystick;
             Vector2 l = leftJoystick;
             Vector2 stick = (l.sqrMagnitude > r.sqrMagnitude) ? l : r;
 
+            Vector2 keys = Vector2.zero;
+            if (UnityInput.GetKey(Key.LeftArrow)) keys.x -= 1f;
+            if (UnityInput.GetKey(Key.RightArrow)) keys.x += 1f;
+            if (UnityInput.GetKey(Key.UpArrow)) keys.y += 1f;
+            if (UnityInput.GetKey(Key.DownArrow)) keys.y -= 1f;
+
+            if (keys.sqrMagnitude > 0f)
+                keys.Normalize();
+
+            if (keys.sqrMagnitude > stick.sqrMagnitude)
+                stick = keys;
+
             if (stick.sqrMagnitude > 0.0025)
             {
                 if (!vrrigJoystickRot.HasValue)
                     vrrigJoystickRot = VRRig.LocalRig.transform.rotation;
-                float yaw = stick.x * 200f * Time.deltaTime;
-                float pitch = -stick.y * 200f * Time.deltaTime;
+
+                float yaw = stick.x * 200f * Buttons.GetIndex("Joystick Rotation Speed").GetValue<int>() * Time.deltaTime;
+                float pitch = -stick.y * 200f * Buttons.GetIndex("Joystick Rotation Speed").GetValue<int>() * Time.deltaTime;
 
                 Quaternion rot = vrrigJoystickRot.Value;
-
                 rot = Quaternion.AngleAxis(yaw, Vector3.up) * rot;
                 Vector3 localRight = rot * Vector3.right;
                 rot = Quaternion.AngleAxis(pitch, localRight) * rot;
-
                 rot.Normalize();
+
                 vrrigJoystickRot = rot;
             }
 
@@ -3739,14 +3506,99 @@ namespace Seralyth.Mods
                 VRRig.LocalRig.transform.rotation = vrrigJoystickRot.Value;
         }
 
-        public static void DisableSizeChanger()
-        {
-            sizeScale = 1f;
 
-            VRRig.LocalRig.transform.localScale = Vector3.one * sizeScale;
-            VRRig.LocalRig.NativeScale = sizeScale;
-            GTPlayer.Instance.nativeScale = sizeScale;
+        private static Quaternion? bodyJoystickRot;
+
+        public static void ControlBodyRotation()
+        {
+            if (rightJoystickClick || leftJoystickClick || UnityInput.GetKeyDown(Key.Enter))
+                bodyJoystickRot = null;
+
+            Vector2 r = rightJoystick;
+            Vector2 l = leftJoystick;
+            Vector2 stick = (l.sqrMagnitude > r.sqrMagnitude) ? l : r;
+
+            Vector2 keys = Vector2.zero;
+            if (UnityInput.GetKey(Key.LeftArrow)) keys.x -= 1f;
+            if (UnityInput.GetKey(Key.RightArrow)) keys.x += 1f;
+            if (UnityInput.GetKey(Key.UpArrow)) keys.y += 1f;
+            if (UnityInput.GetKey(Key.DownArrow)) keys.y -= 1f;
+
+            if (keys.sqrMagnitude > 0f)
+                keys.Normalize();
+
+            if (keys.sqrMagnitude > stick.sqrMagnitude)
+                stick = keys;
+
+            float yawSpeed = 200f;
+            float pitchSpeed = 200f;
+
+            if (stick.sqrMagnitude > 0.0025)
+            {
+                if (!bodyJoystickRot.HasValue)
+                    bodyJoystickRot = VRRig.LocalRig.transform.rotation;
+
+                float yaw = stick.x * yawSpeed * Buttons.GetIndex("Joystick Rotation Speed").GetValue<int>() * Time.deltaTime;
+                float pitch = -stick.y * pitchSpeed * Buttons.GetIndex("Joystick Rotation Speed").GetValue<int>() * Time.deltaTime;
+
+                Quaternion rot = bodyJoystickRot.Value;
+                rot = Quaternion.AngleAxis(yaw, Vector3.up) * rot;
+                Vector3 localRight = rot * Vector3.right;
+                rot = Quaternion.AngleAxis(pitch, localRight) * rot;
+                rot.Normalize();
+
+                bodyJoystickRot = rot;
+            }
+
+            if (bodyJoystickRot != null)
+                VRRig.LocalRig.transform.rotation = bodyJoystickRot.Value;
         }
+
+        static bool flipping;
+        static float flipStart;
+        static Quaternion flipFrom;
+        static Vector3 flipAxis;
+        const float flipDuration = 1f;
+
+        public static void Backflip()
+        {
+            bool silentFlip = Buttons.GetIndex("Silent Flip").enabled;
+            if (!flipping && rightPrimary && VRRig.LocalRig.enabled)
+            {
+                if (GTPlayer.Instance.playerRigidBody)
+                {
+                    flipping = true;
+                    flipStart = Time.time;
+                    flipAxis = VRRig.LocalRig.transform.right;
+                    flipFrom = GTPlayer.Instance?.playerRigidBody?.rotation ?? Quaternion.identity;
+                }
+            }
+            if (!flipping) return;
+
+            float t = (Time.time - flipStart) / flipDuration;
+            if (t >= 1f)
+            {
+                flipping = false;
+                if (silentFlip)
+                    VRRig.LocalRig.transform.rotation = flipFrom;
+                else
+                    GTPlayerTransform.ApplyRotationOverride(flipFrom, Time.frameCount);
+
+                return;
+            }
+            var rot = Quaternion.AngleAxis(-360f * t, flipAxis) * flipFrom;
+            if (silentFlip)
+                VRRig.LocalRig.transform.rotation = Quaternion.Euler(0f, GorillaTagger.Instance.bodyCollider.transform.eulerAngles.y, 0f) * rot;
+            else
+                GTPlayerTransform.ApplyRotationOverride(rot, Time.frameCount);
+        }
+
+
+        public static void SpiderCrawl() =>
+            GorillaTagger.Instance.headCollider.transform.rotation = Quaternion.Euler(-270, GorillaTagger.Instance.headCollider.transform.rotation.eulerAngles.y, 0);
+
+        public static void UpwardsBody() =>
+             GorillaTagger.Instance.headCollider.transform.rotation = Quaternion.Euler(-180, GorillaTagger.Instance.headCollider.transform.rotation.eulerAngles.y, GorillaTagger.Instance.headCollider.transform.rotation.eulerAngles.z);
 
         private static readonly Dictionary<GorillaSurfaceOverride, float> velocityArchive = new Dictionary<GorillaSurfaceOverride, float>();
         public static void SlipSlap()
@@ -3804,6 +3656,7 @@ namespace Seralyth.Mods
         private static GameObject climb;
         public static void ClimbyHands()
         {
+
             if (climb == null)
             {
                 climb = new GameObject("GR");
@@ -3871,26 +3724,36 @@ namespace Seralyth.Mods
         public static void PunchMod()
         {
             int index = -1;
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 index++;
+                Vector3 localBodyPos = VRRig.LocalRig.bodyTransform.position;
 
-                Vector3 they = vrrig.rightHandTransform.position;
-                Vector3 notthem = VRRig.LocalRig.bodyTransform.position;
-                float distance = Vector3.Distance(they, notthem);
+                HandlePunch(vrrig.rightHandTransform, ref lastRight[index], localBodyPos);
+                HandlePunch(vrrig.leftHandTransform, ref lastLeft[index], localBodyPos);
 
-                if (distance < 0.25f)
-                    GorillaTagger.Instance.rigidbody.linearVelocity += Vector3.Normalize(vrrig.rightHandTransform.position - lastRight[index]) * 10f;
+                static void HandlePunch(Transform handTransform, ref Vector3 lastPos, Vector3 localBodyPos)
+                {
+                    Vector3 handPos = handTransform.position;
+                    float distance = Vector3.Distance(handPos, localBodyPos);
 
-                lastRight[index] = vrrig.rightHandTransform.position;
+                    if (distance < 0.25f)
+                    {
+                        if (Buttons.GetIndex("Graphic Punch Mod").enabled)
+                        {
+                            Projectiles.SendProjectile(
+                                Projectiles.FindProjectile("Apple"),
+                                VRRig.LocalRig.headMesh.transform.position,
+                                Vector3.down * 600f,
+                                new Color32(100, 0, 0, 255));
+                        }
 
-                they = vrrig.leftHandTransform.position;
-                distance = Vector3.Distance(they, notthem);
+                        GorillaTagger.Instance.rigidbody.linearVelocity +=
+                            Vector3.Normalize(handPos - lastPos) * 10f;
+                    }
 
-                if (distance < 0.25f)
-                    GorillaTagger.Instance.rigidbody.linearVelocity += Vector3.Normalize(vrrig.leftHandTransform.position - lastLeft[index]) * 10f;
-
-                lastLeft[index] = vrrig.leftHandTransform.position;
+                    lastPos = handPos;
+                }
             }
         }
 
@@ -3901,7 +3764,7 @@ namespace Seralyth.Mods
         {
             if (sithlord == null)
             {
-                foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+                foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                 {
                     try
                     {
@@ -3958,7 +3821,7 @@ namespace Seralyth.Mods
         public static void SafetyBubble()
         {
             foreach (VRRig rig in
-                VRRigCache.ActiveRigs
+                VRRigExtensions.ActiveRigs
                     .Where(rig => rig != null && !rig.isLocal)
                     .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)))
             {
@@ -3978,7 +3841,7 @@ namespace Seralyth.Mods
             List<VRRig> toRemove = new List<VRRig>();
             foreach (VRRig rig in RigColliders.Keys)
             {
-                if (!VRRigCache.ActiveRigs.Contains(rig))
+                if (!VRRigExtensions.ActiveRigs.Contains(rig))
                     toRemove.Add(rig);
             }
 
@@ -3990,7 +3853,7 @@ namespace Seralyth.Mods
 
             toRemove.Clear();
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!RigColliders.TryGetValue(vrrig, out List<GameObject> colliders))
                 {
@@ -4037,33 +3900,9 @@ namespace Seralyth.Mods
         }
 
         public static int pullPowerInt;
-        public static void ChangePullModPower(bool positive = true)
-        {
-            float[] powers = {
-                0.05f,
-                0.1f,
-                0.2f,
-                0.4f
-            };
-            string[] powerNames = {
-                "Normal",
-                "Medium",
-                "Strong",
-                "Powerful"
-            };
-
-            if (positive)
-                pullPowerInt++;
-            else
-                pullPowerInt--;
-
-            pullPowerInt %= powerNames.Length;
-            if (pullPowerInt < 0)
-                pullPowerInt = powerNames.Length - 1;
-
-            pullPower = powers[pullPowerInt];
-            Buttons.GetIndex("Change Pull Mod Power").overlapText = "Change Pull Mod Power <color=grey>[</color><color=green>" + powerNames[pullPowerInt] + "</color><color=grey>]</color>";
-        }
+        public static readonly float[] PullModPowers = { 0.05f, 0.1f, 0.2f, 0.4f };
+        public static readonly string[] PullModPowerNames = { "Normal", "Medium", "Strong", "Powerful" };
+        public static void ApplyPullModPower(int index) => pullPower = PullModPowers[index];
 
         private static float pullPower = 0.05f;
         private static readonly Dictionary<bool, bool> previousTouchingGround = new Dictionary<bool, bool>();
@@ -4253,7 +4092,8 @@ namespace Seralyth.Mods
         }
 
         public static bool passWorldScaleCheck;
-        public static Vector3? lastFramePosition;
+        private static Vector3? lastFramePosition;
+        private static bool wasHandsNearHead;
         public static void EnableSteamLongArms()
         {
             if (passWorldScaleCheck)
@@ -4262,26 +4102,31 @@ namespace Seralyth.Mods
                 Vector3 leftHandPosition = ControllerInputPoller.DevicePosition(XRNode.LeftHand);
                 Vector3 rightHandPosition = ControllerInputPoller.DevicePosition(XRNode.RightHand);
 
-                bool bothHandsNotMoving = GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0).magnitude < 2f && GTPlayer.Instance.LeftHand.velocityTracker.GetAverageVelocity(true, 0).magnitude < 2f;
+                bool bothHandsNotMoving =
+                    GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0).magnitude < 2f &&
+                    GTPlayer.Instance.LeftHand.velocityTracker.GetAverageVelocity(true, 0).magnitude < 2f;
 
-                if (headPosition.Distance(leftHandPosition) < 0.2f && headPosition.Distance(rightHandPosition) < 0.2f && bothHandsNotMoving)
+                bool handsNearHead =
+                    headPosition.Distance(leftHandPosition) < 0.2f &&
+                    headPosition.Distance(rightHandPosition) < 0.2f &&
+                    bothHandsNotMoving;
+
+                if (handsNearHead && !wasHandsNearHead)
                 {
-                    Vector3 position = GorillaTagger.Instance.bodyCollider.transform.position;
+                    lastFramePosition = GorillaTagger.Instance.bodyCollider.transform.position;
                     DisableSteamLongArms();
-
-                    if (lastFramePosition == null)
-                        TeleportPlayer(position);
-
-                    lastFramePosition = position;
-
-                    return;
                 }
 
-                if (lastFramePosition != null)
+                if (!handsNearHead && wasHandsNearHead)
                 {
-                    TeleportPlayer(lastFramePosition.Value);
-                    lastFramePosition = null;
+                    if (lastFramePosition.HasValue)
+                    {
+                        TeleportPlayer(lastFramePosition.Value);
+                        lastFramePosition = null;
+                    }
                 }
+
+                wasHandsNearHead = handsNearHead;
             }
 
             GTPlayer.Instance.transform.localScale = Vector3.one * (VRRig.LocalRig.NativeScale * armlength);
@@ -4352,34 +4197,9 @@ namespace Seralyth.Mods
 
         public static float predCount = 0.0125f;
         public static int predInt = 1;
-        public static void ChangePredictionAmount(bool positive = true)
-        {
-            float[] predAmnts = {
-                0.00625f,
-                0.0125f,
-                0.025f,
-                0.05f
-            };
-            string[] predAmntNames = {
-                "Low",
-                "Normal",
-                "High",
-                "Extreme"
-            };
-
-            if (positive)
-                predInt++;
-            else
-                predInt--;
-
-            predInt %= predAmnts.Length;
-            if (predInt < 0)
-                predInt = predAmnts.Length - 1;
-
-            predCount = predAmnts[predInt];
-            Buttons.GetIndex("Change Prediction Amount").overlapText = "Change Prediction Amount <color=grey>[</color><color=green>" + predAmntNames[predInt] + "</color><color=grey>]</color>";
-        }
-
+        public static readonly float[] PredictionAmounts = { 0.00625f, 0.0125f, 0.025f, 0.05f };
+        public static readonly string[] PredictionAmountNames = { "Low", "Normal", "High", "Extreme" };
+        public static void ApplyPredictionAmount(int index) => predCount = PredictionAmounts[index];
         public static void VelocityLongArms()
         {
             lvT.transform.position = GorillaTagger.Instance.headCollider.transform.position - GorillaTagger.Instance.leftHandTransform.position;
@@ -4391,20 +4211,7 @@ namespace Seralyth.Mods
         public static int fakeLagDelayIndex = 10;
         private static float fakeLagDelay = 1f;
 
-        public static void ChangeFakeLagStrength(bool positive = true)
-        {
-            if (positive)
-                fakeLagDelayIndex++;
-            else
-                fakeLagDelayIndex--;
-
-            fakeLagDelayIndex %= 21;
-            if (fakeLagDelayIndex < 0)
-                fakeLagDelayIndex = 20;
-
-            fakeLagDelay = fakeLagDelayIndex / 10f;
-            Buttons.GetIndex("Change Fake Lag Strength").overlapText = "Change Fake Lag Strength <color=grey>[</color><color=green>" + fakeLagDelayIndex + "</color><color=grey>]</color>";
-        }
+        public static void ApplyFakeLagStrength(int index) => fakeLagDelay = index / 10f;
 
         public static void FakeLag()
         {
@@ -4423,7 +4230,7 @@ namespace Seralyth.Mods
         {
             bool isTagged = VRRig.LocalRig.IsTagged();
 
-            VRRig closestRig = VRRigCache.ActiveRigs
+            VRRig closestRig = VRRigExtensions.ActiveRigs
                 .Where(rig => rig != null && !rig.isLocal &&
                                   (isTagged ? !rig.IsTagged() : rig.IsTagged()))
                 .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position))
@@ -4455,20 +4262,7 @@ namespace Seralyth.Mods
         }
 
         public static int timerPowerIndex = 15;
-        public static void ChangeTimerSpeed(bool positive = true)
-        {
-            if (positive)
-                timerPowerIndex++;
-            else
-                timerPowerIndex--;
-
-            timerPowerIndex %= 51;
-            if (timerPowerIndex < 1)
-                timerPowerIndex = 50;
-
-            timerPower = timerPowerIndex / 10f;
-            Buttons.GetIndex("Change Timer Speed").overlapText = "Change Timer Speed <color=grey>[</color><color=green>" + (timerPowerIndex / 10f) + "</color><color=grey>]</color>";
-        }
+        public static void ApplyTimerSpeed(int index) => timerPower = index / 10f;
 
         private static float timerPower = 1.5f;
         public static void Timer()
@@ -4631,24 +4425,30 @@ namespace Seralyth.Mods
         }
 
         public static void SetSwimSpeed(float speed = 3f) =>
-            GTPlayer.Instance.swimmingParams.swimmingVelocityOutOfWaterDrainRate = speed;
+            GTPlayer.Instance.swimmingParamsList.ForEach(s => s.swimmingVelocityOutOfWaterDrainRate = speed);
 
-        private static float? waterSurfaceJumpAmount;
-        private static float? waterSurfaceJumpMaxSpeed;
-        public static void WaterRunHelper(bool enable)
+        private static List<float> waterSurfaceJumpAmount;
+        private static List<float> waterSurfaceJumpMaxSpeed;
+        public static void LiquidRunHelper(bool enable)
         {
             if (enable)
             {
-                waterSurfaceJumpAmount = GTPlayer.Instance.swimmingParams.waterSurfaceJumpAmount;
-                waterSurfaceJumpMaxSpeed = GTPlayer.Instance.swimmingParams.waterSurfaceJumpMaxSpeed;
+                waterSurfaceJumpAmount = GTPlayer.Instance.swimmingParamsList.Select(s => s.waterSurfaceJumpAmount).ToList();
+                waterSurfaceJumpMaxSpeed = GTPlayer.Instance.swimmingParamsList.Select(s => s.waterSurfaceJumpMaxSpeed).ToList();
 
-                GTPlayer.Instance.swimmingParams.waterSurfaceJumpAmount = 1.25f;
-                GTPlayer.Instance.swimmingParams.waterSurfaceJumpMaxSpeed = 4.333f;
+                GTPlayer.Instance.swimmingParamsList.ForEach(s =>
+                {
+                    s.waterSurfaceJumpAmount = 1.25f;
+                    s.waterSurfaceJumpMaxSpeed = 4.333f;
+                });
             }
             else
             {
-                GTPlayer.Instance.swimmingParams.waterSurfaceJumpAmount = waterSurfaceJumpAmount ?? 0.6f;
-                GTPlayer.Instance.swimmingParams.waterSurfaceJumpMaxSpeed = waterSurfaceJumpMaxSpeed ?? 1f;
+                for (int i = 0; i < GTPlayer.Instance.swimmingParamsList.Count; i++)
+                {
+                    GTPlayer.Instance.swimmingParamsList[i].waterSurfaceJumpAmount = waterSurfaceJumpAmount[i];
+                    GTPlayer.Instance.swimmingParamsList[i].waterSurfaceJumpMaxSpeed = waterSurfaceJumpMaxSpeed[i];
+                }
             }
         }
 
@@ -4711,7 +4511,7 @@ namespace Seralyth.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                    CopyMovementPlayer(GetPlayerFromVRRig(lockTarget));
+                    CopyMovementPlayer(lockTarget.GetPlayer());
 
                 if (GetGunInput(true))
                 {
@@ -4861,7 +4661,7 @@ namespace Seralyth.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                    FollowPlayer(GetPlayerFromVRRig(lockTarget));
+                    FollowPlayer(lockTarget.GetPlayer());
 
                 if (GetGunInput(true))
                 {
@@ -5304,7 +5104,7 @@ namespace Seralyth.Mods
 
                     if (Time.time > Fun.splashDel)
                     {
-                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", GetPlayerFromVRRig(lockTarget), lockTarget.transform.position + RandomVector3(0.5f), RandomQuaternion(), 4f, 100f, true, false);
+                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", lockTarget.GetPlayer(), lockTarget.transform.position + RandomVector3(0.5f), RandomQuaternion(), 4f, 100f, true, false);
                         RPCProtection();
                         Fun.splashDel = Time.time + 0.1f;
                     }
@@ -5358,29 +5158,16 @@ namespace Seralyth.Mods
             if (Time.time > Fun.splashDel)
             {
                 Fun.splashDel = Time.time + 0.05f;
-                VRRig rig = GetRandomVRRig(false);
-                GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", GetPlayerFromVRRig(rig), rig.transform.position + RandomVector3(0.5f), RandomQuaternion(), 4f, 100f, true, false);
+                VRRig rig = GetRandomVRRig();
+                GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", rig.GetPlayer(), rig.transform.position + RandomVector3(0.5f), RandomQuaternion(), 4f, 100f, true, false);
             }
         }
 
         public static bool tinnitusSelf;
 
         public static int targetHz = 4000;
-        public static void ChangeTinnitusHz(bool positive = true)
-        {
-            if (positive)
-                targetHz += 500;
-            else
-                targetHz -= 500;
-
-            if (targetHz > 7500)
-                targetHz = 4000;
-            if (targetHz < 4000)
-                targetHz = 7500;
-
-            Buttons.GetIndex("Change Tinnitus Hertz").overlapText = "Change Tinnitus Hertz <color=grey>[</color><color=green>" + targetHz + "</color><color=grey>]</color>";
-        }
-        public static AudioClip CreateTinnitusSound(float seconds = 180f)
+        public static void ApplyTinnitusHz(int index) => targetHz = 4000 + index * 500;
+        public static AudioClip CreateTinnitusSound(int targetHz, float seconds = 180f)
         {
             var vm = VoiceManager.Get();
             int sampleRate = vm.OutputRate;
@@ -5400,7 +5187,7 @@ namespace Seralyth.Mods
             return clip;
         }
 
-        public static Dictionary<AudioClip, VoiceManager.Clip> tinnitus = new Dictionary<AudioClip, VoiceManager.Clip>();
+        public static Dictionary<Guid, VoiceManager.Clip> tinnitus = new Dictionary<Guid, VoiceManager.Clip>();
         public static void TinnitusGun()
         {
             if (GetGunInput(false))
@@ -5413,19 +5200,22 @@ namespace Seralyth.Mods
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
-                        if (!PhotonNetwork.InRoom) return;
+                        if (!NetworkSystem.Instance.InRoom) return;
                         gunLocked = true;
                         lockTarget = gunTarget;
 
-                        AudioClip audioClip = CreateTinnitusSound();
-                        VoiceManager.Clip clip = VoiceManager.Get().AudioClip(audioClip);
-                        tinnitus[audioClip] = clip;
-
+                        if (tinnitus.Count == 0)
+                        {
+                            AudioClip audioClip = CreateTinnitusSound(targetHz);
+                            VoiceManager.Clip clip = VoiceManager.Get().AudioClip(audioClip);
+                            clip.Looping = true;
+                            tinnitus[clip.Id] = clip;
+                        }
                         NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.DebugEchoMode = tinnitusSelf;
 
                         SerializePatch.OverrideSerialization = () =>
                         {
-                            NetPlayer target = GetPlayerFromVRRig(lockTarget);
+                            NetPlayer target = lockTarget.GetPlayer();
                             MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
                             Vector3 positionArchive = VRRig.LocalRig.transform.position;
@@ -5456,10 +5246,14 @@ namespace Seralyth.Mods
 
         public static void TinnitusAll()
         {
-            if (!PhotonNetwork.InRoom) return;
-            AudioClip audioClip = CreateTinnitusSound();
-            VoiceManager.Clip clip = VoiceManager.Get().AudioClip(audioClip);
-            tinnitus[audioClip] = clip;
+            if (!NetworkSystem.Instance.InRoom) return;
+            if (tinnitus.Count == 0)
+            {
+                AudioClip audioClip = CreateTinnitusSound(targetHz);
+                VoiceManager.Clip clip = VoiceManager.Get().AudioClip(audioClip);
+                clip.Looping = true;
+                tinnitus[clip.Id] = clip;
+            }
             NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.DebugEchoMode = tinnitusSelf;
 
             SerializePatch.OverrideSerialization = () =>
@@ -5505,7 +5299,7 @@ namespace Seralyth.Mods
                 {
                     if (Time.time > Fun.splashDel)
                     {
-                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", GetPlayerFromVRRig(lockTarget), lockTarget.headMesh.transform.TransformPoint(Vector3.forward * 0.2f), RandomQuaternion(), 4f, 100f, true, false);
+                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", lockTarget.GetPlayer(), lockTarget.headMesh.transform.TransformPoint(Vector3.forward * 0.2f), RandomQuaternion(), 4f, 100f, true, false);
                         Fun.splashDel = Time.time + 0.1f;
                     }
 
@@ -5560,7 +5354,7 @@ namespace Seralyth.Mods
 
                         SerializePatch.OverrideSerialization = () =>
                         {
-                            NetPlayer target = GetPlayerFromVRRig(lockTarget);
+                            NetPlayer target = lockTarget.GetPlayer();
                             MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
                             Vector3 positionArchive = VRRig.LocalRig.transform.position;
@@ -5603,7 +5397,7 @@ namespace Seralyth.Mods
                 return false;
             };
 
-            VRRig randomRig = GetRandomVRRig(false);
+            VRRig randomRig = GetRandomVRRig();
 
             if (Time.time > Fun.splashDel)
             {
@@ -5685,7 +5479,7 @@ namespace Seralyth.Mods
         public static void ShutdownHeadsetAll() =>
             Fun.HoverboardScreenAll(Color.black);
 
-        public static void SchizophrenicGun()
+        public static void ReverseSchizophrenicGun()
         {
             if (GetGunInput(false))
             {
@@ -5702,7 +5496,7 @@ namespace Seralyth.Mods
 
                         SerializePatch.OverrideSerialization = () =>
                         {
-                            NetPlayer target = GetPlayerFromVRRig(lockTarget);
+                            NetPlayer target = lockTarget.GetPlayer();
                             MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
                             Vector3 positionArchive = VRRig.LocalRig.transform.position;
@@ -5729,7 +5523,7 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void ReverseSchizoGun()
+        public static void SchizophrenicGun()
         {
             if (GetGunInput(false))
             {
@@ -5746,7 +5540,7 @@ namespace Seralyth.Mods
 
                         SerializePatch.OverrideSerialization = () =>
                         {
-                            NetPlayer target = GetPlayerFromVRRig(lockTarget);
+                            NetPlayer target = lockTarget.GetPlayer();
                             MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
                             Vector3 positionArchive = VRRig.LocalRig.transform.position;
@@ -5854,12 +5648,12 @@ namespace Seralyth.Mods
         {
             if (Time.frameCount % 45 == 0)
             {
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 64, true, 999999f);
 
                     if (Buttons.GetIndex("Splash Intercourse").enabled)
-                        Fun.BetaWaterSplash(VRRig.LocalRig.transform.position, VRRig.LocalRig.transform.rotation, 4f, 100f, true, false);
+                        Fun.BetaWaterSplash(VRRig.LocalRig.transform.position, VRRig.LocalRig.transform.rotation);
 
                     RPCProtection();
                 }
@@ -6284,18 +6078,6 @@ namespace Seralyth.Mods
         }
 
         public static int multiplicationAmount = 15;
-        public static void MultiplicationAmount(bool positive = true)
-        {
-            if (positive)
-                multiplicationAmount++;
-            else
-                multiplicationAmount--;
-
-            multiplicationAmount %= 1281;
-            if (multiplicationAmount < 0)
-                multiplicationAmount = 1280;
-
-            Buttons.GetIndex("Knockback Multiplication Amount").overlapText = "Knockback Multiplication Amount <color=grey>[</color><color=green>" + (multiplicationAmount / 10f) + "</color><color=grey>]</color>";
-        }
+        public static void ApplyMultiplicationAmount(int index) => multiplicationAmount = index;
     }
 }

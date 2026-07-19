@@ -32,7 +32,7 @@ namespace Seralyth.Patches.Menu
         public static void Postfix(GrowingSnowballThrowable __instance)
         {
             if (enabled)
-                __instance.IncreaseSize(Overpowered.snowballScale);
+                __instance.IncreaseSize(Projectiles.SnowballSize);
         }
     }
 }

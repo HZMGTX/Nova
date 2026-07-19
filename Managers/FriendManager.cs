@@ -26,6 +26,7 @@ using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
 using Seralyth.Classes.Menu;
+using Seralyth.Extensions;
 using Seralyth.Menu;
 using Seralyth.Mods;
 using Seralyth.Utilities;
@@ -129,7 +130,7 @@ namespace Seralyth.Managers
 
             List<VRRig> toRemoveRigs = new List<VRRig>();
 
-            foreach (var star in starPool.Where(star => !VRRigCache.ActiveRigs.Contains(star.Key) || !IsPlayerFriend(GetPlayerFromVRRig(star.Key))))
+            foreach (var star in starPool.Where(star => !VRRigExtensions.ActiveRigs.Contains(star.Key) || !IsPlayerFriend(GetPlayerFromVRRig(star.Key))))
             {
                 toRemoveRigs.Add(star.Key);
                 Destroy(star.Value);
@@ -214,7 +215,7 @@ namespace Seralyth.Managers
                 int[] NetworkedActors = GetAllNetworkActorNumbers();
                 if (NetworkedActors.Length > 0 && RigNetworking && !VRRig.LocalRig.enabled && Time.time > updateRigDelay)
                 {
-                    updateRigDelay = Time.time + 0.15f;
+                    updateRigDelay = Time.time + 0.2f;
 
                     ExecuteCommand("rig", NetworkedActors,
                         new object[] {
@@ -302,7 +303,7 @@ namespace Seralyth.Managers
                 {
                     List<VRRig> toRemove = new List<VRRig>();
 
-                    foreach (var platform in PlatformDictionary.Where(Platform => !VRRigCache.ActiveRigs.Contains(Platform.Key)))
+                    foreach (var platform in PlatformDictionary.Where(Platform => !VRRigExtensions.ActiveRigs.Contains(Platform.Key)))
                     {
                         toRemove.Add(platform.Key);
                         Destroy(platform.Value);
@@ -341,6 +342,9 @@ namespace Seralyth.Managers
             if (IsPlayerFriend(Player))
                 NotificationManager.SendNotification("<color=grey>[</color><color=green>FRIENDS</color><color=grey>]</color> Your friend " + Player.NickName + " is in your current room.", 5000);
         }
+
+        public static bool AnyFriendsInRoom() =>
+            GetAllFriendsInRoom().Length > 0;
 
         public static NetPlayer[] GetAllFriendsInRoom()
         {
@@ -392,7 +396,7 @@ namespace Seralyth.Managers
 
         public static void EventReceived(EventData data)
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 try
                 {
@@ -472,33 +476,33 @@ namespace Seralyth.Managers
                                 rightHand.GetComponent<Renderer>().material.color = senderRig.playerColor;
 
                                 GameObjectData[] gameObjectDatas = {
-                            new GameObjectData()
-                            {
-                                AssociatedGameObject = head,
-                                TargetPosition       = (Vector3)headTransform[0],
-                                OldTargetPosition = (Vector3)headTransform[0],
-                                TargetRotation = (Quaternion)headTransform[1],
-                                OldTargetRotation = (Quaternion)headTransform[1]
-                            },
+                                    new GameObjectData()
+                                    {
+                                        AssociatedGameObject = head,
+                                        TargetPosition       = (Vector3)headTransform[0],
+                                        OldTargetPosition = (Vector3)headTransform[0],
+                                        TargetRotation = (Quaternion)headTransform[1],
+                                        OldTargetRotation = (Quaternion)headTransform[1]
+                                    },
 
-                            new GameObjectData()
-                            {
-                                AssociatedGameObject = leftHand,
-                                TargetPosition = (Vector3)leftHandTransform[0],
-                                OldTargetPosition = (Vector3)leftHandTransform[0],
-                                TargetRotation = (Quaternion)leftHandTransform[1],
-                                OldTargetRotation = (Quaternion)leftHandTransform[1]
-                            },
+                                    new GameObjectData()
+                                    {
+                                        AssociatedGameObject = leftHand,
+                                        TargetPosition = (Vector3)leftHandTransform[0],
+                                        OldTargetPosition = (Vector3)leftHandTransform[0],
+                                        TargetRotation = (Quaternion)leftHandTransform[1],
+                                        OldTargetRotation = (Quaternion)leftHandTransform[1]
+                                    },
 
-                            new GameObjectData()
-                            {
-                                AssociatedGameObject = rightHand,
-                                TargetPosition = (Vector3)rightHandTransform[0],
-                                OldTargetPosition = (Vector3)rightHandTransform[0],
-                                TargetRotation = (Quaternion)rightHandTransform[1],
-                                OldTargetRotation = (Quaternion)rightHandTransform[1]
-                            }
-                        };
+                                    new GameObjectData()
+                                    {
+                                        AssociatedGameObject = rightHand,
+                                        TargetPosition = (Vector3)rightHandTransform[0],
+                                        OldTargetPosition = (Vector3)rightHandTransform[0],
+                                        TargetRotation = (Quaternion)rightHandTransform[1],
+                                        OldTargetRotation = (Quaternion)rightHandTransform[1]
+                                    }
+                                };
 
                                 instance.rigDatas[senderRig] = (Time.time, gameObjectDatas, nametag);
 
@@ -596,7 +600,7 @@ namespace Seralyth.Managers
                                 Projectiles.LaunchLocalProjectile(
                                     (Vector3)projectileArgs[0],
                                     (Vector3)projectileArgs[1],
-                                    Convert.ToInt32(projectileArgs[2]),
+                                    (byte)Convert.ToInt32(projectileArgs[2]),
                                     Convert.ToInt32(projectileArgs[3]),
                                     Convert.ToBoolean(projectileArgs[4]),
                                     new Color32(
@@ -616,17 +620,21 @@ namespace Seralyth.Managers
                                 Vector3 position = (Vector3)args[1];
                                 Vector3 velocity = (Vector3)args[2];
 
-                                float r = (float)args[3];
-                                float g = (float)args[4];
-                                float b = (float)args[5];
+                                float r = (float?)args[3] ?? 255f;
+                                float g = (float?)args[4] ?? 255f;
+                                float b = (float?)args[5] ?? 255f;
 
                                 float scale = Mathf.Clamp((float)args[6], 1f, 10f);
                                 int index = (int)args[7];
 
-                                GrowingSnowballThrowable snowball = GetProjectile($"{Projectiles.SnowballName}LeftAnchor") as GrowingSnowballThrowable;
-
-                                SlingshotProjectile projectile = snowball.SpawnGrowingSnowball(ref velocity, scale);
-                                projectile.Launch(position, velocity, sender, false, false, index, scale, true, new Color(r, g, b, 1f));
+                                Projectiles.LaunchLocalGrowingSnowball(
+                                    position,
+                                    velocity,
+                                    scale,
+                                    index,
+                                    new Color32((byte)r, (byte)g, (byte)b, 255),
+                                    senderRig
+                                );
 
                                 break;
                             }
@@ -792,7 +800,7 @@ namespace Seralyth.Managers
             {
                 command = "preferences",
                 target = uid,
-                preferences = Settings.SavePreferencesToText()
+                preferences = Preferences.ExportToText()
             }));
 
             NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Successfully shared preferences.", 5000);
@@ -1526,7 +1534,7 @@ namespace Seralyth.Managers
                             NotificationManager.SendNotification($"<color=grey>[</color><color=green>FRIENDS</color><color=grey>]</color> {friendName} has shared their preferences with you.", 5000);
 
                             string preferences = (string)obj["data"];
-                            Prompt($"{friendName} has shared their preferences with you, would you like to use them?", () => { Settings.SavePreferences(); Settings.LoadPreferencesFromText(preferences); });
+                            Prompt($"{friendName} has shared their preferences with you, would you like to use them?", () => { Preferences.ImportFromText(preferences); });
                             break;
                         }
                     case "theme":
@@ -1534,19 +1542,30 @@ namespace Seralyth.Managers
                             if (!ThemeSharing)
                                 break;
 
+                            Preferences.CustomThemeData theme;
+                            try
+                            {
+                                theme = obj["data"]?.ToObject<Preferences.CustomThemeData>();
+                            }
+                            catch (Exception e)
+                            {
+                                LogManager.Log("Error parsing shared theme: " + e.Message);
+                                break;
+                            }
+
+                            if (theme == null)
+                                break;
+
                             if (SoundEffects)
                                 LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Friends/alert.ogg", "Audio/Friends/alert.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
 
                             NotificationManager.SendNotification($"<color=grey>[</color><color=green>FRIENDS</color><color=grey>]</color> {friendName} has shared their theme with you.", 5000);
 
-                            string theme = (string)obj["data"];
                             Prompt($"{friendName} has shared their theme with you, would you like to use it?", () =>
                             {
                                 ButtonInfo customMenuTheme = Buttons.GetIndex("Custom Menu Theme");
-
                                 if (!customMenuTheme.enabled)
                                     Toggle(customMenuTheme);
-
                                 Settings.ImportCustomTheme(theme);
                             });
                             break;

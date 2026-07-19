@@ -55,14 +55,14 @@ namespace Seralyth.Classes.Menu
                 return;
 
             if (!Main.dynamicGradients)
-                targetRenderer.material.color = colors.GetCurrentColor();
+                targetRenderer.sharedMaterial.color = colors.GetCurrentColor();
             else
             {
                 if (colors.IsFlat())
-                    targetRenderer.material.color = colors.GetColor(0);
+                    targetRenderer.sharedMaterial.color = colors.GetColor(0);
                 else
                 {
-                    if (targetRenderer.material.shader.name != "Universal Render Pipeline/Unlit" && targetRenderer.material.mainTexture == null)
+                    if (targetRenderer.sharedMaterial.shader.name != "Universal Render Pipeline/Unlit" && targetRenderer.sharedMaterial.mainTexture == null)
                     {
                         targetRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"))
                         {
@@ -76,7 +76,7 @@ namespace Seralyth.Classes.Menu
             }
 
             if (!Main.transparentMenu) return;
-            Color color = targetRenderer.material.color;
+            Color color = targetRenderer.sharedMaterial.color;
             color.a = 0.5f;
             targetRenderer.material.color = color;
         }

@@ -60,7 +60,15 @@ namespace Seralyth.Managers
         public static bool narrateNotifications;
 
         public static int NotifiCounter;
-        private static readonly List<Coroutine> clearCoroutines = new List<Coroutine>();
+        private class NotificationEntry
+        {
+            public string RawText;
+            public string BaseDisplay;
+            public int Counter;
+            public float ExpireTime;
+        }
+
+        private static readonly List<NotificationEntry> activeNotifications = new List<NotificationEntry>();
 
         private void Start()
         {
@@ -147,6 +155,8 @@ namespace Seralyth.Managers
                 canvas.transform.rotation = mainCamera.transform.rotation * Quaternion.Euler(0, 90, 0);
                 canvas.transform.localScale = Vector3.one * (scaleWithPlayer ? GTPlayer.Instance.scale : 1f);
 
+                UpdateNotificationExpiry();
+
                 try
                 {
                     arraylistText.SafeSetFont(activeFont);
@@ -183,7 +193,9 @@ namespace Seralyth.Managers
 
                     List<string> statsLines = information
                         .Select(item => $"<color=#{ColorToHex(targetColor)}>{item.Key}</color> <color=#{ColorToHex(textColors[1].GetColor(0))}>{item.Value}</color>")
-                        .OrderByDescending(item => informationText.GetPreferredValues(NoRichtextTags(item)).x)
+                        .Select(line => (text: line, width: informationText.GetPreferredValues(NoRichtextTags(line)).x))
+                        .OrderByDescending(t => t.width)
+                        .Select(t => t.text)
                         .ToList();
 
                     informationText.SafeSetText(string.Join("\n", statsLines));
@@ -227,21 +239,24 @@ namespace Seralyth.Managers
                         }
 
                         string[] sortedMods = enabledMods
-                            .OrderByDescending(s => arraylistText.GetPreferredValues(NoRichtextTags(s)).x)
+                            .Select(s => (text: s, width: arraylistText.GetPreferredValues(NoRichtextTags(s)).x))
+                            .OrderByDescending(t => t.width)
+                            .Select(t => t.text)
                             .ToArray();
 
-                        string modListText = "";
+
+                        var sb = new System.Text.StringBuilder();
                         for (int i = 0; i < sortedMods.Length; i++)
                         {
                             if (advancedArraylist)
-                                modListText += (flipArraylist ?
-                                /* Flipped */ $"<mark=#{ColorToHex(backgroundColor.GetCurrentColor(i * -0.1f))}80>{sortedMods[i]}</mark><mark=#{ColorToHex(buttonColors[1].GetCurrentColor(i * -0.1f))}> </mark>" :
-                                /* Normal  */ $"<mark=#{ColorToHex(buttonColors[1].GetCurrentColor(i * -0.1f))}> </mark><mark=#{ColorToHex(backgroundColor.GetCurrentColor(i * -0.1f))}80>{sortedMods[i]}</mark>") + "\n";
+                                /* Flipped */
+                                sb.Append(flipArraylist ? $"..." : $"...").Append('\n');
                             else
-                                modListText += sortedMods[i] + "\n";
+                                /* Normal  */
+                                sb.Append(sortedMods[i]).Append('\n');
                         }
+                        arraylistText.SafeSetText(sb.ToString());
 
-                        arraylistText.SafeSetText(modListText);
                         arraylistText.color = Buttons.GetIndex("Swap GUI Colors").enabled ? textColors[1].GetColor(0) : backgroundColor.GetCurrentColor();
                     }
                 }
@@ -322,52 +337,36 @@ namespace Seralyth.Managers
 
                 notificationText = notificationText.TrimEnd('\n', '\r');
 
-                if (PreviousNotifi == notificationText && stackNotifications)
+                float expireTime = Time.time + (clearTime / 1000f);
+                NotificationEntry lastEntry = activeNotifications.Count > 0 ? activeNotifications[^1] : null;
+
+                if (lastEntry != null && PreviousNotifi == notificationText && stackNotifications)
                 {
-                    NotifiCounter++;
-
-                    string[] lines = NotificationManager.notificationText.text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (lines.Length > 0)
-                    {
-                        string lastLine = lines[^1];
-                        int counterIndex = lastLine.IndexOf(" <color=grey>(x", StringComparison.Ordinal);
-                        if (counterIndex > 0)
-                            lastLine = lastLine[..counterIndex];
-
-                        lines[^1] = $"{lastLine} <color=grey>(x{NotifiCounter + 1})</color>";
-                        NotificationManager.notificationText.SafeSetText(string.Join(Environment.NewLine, lines));
-                    }
-
-                    if (clearCoroutines.Count > 0)
-                        CancelClear(clearCoroutines[0]);
+                    lastEntry.Counter++;
+                    lastEntry.ExpireTime = expireTime;
+                    NotifiCounter = lastEntry.Counter;
                 }
                 else
                 {
                     NotifiCounter = 0;
                     PreviousNotifi = notificationText;
 
-                    if (!string.IsNullOrEmpty(NotificationManager.notificationText.text))
+                    activeNotifications.Add(new NotificationEntry
                     {
-                        string currentText = NotificationManager.notificationText.text.TrimEnd('\n', '\r');
-                        NotificationManager.notificationText.SafeSetText(currentText + Environment.NewLine + notificationText);
-                    }
-                    else
-                        NotificationManager.notificationText.SafeSetText(notificationText);
+                        RawText = notificationText,
+                        BaseDisplay = notificationText,
+                        Counter = 0,
+                        ExpireTime = expireTime
+                    });
                 }
 
-                CoroutineManager.instance.StartCoroutine(TrackCoroutine(ClearHolder(clearTime / 1000f)));
-
-                if (noRichText)
-                    NotificationManager.notificationText.SafeSetText(NoRichtextTags(NotificationManager.notificationText.text));
+                RebuildNotificationText();
 
                 if (lowercaseMode)
                     NotificationManager.notificationText.SafeSetText(NotificationManager.notificationText.text.ToLower());
 
                 if (uppercaseMode)
                     NotificationManager.notificationText.SafeSetText(NotificationManager.notificationText.text.ToUpper());
-
-                NotificationManager.notificationText.richText = !noRichText;
 
                 if (narrateNotifications)
                     NarrateText(NoRichtextTags(noPrefix ? RemovePrefix(notificationText) : notificationText));
@@ -389,12 +388,8 @@ namespace Seralyth.Managers
         /// are no longer relevant.</remarks>
         public static void ClearAllNotifications()
         {
+            activeNotifications.Clear();
             notificationText.SafeSetText("");
-
-            foreach (Coroutine coroutine in clearCoroutines)
-                CoroutineManager.instance.StopCoroutine(coroutine);
-
-            clearCoroutines.Clear();
         }
 
         /// <summary>
@@ -404,42 +399,57 @@ namespace Seralyth.Managers
         /// equal to the total number of notification lines, all notifications are cleared.</param>
         public static void ClearPastNotifications(int amount)
         {
-            if (string.IsNullOrEmpty(notificationText.text))
+            if (activeNotifications.Count == 0)
                 return;
 
-            string[] lines = notificationText.text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+            int removeCount = Math.Min(amount, activeNotifications.Count);
+            activeNotifications.RemoveRange(0, removeCount);
+            RebuildNotificationText();
+        }
 
-            if (amount >= lines.Length)
-            {
-                notificationText.SafeSetText("");
+        /// <summary>
+        /// Removes any notification entries whose individual expiry time has passed, then
+        /// refreshes the on-screen text if anything changed. Called once per FixedUpdate.
+        /// </summary>
+        private static void UpdateNotificationExpiry()
+        {
+            if (activeNotifications.Count == 0)
                 return;
-            }
 
-            List<string> remainingLines = new List<string>();
-            for (int i = amount; i < lines.Length; i++)
-                remainingLines.Add(lines[i]);
-
-            notificationText.SafeSetText(string.Join(Environment.NewLine, remainingLines));
-            notificationText.SafeSetText(notificationText.text.TrimEnd('\n', '\r'));
-        }
-
-        private static IEnumerator TrackCoroutine(IEnumerator routine)
-        {
-            IEnumerator Wrapper()
+            bool changed = false;
+            for (int i = activeNotifications.Count - 1; i >= 0; i--)
             {
-                Coroutine self = CoroutineManager.instance.StartCoroutine(routine);
-                clearCoroutines.Add(self);
-                yield return self;
-                clearCoroutines.Remove(self);
+                if (Time.time >= activeNotifications[i].ExpireTime)
+                {
+                    activeNotifications.RemoveAt(i);
+                    changed = true;
+                }
             }
 
-            yield return Wrapper();
+            if (changed)
+                RebuildNotificationText();
         }
 
-        private static IEnumerator ClearHolder(float time = 1f)
+        /// <summary>
+        /// Rebuilds the visible notification text from the current list of active entries.
+        /// </summary>
+        private static void RebuildNotificationText()
         {
-            yield return new WaitForSeconds(time);
-            ClearPastNotifications(1);
+            List<string> lines = new List<string>(activeNotifications.Count);
+            foreach (NotificationEntry entry in activeNotifications)
+            {
+                lines.Add(entry.Counter > 0
+                    ? $"{entry.BaseDisplay} <color=grey>(x{entry.Counter + 1})</color>"
+                    : entry.BaseDisplay);
+            }
+
+            string combined = string.Join(Environment.NewLine, lines);
+
+            if (noRichText)
+                combined = NoRichtextTags(combined);
+
+            notificationText.SafeSetText(combined);
+            notificationText.richText = !noRichText;
         }
 
         private IEnumerator SetShaderAfterInit()
@@ -451,20 +461,15 @@ namespace Seralyth.Managers
             informationText.Chams();
         }
 
-        private static void CancelClear(Coroutine coroutine)
-        {
-            if (!clearCoroutines.Contains(coroutine)) return;
-            clearCoroutines.Remove(coroutine);
-            CoroutineManager.instance.StopCoroutine(coroutine);
-        }
+        private static readonly System.Text.RegularExpressions.Regex PrefixRegex =
+            new System.Text.RegularExpressions.Regex(@"^<color=grey>\[</color><color=[^>]+>.*?</color><color=grey>\]</color> ", System.Text.RegularExpressions.RegexOptions.Compiled);
 
         private static string RemovePrefix(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return text;
 
-            string pattern = @"^<color=grey>\[</color><color=[^>]+>.*?</color><color=grey>\]</color> ";
-            return System.Text.RegularExpressions.Regex.Replace(text, pattern, "");
+            return PrefixRegex.Replace(text, "");
         }
     }
 }

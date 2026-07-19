@@ -65,10 +65,8 @@ namespace Seralyth
                 Bootstrapper.Initialize();
             }
 
-            private void OnDestroy()
-            {
+            private void OnDestroy() =>
                 Main.UnloadMenu();
-            }
         }
     }
 }

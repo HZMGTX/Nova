@@ -19,6 +19,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using Seralyth.Managers;
 using System;
 
 namespace Seralyth.Classes.Menu
@@ -51,6 +52,49 @@ namespace Seralyth.Classes.Menu
         public string customBind;
         public string rebindKey;
 
+
+        public bool isSetting;
+        public object value;
+
+        public Action onValueChanged;
+        public Action<bool> cycleValue;
+
+        public bool excludeFromSave;
+
         internal bool firstFrame = true;
+
+        public T GetValue<T>()
+        {
+            if (value == null)
+                return default;
+
+            Type targetType = typeof(T);
+
+            try
+            {
+                if (targetType.IsEnum)
+                {
+                    return value is string s
+                        ? (T)Enum.Parse(targetType, s, ignoreCase: true)
+                        : (T)Enum.ToObject(targetType, value);
+                }
+
+                return (T)Convert.ChangeType(value, targetType);
+            }
+            catch (Exception e)
+            {
+                LogManager.Log($"GetValue<{targetType.Name}> failed: value was '{value}' (actual type: {value.GetType().Name}). {e.Message}");
+                throw;
+            }
+        }
+        public void SetValue<T>(T v) => value = v;
+
+        public void SetEnabled(bool value, bool save = true)
+        {
+            enabled = value;
+
+            if (save && !excludeFromSave)
+                Preferences.SaveButton(this);
+        }
     }
 }

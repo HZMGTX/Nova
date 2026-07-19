@@ -253,10 +253,10 @@ namespace Seralyth.Managers
         private static int lastPlayerCount;
         public static void ConstantHideIndicator()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount = -1;
 
-            if (PhotonNetwork.PlayerList.Length != lastPlayerCount && PhotonNetwork.InRoom)
+            if (PhotonNetwork.PlayerList.Length != lastPlayerCount && NetworkSystem.Instance.InRoom)
             {
                 ShowIndicator(false);
                 lastPlayerCount = PhotonNetwork.PlayerList.Length;

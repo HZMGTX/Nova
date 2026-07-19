@@ -20,7 +20,6 @@
  */
 
 using HarmonyLib;
-using Seralyth.Extensions;
 using Seralyth.Mods;
 
 namespace Seralyth.Patches.Menu

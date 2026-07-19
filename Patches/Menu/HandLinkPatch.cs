@@ -21,8 +21,6 @@
 
 using GorillaLocomotion;
 using HarmonyLib;
-using Seralyth.Extensions;
-using UnityEngine;
 
 namespace Seralyth.Patches.Menu
 {

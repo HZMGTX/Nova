@@ -57,48 +57,18 @@ namespace Seralyth.Mods
 {
     public class Visuals
     {
-        public static readonly Dictionary<(long, float), GameObject> auraPool = new Dictionary<(long, float), GameObject>();
-        public static void VisualizeAura(Vector3 position, float range, Color color, long? indexId = null, float alpha = 0.25f)
+        public static readonly Dictionary<(long, float, PrimitiveType), GameObject> visualizePool = new Dictionary<(long, float, PrimitiveType), GameObject>();
+
+        public static void Visualize(PrimitiveType shape, Vector3 position, Quaternion rotation, Vector3 scale, Color color, long? indexId = null, float alpha = 0.25f, float rangeKeyComponent = 0f)
         {
             long index = indexId ?? BitPackUtils.PackWorldPosForNetwork(position);
-            var key = (index, range);
+            var key = (index, rangeKeyComponent, shape);
 
-            if (!auraPool.TryGetValue(key, out GameObject visualizeGO))
+            if (!visualizePool.TryGetValue(key, out GameObject visualizeGO))
             {
-                visualizeGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                visualizeGO = GameObject.CreatePrimitive(shape);
                 Object.Destroy(visualizeGO.GetComponent<Collider>());
-
-                auraPool.Add(key, visualizeGO);
-            }
-
-            visualizeGO.SetActive(true);
-
-            visualizeGO.transform.position = position;
-            visualizeGO.transform.localScale = new Vector3(range, range, range);
-
-            if (Buttons.GetIndex("Hidden on Camera").enabled)
-                visualizeGO.layer = 19;
-
-            Renderer auraRenderer = visualizeGO.GetComponent<Renderer>();
-
-            Color clr = color;
-            clr.a = alpha;
-            auraRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            auraRenderer.material.color = clr;
-        }
-
-        public static readonly Dictionary<long, GameObject> cubePool = new Dictionary<long, GameObject>();
-        public static void VisualizeCube(Vector3 position, Quaternion rotation, Vector3 scale, Color color, long? indexId = null, float alpha = 0.25f)
-        {
-            long index = indexId ?? BitPackUtils.PackWorldPosForNetwork(position);
-            var key = index;
-
-            if (!cubePool.TryGetValue(key, out GameObject visualizeGO))
-            {
-                visualizeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(visualizeGO.GetComponent<Collider>());
-
-                cubePool.Add(key, visualizeGO);
+                visualizePool.Add(key, visualizeGO);
             }
 
             visualizeGO.SetActive(true);
@@ -110,96 +80,26 @@ namespace Seralyth.Mods
             if (Buttons.GetIndex("Hidden on Camera").enabled)
                 visualizeGO.layer = 19;
 
-            Renderer auraRenderer = visualizeGO.GetComponent<Renderer>();
-
+            Renderer visualizeRenderer = visualizeGO.GetComponent<Renderer>();
             Color clr = color;
             clr.a = alpha;
-            auraRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            auraRenderer.material.color = clr;
+            visualizeRenderer.material.shader = Shader.Find("GUI/Text Shader");
+            visualizeRenderer.material.color = clr;
         }
 
-        public static readonly Dictionary<long, GameObject> cylinderPool = new Dictionary<long, GameObject>();
-        public static void VisualizeCylinder(Vector3 position, Quaternion rotation, Vector3 scale, Color color, long? indexId = null, float alpha = 0.25f)
-        {
-            long index = indexId ?? BitPackUtils.PackWorldPosForNetwork(position);
-            var key = index;
-
-            if (!cylinderPool.TryGetValue(key, out GameObject visualizeGO))
-            {
-                visualizeGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(visualizeGO.GetComponent<Collider>());
-                cylinderPool.Add(key, visualizeGO);
-            }
-
-            visualizeGO.SetActive(true);
-
-            visualizeGO.transform.position = position;
-            visualizeGO.transform.localScale = scale;
-            visualizeGO.transform.rotation = rotation;
-
-            if (Buttons.GetIndex("Hidden on Camera").enabled)
-                visualizeGO.layer = 19;
-
-            Renderer auraRenderer = visualizeGO.GetComponent<Renderer>();
-
-            Color clr = color;
-            clr.a = alpha;
-            auraRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            auraRenderer.material.color = clr;
-        }
-
-        public static GameObject VisualizeAuraObject(Vector3 position, float range, Color color, float alpha = 0.25f)
-        {
-            GameObject visualizeGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            Object.Destroy(visualizeGO.GetComponent<Collider>());
-
-            visualizeGO.SetActive(true);
-
-            visualizeGO.transform.position = position;
-            visualizeGO.transform.localScale = new Vector3(range, range, range);
-
-            if (Buttons.GetIndex("Hidden on Camera").enabled)
-                visualizeGO.layer = 19;
-
-            Renderer auraRenderer = visualizeGO.GetComponent<Renderer>();
-
-            Color clr = color;
-            clr.a = alpha;
-            auraRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            auraRenderer.material.color = clr;
-
-            return visualizeGO;
-        }
-
-        public static GameObject VisualizeCubeObject(Vector3 position, Quaternion rotation, Vector3 scale, Color color, float alpha = 0.25f)
-        {
-            GameObject visualizeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Object.Destroy(visualizeGO.GetComponent<Collider>());
-
-            visualizeGO.SetActive(true);
-
-            visualizeGO.transform.position = position;
-            visualizeGO.transform.localScale = scale;
-            visualizeGO.transform.rotation = rotation;
-
-            if (Buttons.GetIndex("Hidden on Camera").enabled)
-                visualizeGO.layer = 19;
-
-            Renderer auraRenderer = visualizeGO.GetComponent<Renderer>();
-
-            Color clr = color;
-            clr.a = alpha;
-            auraRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            auraRenderer.material.color = clr;
-
-            return visualizeGO;
-        }
+        private static float debugUpdateTimer;
 
         public static void ConductDebug()
         {
+            if (Time.time < debugUpdateTimer) return;
+            debugUpdateTimer = Time.time + 1f;
+
+            TextMeshPro title = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/CodeOfConductHeadingText").GetComponent<TextMeshPro>();
+            TextMeshPro body = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>();
+            title.text = "DEBUG INFO";
+            body.richText = true;
             string text = "";
             text += $"<color=blue><b>Seralyth</b></color> {PluginInfo.Version}  <color=grey>|</color>  Users Online:  {ServerData.onlineUsers}" + "\\n \\n";
-
             string red = "<color=red>" + MathF.Floor(PlayerPrefs.GetFloat("redValue") * 255f) + "</color>";
             string green = ", <color=green>" + MathF.Floor(PlayerPrefs.GetFloat("greenValue") * 255f) + "</color>";
             string blue = ", <color=blue>" + MathF.Floor(PlayerPrefs.GetFloat("blueValue") * 255f) + "</color>";
@@ -207,17 +107,14 @@ namespace Seralyth.Mods
             string greenS = ", <color=green>" + MathF.Round(PlayerPrefs.GetFloat("greenValue") * 9f) + "</color>";
             string blueS = ", <color=blue>" + MathF.Round(PlayerPrefs.GetFloat("blueValue") * 9f) + "</color>";
             text += "<color=green>Color</color><color=grey>:</color> " + red + green + blue + " <color=grey>[</color>" + redS + greenS + blueS + "<color=grey>]</color>\\n";
-
-            string master = PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient ? "<color=grey> [</color><color=red>Master</color><color=grey>]</color>" : "";
+            string master = NetworkSystem.Instance.InRoom && PhotonNetwork.IsMasterClient ? "<color=grey> [</color><color=red>Master</color><color=grey>]</color>" : "";
             text += "<color=green>Name</color><color=grey>:</color> " + PhotonNetwork.LocalPlayer?.NickName + master + "\\n";
-
             text += "<color=green>ID</color><color=grey>:</color> " + (Settings.hideId ? "Hidden" : PhotonNetwork.LocalPlayer?.UserId) + "\\n";
-            text += "<color=green>Clip</color><color=grey>:</color> " + (GUIUtility.systemCopyBuffer?.Length > 35 ? GUIUtility.systemCopyBuffer[..35] : GUIUtility.systemCopyBuffer) + "\\n";
+            string clip = GUIUtility.systemCopyBuffer;
+            text += "<color=green>Clip</color><color=grey>:</color> " + (clip?.Length > 35 ? clip[..35] : clip) + "\\n";
             text += lastDeltaTime + " <color=green>FPS</color> <color=grey>|</color> " + PhotonNetwork.GetPing() + " <color=green>Ping</color>\\n";
-
-            string room = PhotonNetwork.InRoom ? NetworkSystem.Instance.SessionIsPrivate ? "Private" : "Public" : "Not in room";
+            string room = NetworkSystem.Instance.InRoom ? NetworkSystem.Instance.SessionIsPrivate ? "Private" : "Public" : "Not in room";
             text += "<color=green>" + NetworkSystem.Instance.regionNames[NetworkSystem.Instance.currentRegionIndex].ToUpper() + "</color> " + PhotonNetwork.PlayerList.Length + " <color=green>Players</color> <color=grey>|</color> " + room + "\\n \\n";
-
             string admin = "";
             if (Time.time > 5f)
             {
@@ -226,8 +123,7 @@ namespace Seralyth.Mods
             }
             text += "<color=green>Theme</color> " + themeType + admin + "\n";
             text += "<color=green>Preferences Directory</color><color=grey>:</color> " + $"{FileUtilities.GetGamePath()}/{PluginInfo.BaseDirectory}";
-
-            GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().SafeSetText(text);
+            body.SafeSetText(text);
         }
 
         public static void ToggleSnow(bool enable)
@@ -308,7 +204,7 @@ namespace Seralyth.Mods
 
         public static void CoreESP()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -325,13 +221,13 @@ namespace Seralyth.Mods
             for (int i = 0; i < cores.Count; i++)
             {
                 Transform corePosition = cores[i].transform;
-                VisualizeAura(corePosition.position, 0.15f, coreESPColor, i + 29875, coreESPColor.a);
+                Visualize(PrimitiveType.Sphere, corePosition.position, corePosition.rotation, corePosition.lossyScale, coreESPColor, i + 29875, coreESPColor.a);
             }
         }
 
         public static void CritterESP()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -348,13 +244,13 @@ namespace Seralyth.Mods
             for (int i = 0; i < actors.Count; i++)
             {
                 Transform transform = actors[i].transform;
-                VisualizeAura(transform.position, 0.15f, critterESPColor, i - 192398, critterESPColor.a);
+                Visualize(PrimitiveType.Sphere, transform.position, transform.rotation, transform.lossyScale, critterESPColor, i - 192398, critterESPColor.a);
             }
         }
 
         public static void CreatureESP()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -371,13 +267,13 @@ namespace Seralyth.Mods
             for (int i = 0; i < bugs.Length; i++)
             {
                 Transform transform = bugs[i].transform;
-                VisualizeAura(transform.position, 0.15f, critterESPColor, i - 201782, critterESPColor.a);
+                Visualize(PrimitiveType.Sphere, transform.position, transform.rotation, transform.lossyScale, critterESPColor, i - 201782, critterESPColor.a);
             }
         }
 
         public static void EnemyESP()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -394,13 +290,13 @@ namespace Seralyth.Mods
             for (int i = 0; i < enemies.Count; i++)
             {
                 Transform enemy = enemies[i].transform;
-                VisualizeAura(enemy.position, 0.15f, coreESPColor, i + 451980, coreESPColor.a);
+                Visualize(PrimitiveType.Sphere, enemy.position, enemy.rotation, enemy.lossyScale, coreESPColor, i + 451980, coreESPColor.a);
             }
         }
 
         public static void ResourceESP()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -417,7 +313,7 @@ namespace Seralyth.Mods
             for (int i = 0; i < resources.Count; i++)
             {
                 Transform resource = resources[i].transform;
-                VisualizeAura(resource.position, 0.15f, coreESPColor, i + 451961280, coreESPColor.a);
+                Visualize(PrimitiveType.Sphere, resource.position, resource.rotation, resource.lossyScale, coreESPColor, i + 451961280, coreESPColor.a);
             }
         }
 
@@ -439,7 +335,7 @@ namespace Seralyth.Mods
         private static float removeBlindfoldDelay;
         public static void RemoveBlindfold()
         {
-            if (PhotonNetwork.InRoom && Time.time > removeBlindfoldDelay)
+            if (NetworkSystem.Instance.InRoom && Time.time > removeBlindfoldDelay)
             {
                 removeBlindfoldDelay = Time.time + 0.5f;
                 GameObject mainCamera = GetObject("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/Main Camera");
@@ -622,7 +518,7 @@ namespace Seralyth.Mods
                     watchText += DateTime.Now.ToString("hh:mm tt") + "\n";
 
                 if (infoWatchCode)
-                    watchText += (PhotonNetwork.InRoom ? PhotonNetwork.CurrentRoom.Name : "Not in room") + "\n";
+                    watchText += (NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.Name : "Not in room") + "\n";
 
                 if (infoWatchClip)
                 {
@@ -802,19 +698,10 @@ namespace Seralyth.Mods
 
         public static float PerformanceModeStep = 0.2f;
         public static int PerformanceModeStepIndex = 2;
-        public static void ChangePerformanceModeVisualStep(bool positive = true)
+        public static void ApplyPerformanceModeVisualStep(int index)
         {
-            if (positive)
-                PerformanceModeStepIndex++;
-            else
-                PerformanceModeStepIndex--;
-
-            PerformanceModeStepIndex %= 11;
-            if (PerformanceModeStepIndex < 0)
-                PerformanceModeStepIndex = 10;
-
-            PerformanceModeStep = PerformanceModeStepIndex / 10f;
-            Buttons.GetIndex("Change Performance Visuals Step").overlapText = "Change Performance Visuals Step <color=grey>[</color><color=green>" + PerformanceModeStep + "</color><color=grey>]</color>";
+            PerformanceModeStepIndex = index;
+            PerformanceModeStep = index / 10f;
         }
 
         public static float PerformanceVisualDelay;
@@ -901,7 +788,7 @@ namespace Seralyth.Mods
 
         public static void ExtraRoomInfo(bool? overlapInRoom = null)
         {
-            if (overlapInRoom ?? PhotonNetwork.InRoom)
+            if (overlapInRoom ?? NetworkSystem.Instance.InRoom)
             {
                 NetworkSystem.Instance.CurrentRoom.CustomProps.TryGetValue("platform", out var platform);
                 NetworkSystem.Instance.CurrentRoom.CustomProps.TryGetValue("language", out var language);
@@ -951,7 +838,7 @@ namespace Seralyth.Mods
             if (DoPerformanceCheck())
                 return;
 
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 bool isThereTagged = InfectedList().Count > 0;
 
@@ -986,7 +873,7 @@ namespace Seralyth.Mods
         public static void PingOverlay()
         {
             VRRig masterRig = PhotonNetwork.MasterClient?.VRRig();
-            if (!PhotonNetwork.InRoom || PhotonNetwork.IsMasterClient || masterRig == null || !playerPing.ContainsKey(masterRig))
+            if (!NetworkSystem.Instance.InRoom || PhotonNetwork.IsMasterClient || masterRig == null || !playerPing.ContainsKey(masterRig))
             {
                 NotificationManager.information["Ping"] = PhotonNetwork.GetPing() + "ms";
                 return;
@@ -1000,7 +887,7 @@ namespace Seralyth.Mods
             if (DoPerformanceCheck())
                 return;
             float closest = float.MaxValue;
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (vrrig.IsTagged() != VRRig.LocalRig.IsTagged())
                 {
@@ -1094,7 +981,7 @@ namespace Seralyth.Mods
             if (!VRRig.LocalRig.IsTagged())
             {
                 float closest = float.MaxValue;
-                foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+                foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                 {
                     if (vrrig.IsTagged() != VRRig.LocalRig.IsTagged())
                     {
@@ -1127,7 +1014,7 @@ namespace Seralyth.Mods
             if (DoPerformanceCheck())
                 return;
 
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 bool isThereTagged = InfectedList().Count > 0;
                 int left = PhotonNetwork.PlayerList.Length - InfectedList().Count;
@@ -1255,7 +1142,7 @@ namespace Seralyth.Mods
         {
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in predictions.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in predictions.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value.gameObject);
@@ -1269,7 +1156,7 @@ namespace Seralyth.Mods
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!predictions.TryGetValue(rig, out LineRenderer Line))
                 {
@@ -1332,7 +1219,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var box in hitboxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in hitboxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -1341,7 +1228,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 hitboxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!hitboxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -1467,7 +1354,7 @@ namespace Seralyth.Mods
 
             LoopProjectileArray(ProjectileTracker.m_localProjectiles);
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (rig.IsLocal()) continue;
 
@@ -1653,7 +1540,7 @@ namespace Seralyth.Mods
                 {
                     Transform child = triggers.transform.GetChild(i);
                     if (child.gameObject.activeSelf)
-                        VisualizeCube(child.position, child.rotation, child.lossyScale, Color.red);
+                        Visualize(PrimitiveType.Cube, child.position, child.rotation, child.lossyScale, Color.red);
                 }
                 catch { }
             }
@@ -1665,7 +1552,7 @@ namespace Seralyth.Mods
             {
                 try
                 {
-                    VisualizeCube(wind.transform.position, wind.transform.rotation, wind.transform.lossyScale, Color.blue);
+                    Visualize(PrimitiveType.Cube, wind.transform.position, wind.transform.rotation, wind.transform.lossyScale, Color.blue);
                 }
                 catch { }
             }
@@ -1680,13 +1567,13 @@ namespace Seralyth.Mods
                 {
                     Transform child = triggers.transform.GetChild(i);
                     if (child.gameObject.activeSelf)
-                        VisualizeCube(child.position, child.rotation, child.lossyScale, backgroundColor.GetCurrentColor());
+                        Visualize(PrimitiveType.Cube, child.position, child.rotation, child.lossyScale, backgroundColor.GetCurrentColor());
                 }
                 catch { }
             }
         }
 
-        private static readonly Dictionary<VRRig, List<int>> ntDistanceList = new Dictionary<VRRig, List<int>>();
+        public static readonly Dictionary<VRRig, List<int>> ntDistanceList = new Dictionary<VRRig, List<int>>();
         public static float GetTagDistance(VRRig rig)
         {
             if (ntDistanceList.ContainsKey(rig))
@@ -1741,13 +1628,13 @@ namespace Seralyth.Mods
         public static void NameTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = nametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 nametags.Remove(nametag.Key);
             }
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
                 if (!nametags.ContainsKey(vrrig))
                 {
@@ -1793,13 +1680,13 @@ namespace Seralyth.Mods
         public static void VelocityTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = velnametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 velnametags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -1851,13 +1738,13 @@ namespace Seralyth.Mods
         public static void FPSTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = fpsNametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 fpsNametags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -1909,13 +1796,13 @@ namespace Seralyth.Mods
         public static void IDTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = idNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 idNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -1967,13 +1854,13 @@ namespace Seralyth.Mods
         public static void PlatformTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = platformTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 platformTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2027,7 +1914,7 @@ namespace Seralyth.Mods
             List<KeyValuePair<VRRig, GameObject>> kidNameTagsCopy = kidNameTags.ToList();
             foreach (KeyValuePair<VRRig, GameObject> nametag in kidNameTagsCopy)
             {
-                if (!VRRigCache.ActiveRigs.Contains(nametag.Key))
+                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
                 {
                     Object.Destroy(nametag.Value);
                     kidNameTags.Remove(nametag.Key);
@@ -2042,7 +1929,7 @@ namespace Seralyth.Mods
                 }
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2098,7 +1985,7 @@ namespace Seralyth.Mods
             List<KeyValuePair<VRRig, GameObject>> subNameTagsCopy = subNameTags.ToList();
             foreach (KeyValuePair<VRRig, GameObject> nametag in subNameTagsCopy)
             {
-                if (!VRRigCache.ActiveRigs.Contains(nametag.Key))
+                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
                 {
                     Object.Destroy(nametag.Value);
                     subNameTags.Remove(nametag.Key);
@@ -2113,7 +2000,7 @@ namespace Seralyth.Mods
                 }
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2168,13 +2055,13 @@ namespace Seralyth.Mods
         public static void CreationDateTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = creationDateTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 creationDateTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2226,13 +2113,13 @@ namespace Seralyth.Mods
         public static void PingTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = pingNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 pingNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2284,13 +2171,13 @@ namespace Seralyth.Mods
         public static void TurnTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = turnNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 turnNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2345,13 +2232,13 @@ namespace Seralyth.Mods
         public static void TaggedTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = taggedNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 taggedNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2457,7 +2344,6 @@ namespace Seralyth.Mods
             { "dark", "Shiba GT Dark" },
             { "hidden menu", "Hidden" },
             { "oblivionuser", "Oblivion" },
-            { "hgrehngio889584739_hugb\n", "Resurgence" },
             { "eyerock reborn", "Eye Rock" },
             { "asteroidlite", "Asteroid Lite" },
             { "elux", "Elux" },
@@ -2465,7 +2351,6 @@ namespace Seralyth.Mods
             { "GFaces", "G Faces" },
             { "github.com/maroon-shadow/SimpleBoards", "Simple Boards" },
             { "ObsidianMC", "Obsidian" },
-            { "hgrehngio889584739_hugb", "Resurgence" },
             { "GTrials", "G Trials" },
             { "github.com/ZlothY29IQ/GorillaMediaDisplay", "Gorilla Media Display" },
             { "github.com/ZlothY29IQ/TooMuchInfo", "Too Much Info" },
@@ -2488,7 +2373,6 @@ namespace Seralyth.Mods
             { "Gorilla Track", "Body Track" },
             { "CustomMaterial", "Custom Cosmetics" },
             { "I like cheese", "Rec Room Rig" },
-            { "silliness", "Silliness" },
             { "EmoteWheel", "Fortnite Emote Wheel" },
             { "untitled", "Untitled" },
             { "BoyDoILoveInformation Public", "BoyDoILoveInformation" },
@@ -2504,13 +2388,13 @@ namespace Seralyth.Mods
         public static void ModTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = modNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 modNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2609,13 +2493,13 @@ namespace Seralyth.Mods
         public static void CosmeticTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = cosmeticNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 cosmeticNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2781,13 +2665,13 @@ namespace Seralyth.Mods
         public static void VerifiedTags()
         {
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = verifiedNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 verifiedNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2857,7 +2741,7 @@ namespace Seralyth.Mods
             List<KeyValuePair<VRRig, GameObject>> crashedNameTagsCopy = crashedNameTags.ToList();
             foreach (KeyValuePair<VRRig, GameObject> nametag in crashedNameTagsCopy)
             {
-                if (!VRRigCache.ActiveRigs.Contains(nametag.Key))
+                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
                 {
                     Object.Destroy(nametag.Value);
                     crashedNameTags.Remove(nametag.Key);
@@ -2873,7 +2757,7 @@ namespace Seralyth.Mods
                 }
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -2978,7 +2862,7 @@ namespace Seralyth.Mods
         {
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = compactNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 Object.Destroy(compactTagBackgrounds[nametag.Key]);
@@ -2986,7 +2870,7 @@ namespace Seralyth.Mods
                 compactTagBackgrounds.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -3071,7 +2955,7 @@ namespace Seralyth.Mods
                             $"[{GetPrettyPlatform(vrrig)}] | " +
                             $"[Ping: {GetPrettyPing(vrrig)}] | " +
                             $"[FPS: {GetPrettyFPS(vrrig)}]" +
-                            $"{(SubscriptionManager.GetSubscriptionDetails(vrrig).tier > 0 ? " | [<color=yellow>VIM Subscriber</color>]" : "")}" +
+                            $"{(vrrig.IsVIMSubscriber() ? " | [<color=yellow>VIM Subscriber</color>]" : "")}" +
                             $"{(vrrig.GetPlayer().IsMasterClient ? " | [<color=#00FFFF>Master</color>]" : "")}";
 
                         if (NameTagOptimize())
@@ -3085,11 +2969,10 @@ namespace Seralyth.Mods
                         TextMeshPro tm = infoTextTr.GetComponent<TextMeshPro>();
                         if (nameTagChams)
                             tm.Chams();
-                        string plainText = System.Text.RegularExpressions.Regex.Replace(tagText, "<.*?>", string.Empty);
+                        string plainText = NoRichtextTags(tagText);
                         float textWidth = tm.GetPreferredValues(plainText).x * 0.65f;
                         float bgHeight = textWidth + 0.15f;
 
-                        // nametag part inherits the player color
                         string playerName = CleanPlayerName(vrrig.GetPlayer().NickName);
                         TextMeshPro nameTm = nameTextTr.GetComponent<TextMeshPro>();
 
@@ -3161,7 +3044,7 @@ namespace Seralyth.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
 
             List<KeyValuePair<VRRig, GameObject>> tagCopy = minecraftNameTags.ToList();
-            foreach (var tag in tagCopy.Where(tag => !VRRigCache.ActiveRigs.Contains(tag.Key)))
+            foreach (var tag in tagCopy.Where(tag => !VRRigExtensions.ActiveRigs.Contains(tag.Key)))
             {
                 Object.Destroy(tag.Value);
                 Object.Destroy(minecraftTagBackgrounds[tag.Key]);
@@ -3169,7 +3052,7 @@ namespace Seralyth.Mods
                 minecraftTagBackgrounds.Remove(tag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (vrrig.isLocal && !selfNameTag)
                     continue;
@@ -3253,13 +3136,13 @@ namespace Seralyth.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
 
             List<KeyValuePair<VRRig, GameObject>> nametagsCopy = castingNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 castingNameTags.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -3324,7 +3207,7 @@ namespace Seralyth.Mods
 
         public static void FixRigColors()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => vrrig.mainSkin.material.name.Contains("gorilla_body") && vrrig.mainSkin.material.shader == Shader.Find("GorillaTag/UberShader")))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => vrrig.mainSkin.sharedMaterial.name.Contains("gorilla_body") && vrrig.mainSkin.sharedMaterial.shader == Shader.Find("GorillaTag/UberShader")))
                 vrrig.mainSkin.material.color = vrrig.playerColor;
         }
 
@@ -3487,7 +3370,7 @@ namespace Seralyth.Mods
 
         public static void NoSmoothRigs()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 vrrig.lerpValueBody = 2f;
                 vrrig.lerpValueFingers = 1f;
@@ -3496,7 +3379,7 @@ namespace Seralyth.Mods
 
         public static void ReSmoothRigs()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 vrrig.lerpValueBody = VRRig.LocalRig.lerpValueBody;
                 vrrig.lerpValueFingers = VRRig.LocalRig.lerpValueFingers;
@@ -3552,10 +3435,10 @@ namespace Seralyth.Mods
         private static readonly Dictionary<VRRig, GameObject> cosmeticIndicators = new Dictionary<VRRig, GameObject>();
         private static readonly Dictionary<string, Texture2D> cosmeticTextures = new Dictionary<string, Texture2D>();
         private static Material cosmeticMat;
-        public static void CosmeticESP()
+        public static void CosmeticIndicators()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = cosmeticIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 cosmeticIndicators.Remove(nametag.Key);
@@ -3571,7 +3454,7 @@ namespace Seralyth.Mods
                 ("LBANI.", "aa")
             };
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 string currentCosmetic = null;
                 foreach (var (codename, name) in cosmetics)
@@ -3616,7 +3499,7 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void DisableCosmeticESP()
+        public static void DisableCosmeticIndicators()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in cosmeticIndicators)
                 Object.Destroy(nametag.Value);
@@ -3643,13 +3526,13 @@ namespace Seralyth.Mods
         public static void PlatformIndicators()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = platformIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 platformIndicators.Remove(nametag.Key);
             }
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
                 if (!platformIndicators.TryGetValue(vrrig, out GameObject indicator))
                 {
@@ -3684,13 +3567,13 @@ namespace Seralyth.Mods
         public static void PlatformESP()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = platformIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 platformIndicators.Remove(nametag.Key);
             }
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
                 if (!platformIndicators.TryGetValue(vrrig, out GameObject indicator))
                 {
@@ -3731,13 +3614,13 @@ namespace Seralyth.Mods
         public static void VoiceIndicators()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = voiceIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 voiceIndicators.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal || selfNameTag)
                 {
@@ -3794,21 +3677,17 @@ namespace Seralyth.Mods
         public static void VoiceESP()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = voiceIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 voiceIndicators.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                 {
-                    float size = 0f;
-                    GorillaSpeakerLoudness recorder = vrrig.GetComponent<GorillaSpeakerLoudness>();
-                    if (recorder != null)
-                        size = recorder.Loudness * 3f;
-
+                    float size = vrrig.GetRecorderLoudness() * 3f;
                     if (size > 0f)
                     {
                         if (!voiceIndicators.TryGetValue(vrrig, out GameObject volIndicator))
@@ -3859,59 +3738,57 @@ namespace Seralyth.Mods
         public static void GripESP()
         {
             List<KeyValuePair<VRRig, GameObject>> indicatorCopy = gripIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigCache.ActiveRigs.Contains(nametag.Key)))
+            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
             {
                 Object.Destroy(nametag.Value);
                 gripIndicators.Remove(nametag.Key);
             }
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (!vrrig.IsLocal())
+                if (vrrig.IsLocal())
+                    continue;
+
+                bool grabbable = vrrig.IsLeftHandGrabbable() || vrrig.IsRightHandGrabbable();
+
+                if (!gripIndicators.TryGetValue(vrrig, out GameObject gripIcon) || gripIcon == null)
                 {
-                    if (vrrig.IsLeftHandGrabbable() || vrrig.IsRightHandGrabbable())
+                    gripIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    Object.Destroy(gripIcon.GetComponent<Collider>());
+
+                    if (gripEspMat == null)
                     {
-                        if (gripIndicators.TryGetValue(vrrig, out GameObject existing) && existing == null)
-                            gripIndicators.Remove(vrrig);
-                        if (!gripIndicators.TryGetValue(vrrig, out GameObject gripIcon))
+                        gripEspMat = new Material(Shader.Find("Sprites/Default"));
+
+                        if (nameTagChams)
                         {
-                            gripIcon = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                            Object.Destroy(gripIcon.GetComponent<Collider>());
-
-                            if (gripEspMat == null)
-                                gripEspMat = new Material(Shader.Find("Sprites/Default"));
-
-                            if (nameTagChams)
-                            {
-                                gripEspMat.SetInt("_SrcBlend", (int)BlendMode.One);
-                                gripEspMat.SetInt("_DstBlend", (int)BlendMode.Zero);
-                                gripEspMat.SetInt("_ZWrite", 0);
-                                gripEspMat.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                                gripEspMat.renderQueue = (int)RenderQueue.Overlay;
-                            }
-
-                            if (gripTxt == null)
-                                gripTxt = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/grip.png", $"Images/Mods/Visuals/grip.png");
-
-                            gripEspMat.mainTexture = gripTxt;
-
-                            gripIcon.GetComponent<Renderer>().material = gripEspMat;
-                            gripIndicators.Add(vrrig, gripIcon);
+                            gripEspMat.SetInt("_SrcBlend", (int)BlendMode.One);
+                            gripEspMat.SetInt("_DstBlend", (int)BlendMode.Zero);
+                            gripEspMat.SetInt("_ZWrite", 0);
+                            gripEspMat.DisableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                            gripEspMat.renderQueue = (int)RenderQueue.Overlay;
                         }
 
-                        gripIcon.GetComponent<Renderer>().material.color = vrrig.GetColor();
-                        gripIcon.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
-                        gripIcon.transform.position = GetNameTagPosition(vrrig);
-                        gripIcon.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
+                        if (gripTxt == null)
+                            gripTxt = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/grip.png", $"Images/Mods/Visuals/grip.png");
+
+                        gripEspMat.mainTexture = gripTxt;
                     }
-                    else
-                    {
-                        if (gripIndicators.TryGetValue(vrrig, out GameObject existing))
-                        {
-                            Object.Destroy(existing);
-                            gripIndicators.Remove(vrrig);
-                        }
-                    }
+
+                    gripIcon.GetComponent<Renderer>().material = gripEspMat;
+                    gripIndicators.Add(vrrig, gripIcon);
+                }
+
+                Renderer renderer = gripIcon.GetComponent<Renderer>();
+                renderer.enabled = grabbable;
+
+                if (grabbable)
+                {
+                    Vector3 tagPosition = GetNameTagPosition(vrrig);
+                    renderer.material.color = vrrig.GetColor();
+                    gripIcon.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
+                    gripIcon.transform.position = tagPosition;
+                    gripIcon.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                 }
             }
         }
@@ -3954,7 +3831,7 @@ namespace Seralyth.Mods
             l.transform.position = ControllerUtilities.GetTrueLeftHand().position;
             r.transform.position = ControllerUtilities.GetTrueRightHand().position;
             VRRig.LocalRig.mainSkin.material.shader = Shader.Find("GUI/Text Shader");
-            VRRig.LocalRig.mainSkin.material.color = new Color(VRRig.LocalRig.mainSkin.material.color.r, VRRig.LocalRig.mainSkin.material.color.g, VRRig.LocalRig.mainSkin.material.color.b, 0f);
+            VRRig.LocalRig.mainSkin.material.color = new Color(VRRig.LocalRig.mainSkin.sharedMaterial.color.r, VRRig.LocalRig.mainSkin.sharedMaterial.color.g, VRRig.LocalRig.mainSkin.sharedMaterial.color.b, 0f);
             UpdateLimbColor();
         }
 
@@ -3964,7 +3841,7 @@ namespace Seralyth.Mods
             Object.Destroy(r);
 
             VRRig.LocalRig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-            VRRig.LocalRig.mainSkin.material.color = new Color(VRRig.LocalRig.mainSkin.material.color.r, VRRig.LocalRig.mainSkin.material.color.g, VRRig.LocalRig.mainSkin.material.color.b, 1f);
+            VRRig.LocalRig.mainSkin.material.color = new Color(VRRig.LocalRig.mainSkin.sharedMaterial.color.r, VRRig.LocalRig.mainSkin.sharedMaterial.color.g, VRRig.LocalRig.mainSkin.sharedMaterial.color.b, 1f);
         }
 
         private static readonly Dictionary<VRRig, List<LineRenderer>> boneESP = new Dictionary<VRRig, List<LineRenderer>>();
@@ -3981,7 +3858,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var boness in boneESP.Where(boness => !VRRigCache.ActiveRigs.Contains(boness.Key)))
+            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
             {
                 toRemove.Add(boness.Key);
 
@@ -3992,7 +3869,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boneESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boneESP.TryGetValue(vrrig, out List<LineRenderer> Lines))
                 {
@@ -4072,7 +3949,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var boness in boneESP.Where(boness => !VRRigCache.ActiveRigs.Contains(boness.Key)))
+            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
             {
                 toRemove.Add(boness.Key);
 
@@ -4083,7 +3960,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boneESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boneESP.TryGetValue(vrrig, out List<LineRenderer> Lines))
                 {
@@ -4161,7 +4038,7 @@ namespace Seralyth.Mods
 
         public static void HuntBoneESP()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -4173,7 +4050,7 @@ namespace Seralyth.Mods
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var boness in boneESP.Where(boness => !VRRigCache.ActiveRigs.Contains(boness.Key)))
+            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
             {
                 toRemove.Add(boness.Key);
 
@@ -4184,7 +4061,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boneESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boneESP.TryGetValue(vrrig, out List<LineRenderer> Lines))
                 {
@@ -4271,7 +4148,7 @@ namespace Seralyth.Mods
 
         public static void CasualSkeletonESP()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 vrrig.skeleton.renderer.enabled = true;
                 vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
@@ -4284,7 +4161,7 @@ namespace Seralyth.Mods
         public static void InfectionSkeletonESP()
         {
             bool isInfectedPlayers = false;
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (vrrig.IsTagged())
                 {
@@ -4296,7 +4173,7 @@ namespace Seralyth.Mods
             {
                 if (!VRRig.LocalRig.IsTagged())
                 {
-                    foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+                    foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                     {
                         if (vrrig.IsTagged() && !vrrig.isLocal)
                         {
@@ -4310,30 +4187,30 @@ namespace Seralyth.Mods
                         {
                             vrrig.skeleton.renderer.enabled = false;
                             vrrig.skeleton.renderer.material.shader = Shader.Find("GorillaTag/UberShader");
-                            if (vrrig.skeleton.renderer.material.name.Contains("gorilla_body"))
+                            if (vrrig.skeleton.renderer.sharedMaterial.name.Contains("gorilla_body"))
                                 vrrig.skeleton.renderer.material.color = vrrig.playerColor;
                         }
                     }
                 }
                 else
                 {
-                    foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
+                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
                     {
                         vrrig.skeleton.renderer.enabled = true;
                         vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
                         vrrig.skeleton.renderer.material.color = vrrig.playerColor;
                         if (Buttons.GetIndex("Follow Menu Theme").enabled) { vrrig.skeleton.renderer.material.color = backgroundColor.GetCurrentColor(); }
-                        if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.material.color.r, vrrig.skeleton.renderer.material.color.g, vrrig.skeleton.renderer.material.color.b, 0.5f); }
+                        if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.sharedMaterial.color.r, vrrig.skeleton.renderer.sharedMaterial.color.g, vrrig.skeleton.renderer.sharedMaterial.color.b, 0.5f); }
                     }
                 }
             }
             else
             {
-                foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+                foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
                 {
                     vrrig.skeleton.renderer.enabled = true;
                     vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
-                    if (vrrig.skeleton.renderer.material.name.Contains("gorilla_body"))
+                    if (vrrig.skeleton.renderer.sharedMaterial.name.Contains("gorilla_body"))
                         vrrig.skeleton.renderer.material.color = vrrig.playerColor;
                 }
             }
@@ -4341,7 +4218,7 @@ namespace Seralyth.Mods
 
         public static void HuntSkeletonESP()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             GorillaHuntManager sillyComputer = (GorillaHuntManager)GorillaGameManager.instance;
@@ -4355,7 +4232,7 @@ namespace Seralyth.Mods
                     vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
                     vrrig.skeleton.renderer.material.color = vrrig.playerColor;
                     if (Buttons.GetIndex("Follow Menu Theme").enabled) { vrrig.skeleton.renderer.material.color = backgroundColor.GetCurrentColor(); }
-                    if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.material.color.r, vrrig.skeleton.renderer.material.color.g, vrrig.skeleton.renderer.material.color.b, 0.5f); }
+                    if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.sharedMaterial.color.r, vrrig.skeleton.renderer.sharedMaterial.color.g, vrrig.skeleton.renderer.sharedMaterial.color.b, 0.5f); }
                 }
                 else
                 {
@@ -4364,13 +4241,13 @@ namespace Seralyth.Mods
                         vrrig.skeleton.renderer.enabled = true;
                         vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
                         vrrig.skeleton.renderer.material.color = Color.red;
-                        if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.material.color.r, vrrig.skeleton.renderer.material.color.g, vrrig.skeleton.renderer.material.color.b, 0.5f); }
+                        if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.sharedMaterial.color.r, vrrig.skeleton.renderer.sharedMaterial.color.g, vrrig.skeleton.renderer.sharedMaterial.color.b, 0.5f); }
                     }
                     else
                     {
                         vrrig.skeleton.renderer.enabled = false;
                         vrrig.skeleton.renderer.material.shader = Shader.Find("GorillaTag/UberShader");
-                        if (vrrig.skeleton.renderer.material.name.Contains("gorilla_body"))
+                        if (vrrig.skeleton.renderer.sharedMaterial.name.Contains("gorilla_body"))
                             vrrig.skeleton.renderer.material.color = vrrig.playerColor;
                     }
                 }
@@ -4379,11 +4256,11 @@ namespace Seralyth.Mods
 
         public static void DisableSkeletonESP()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 vrrig.skeleton.renderer.enabled = false;
                 vrrig.skeleton.renderer.material.shader = Shader.Find("GorillaTag/UberShader");
-                if (vrrig.skeleton.renderer.material.name.Contains("gorilla_body"))
+                if (vrrig.skeleton.renderer.sharedMaterial.name.Contains("gorilla_body"))
                     vrrig.skeleton.renderer.material.color = vrrig.playerColor;
             }
         }
@@ -4393,7 +4270,7 @@ namespace Seralyth.Mods
         {
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in wireframes.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -4406,7 +4283,7 @@ namespace Seralyth.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!wireframes.TryGetValue(rig, out SkinnedWireframeRenderer wireframe))
                 {
@@ -4445,7 +4322,7 @@ namespace Seralyth.Mods
                 else
                 {
                     rig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                    if (rig.mainSkin.material.name.Contains("gorilla_body"))
+                    if (rig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                         rig.mainSkin.material.color = rig.playerColor;
                 }
             }
@@ -4455,7 +4332,7 @@ namespace Seralyth.Mods
         {
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in wireframes.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -4469,7 +4346,7 @@ namespace Seralyth.Mods
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool selfTagged = VRRig.LocalRig.IsTagged();
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!wireframes.TryGetValue(rig, out SkinnedWireframeRenderer wireframe))
                 {
@@ -4510,7 +4387,7 @@ namespace Seralyth.Mods
                 else
                 {
                     rig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                    if (rig.mainSkin.material.name.Contains("gorilla_body"))
+                    if (rig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                         rig.mainSkin.material.color = rig.playerColor;
                 }
             }
@@ -4518,12 +4395,12 @@ namespace Seralyth.Mods
 
         public static void HuntWireframeESP()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in wireframes.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -4539,7 +4416,7 @@ namespace Seralyth.Mods
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!wireframes.TryGetValue(rig, out SkinnedWireframeRenderer wireframe))
                 {
@@ -4547,7 +4424,7 @@ namespace Seralyth.Mods
                     wireframes.Add(rig, wireframe);
                 }
 
-                NetPlayer owner = GetPlayerFromVRRig(rig);
+                NetPlayer owner = rig.GetPlayer();
                 NetPlayer theirTarget = hunt.GetTargetOf(owner);
 
                 Color color = owner == target ? rig.GetColor() : theirTarget == NetworkSystem.Instance.LocalPlayer ? Color.red : Color.clear;
@@ -4582,7 +4459,7 @@ namespace Seralyth.Mods
                 else
                 {
                     rig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                    if (rig.mainSkin.material.name.Contains("gorilla_body"))
+                    if (rig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                         rig.mainSkin.material.color = rig.playerColor;
                 }
             }
@@ -4592,7 +4469,7 @@ namespace Seralyth.Mods
         {
             foreach (KeyValuePair<VRRig, SkinnedWireframeRenderer> pred in wireframes)
             {
-                pred.Key.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
+                pred.Key.mainSkin.sharedMaterial.shader = Shader.Find("GorillaTag/UberShader");
                 Object.Destroy(pred.Value);
             }
 
@@ -4608,7 +4485,7 @@ namespace Seralyth.Mods
             public GameObject wireframeObj;
             public Color Color
             {
-                get => meshRenderer.material.color;
+                get => meshRenderer.sharedMaterial.color;
                 set => meshRenderer.material.color = value;
             }
 
@@ -4691,7 +4568,7 @@ namespace Seralyth.Mods
             }
         }
 
-        private static readonly List<VRRig> convertedRigs = new List<VRRig>();
+        public static readonly List<VRRig> convertedRigs = new List<VRRig>();
         public static void FixRigMaterialESPColors(VRRig rig)
         {
             if (!convertedRigs.Contains(rig))
@@ -4709,7 +4586,7 @@ namespace Seralyth.Mods
 
         public static void Chams()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal && vrrig.colorInitialized && vrrig.initializedCosmetics && vrrig.mainSkin.material.shader.name != "Custom/UberChams"))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal && vrrig.colorInitialized && vrrig.initializedCosmetics && vrrig.mainSkin.material.shader.name != "Custom/UberChams"))
             {
                 if (!uberChams)
                     uberChams = LoadAsset<Shader>("UberChams");
@@ -4751,20 +4628,20 @@ namespace Seralyth.Mods
                 SkinnedMeshRenderer bodyRenderer = vrrig.mainSkin;
                 if (!originalMaterials.ContainsKey(bodyRenderer))
                 {
-                    Material[] originals = new Material[bodyRenderer.materials.Length];
-                    for (int i = 0; i < bodyRenderer.materials.Length; i++)
+                    Material[] originals = new Material[bodyRenderer.sharedMaterials.Length];
+                    for (int i = 0; i < bodyRenderer.sharedMaterials.Length; i++)
                         originals[i] = new Material(bodyRenderer.materials[i]);
                     originalMaterials[bodyRenderer] = originals;
                 }
 
-                Material[] materials = bodyRenderer.materials;
+                Material[] materials = bodyRenderer.sharedMaterials;
                 for (int i = 0; i < materials.Length; i++)
                     updateShader(materials[i], i == 0 ? vrrig.materialsToChangeTo[vrrig.setMatIndex] : originalMaterials[bodyRenderer][i], materials[i].color);
 
                 Renderer faceRenderer = vrrig.myMouthFlap.targetFaceRenderer;
                 if (!originalMaterials.ContainsKey(faceRenderer))
                     originalMaterials[faceRenderer] = new[] { new Material(faceRenderer.material) };
-                updateShader(faceRenderer.material, originalMaterials[faceRenderer][0], Color.white, true);
+                updateShader(faceRenderer.sharedMaterial, originalMaterials[faceRenderer][0], Color.white, true);
 
                 if (Buttons.GetIndex("Show Cosmetics").enabled)
                 {
@@ -4775,12 +4652,12 @@ namespace Seralyth.Mods
                         {
                             if (!originalMaterials.ContainsKey(renderer))
                             {
-                                Material[] originals = new Material[renderer.materials.Length];
-                                for (int i = 0; i < renderer.materials.Length; i++)
-                                    originals[i] = new Material(renderer.materials[i]);
+                                Material[] originals = new Material[renderer.sharedMaterials.Length];
+                                for (int i = 0; i < renderer.sharedMaterials.Length; i++)
+                                    originals[i] = new Material(renderer.sharedMaterials[i]);
                                 originalMaterials[renderer] = originals;
                             }
-                            updateShader(renderer.material, originalMaterials[renderer][0], renderer.material.color);
+                            updateShader(renderer.sharedMaterial, originalMaterials[renderer][0], renderer.sharedMaterial.color);
                         }
                     }
                 }
@@ -4789,7 +4666,7 @@ namespace Seralyth.Mods
 
         public static void DisableShaderChams()
         {
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                 {
@@ -4831,7 +4708,7 @@ namespace Seralyth.Mods
 
         public static void CasualChams()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 FixRigMaterialESPColors(vrrig);
 
@@ -4845,7 +4722,7 @@ namespace Seralyth.Mods
         public static void InfectionChams()
         {
             bool isInfectedPlayers = false;
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (vrrig.IsTagged())
                 {
@@ -4857,7 +4734,7 @@ namespace Seralyth.Mods
             {
                 if (!VRRig.LocalRig.IsTagged())
                 {
-                    foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+                    foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                     {
                         if (vrrig.IsTagged() && !vrrig.isLocal)
                         {
@@ -4871,14 +4748,14 @@ namespace Seralyth.Mods
                         else
                         {
                             vrrig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                            if (vrrig.mainSkin.material.name.Contains("gorilla_body"))
+                            if (vrrig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                                 vrrig.mainSkin.material.color = vrrig.playerColor;
                         }
                     }
                 }
                 else
                 {
-                    foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
+                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
                     {
                         FixRigMaterialESPColors(vrrig);
 
@@ -4891,12 +4768,12 @@ namespace Seralyth.Mods
             }
             else
             {
-                foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+                foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
                 {
                     FixRigMaterialESPColors(vrrig);
 
                     vrrig.mainSkin.material.shader = Shader.Find("GUI/Text Shader");
-                    if (vrrig.mainSkin.material.name.Contains("gorilla_body"))
+                    if (vrrig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                         vrrig.mainSkin.material.color = vrrig.playerColor;
                 }
             }
@@ -4904,7 +4781,7 @@ namespace Seralyth.Mods
 
         public static void HuntChams()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             GorillaHuntManager sillyComputer = (GorillaHuntManager)GorillaGameManager.instance;
@@ -4932,7 +4809,7 @@ namespace Seralyth.Mods
                     else
                     {
                         vrrig.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                        if (vrrig.mainSkin.material.name.Contains("gorilla_body"))
+                        if (vrrig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                             vrrig.mainSkin.material.color = vrrig.playerColor;
                     }
                 }
@@ -4941,11 +4818,11 @@ namespace Seralyth.Mods
 
         public static void DisableChams()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
-                foreach (Material mat in vrrig.mainSkin.materials)
+                foreach (Material mat in vrrig.mainSkin.sharedMaterials)
                     mat.shader = Shader.Find("GorillaTag/UberShader");
-                if (vrrig.mainSkin.material.name.Contains("gorilla_body"))
+                if (vrrig.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                     vrrig.mainSkin.material.color = vrrig.playerColor;
             }
         }
@@ -4959,7 +4836,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var box in boxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -4968,7 +4845,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5005,7 +4882,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var box in boxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -5014,7 +4891,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5047,7 +4924,7 @@ namespace Seralyth.Mods
 
         public static void HuntBoxESP()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -5058,7 +4935,7 @@ namespace Seralyth.Mods
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var box in boxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -5067,7 +4944,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 boxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!boxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5118,7 +4995,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var box in hollowBoxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -5127,7 +5004,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 hollowBoxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!hollowBoxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5200,7 +5077,7 @@ namespace Seralyth.Mods
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var box in hollowBoxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -5209,7 +5086,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 hollowBoxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!hollowBoxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5277,7 +5154,7 @@ namespace Seralyth.Mods
 
         public static void HollowHuntBoxESP()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
@@ -5289,7 +5166,7 @@ namespace Seralyth.Mods
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var box in hollowBoxESP.Where(box => !VRRigCache.ActiveRigs.Contains(box.Key)))
+            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
             {
                 toRemove.Add(box.Key);
                 Object.Destroy(box.Value);
@@ -5298,7 +5175,7 @@ namespace Seralyth.Mods
             foreach (VRRig rig in toRemove)
                 hollowBoxESP.Remove(rig);
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!hollowBoxESP.TryGetValue(vrrig, out GameObject box))
                 {
@@ -5378,7 +5255,7 @@ namespace Seralyth.Mods
         {
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -5393,7 +5270,7 @@ namespace Seralyth.Mods
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
             bool shortBreadcrumbs = Buttons.GetIndex("Short Breadcrumbs").enabled;
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!breadcrumbs.TryGetValue(rig, out TrailRenderer trail))
                 {
@@ -5435,7 +5312,7 @@ namespace Seralyth.Mods
         {
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -5451,7 +5328,7 @@ namespace Seralyth.Mods
             bool shortBreadcrumbs = Buttons.GetIndex("Short Breadcrumbs").enabled;
             bool selfTagged = VRRig.LocalRig.IsTagged();
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!breadcrumbs.TryGetValue(rig, out TrailRenderer trail))
                 {
@@ -5493,12 +5370,12 @@ namespace Seralyth.Mods
 
         public static void HuntBreadcrumbs()
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
             List<VRRig> toRemove = new List<VRRig>();
 
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigCache.ActiveRigs.Contains(lines.Key)))
+            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
             {
                 toRemove.Add(lines.Key);
                 Object.Destroy(lines.Value);
@@ -5516,7 +5393,7 @@ namespace Seralyth.Mods
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
                 if (!breadcrumbs.TryGetValue(rig, out TrailRenderer trail))
                 {
@@ -5539,7 +5416,7 @@ namespace Seralyth.Mods
                 trail.startWidth = thinTracers ? 0.0075f : 0.025f;
                 trail.endWidth = thinTracers ? 0.0075f : 0.025f;
 
-                NetPlayer owner = GetPlayerFromVRRig(rig);
+                NetPlayer owner = rig.GetPlayer();
                 NetPlayer theirTarget = hunt.GetTargetOf(owner);
 
                 Color color = owner == target ? rig.GetColor() : theirTarget == NetworkSystem.Instance.LocalPlayer ? Color.red : Color.clear;
@@ -5629,7 +5506,7 @@ namespace Seralyth.Mods
 
         public static void AutomaticESP(Action infection, Action hunt, Action other)
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             try
             {
                 switch (GorillaGameManager.instance.GameType())
@@ -5668,7 +5545,7 @@ namespace Seralyth.Mods
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal)
                     continue;
@@ -5708,7 +5585,7 @@ namespace Seralyth.Mods
 
             float distance = float.MaxValue;
             VRRig playerRig = VRRig.LocalRig;
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => distance > Vector3.Distance(rig.transform.position, VRRig.LocalRig.transform.position) && !rig.isLocal))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => distance > Vector3.Distance(rig.transform.position, VRRig.LocalRig.transform.position) && !rig.isLocal))
             {
                 distance = Vector3.Distance(rig.transform.position, VRRig.LocalRig.transform.position);
                 playerRig = rig;
@@ -5749,7 +5626,7 @@ namespace Seralyth.Mods
             bool LocalTagged = VRRig.LocalRig.IsTagged();
             bool NoInfected = InfectedList().Count == 0;
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal)
                     continue;
@@ -5807,7 +5684,7 @@ namespace Seralyth.Mods
 
             NetPlayer currentTarget = sillyComputer.GetTargetOf(PhotonNetwork.LocalPlayer);
 
-            foreach (var playerRig in VRRigCache.ActiveRigs.Where(playerRig => !playerRig.isLocal))
+            foreach (var playerRig in VRRigExtensions.ActiveRigs.Where(playerRig => !playerRig.isLocal))
             {
                 if (GetPlayerFromVRRig(playerRig) == currentTarget)
                 {
@@ -5860,7 +5737,7 @@ namespace Seralyth.Mods
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal)
                     continue;
@@ -5903,7 +5780,7 @@ namespace Seralyth.Mods
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal)
                     continue;
@@ -5968,7 +5845,7 @@ namespace Seralyth.Mods
 
             NetPlayer currentTarget = sillyComputer.GetTargetOf(PhotonNetwork.LocalPlayer);
 
-            foreach (var playerRig in VRRigCache.ActiveRigs.Where(playerRig => !playerRig.isLocal))
+            foreach (var playerRig in VRRigExtensions.ActiveRigs.Where(playerRig => !playerRig.isLocal))
             {
                 if (GetPlayerFromVRRig(playerRig) == currentTarget)
                 {
@@ -6027,7 +5904,7 @@ namespace Seralyth.Mods
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal) // Skip local player
                     continue;
@@ -6079,7 +5956,7 @@ namespace Seralyth.Mods
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
-            foreach (VRRig playerRig in VRRigCache.ActiveRigs)
+            foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
                 if (playerRig.isLocal) //skip local player
                     continue;
@@ -6160,7 +6037,7 @@ namespace Seralyth.Mods
 
             // Color bgColor = backgroundColor.GetCurrentColor(); //dont need to call this function twice, just use a variable
 
-            foreach (var playerRig in VRRigCache.ActiveRigs.Where(playerRig => !playerRig.isLocal))
+            foreach (var playerRig in VRRigExtensions.ActiveRigs.Where(playerRig => !playerRig.isLocal))
             {
                 if (GetPlayerFromVRRig(playerRig) == currentTarget) // Use ID for quick comparison
                 {
@@ -6278,7 +6155,7 @@ namespace Seralyth.Mods
                 backgroundObject.transform.localScale = new Vector3(MeshRender.bounds.size.x + 0.2f, 0.2f, 0.01f);
                 backgroundRender.material.shader = Shader.Find("GUI/Text Shader");
                 backgroundRender.material.color = Color.white;
-                MeshRender.material.renderQueue = backgroundRender.material.renderQueue + 2;
+                MeshRender.material.renderQueue = backgroundRender.sharedMaterial.renderQueue + 2;
 
                 newMesh.outlineWidth = 0.2f;
                 newMesh.outlineColor = Color.black;

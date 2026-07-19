@@ -80,7 +80,7 @@ namespace Seralyth.Patches.Menu
         private static string[] archiveCosmetics;
         public static IEnumerator LoadCosmetics()
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 Vector3 target = Main.TryOnRoom.transform.position;
 
@@ -105,7 +105,7 @@ namespace Seralyth.Patches.Menu
                 VRRig.LocalRig.LocalUpdateCosmeticsWithTryon(CosmeticsController.instance.currentWornSet, CosmeticsController.instance.tryOnSet, false);
 
                 float delay = Time.time + 30f;
-                while (Time.time < delay || PhotonNetwork.InRoom)
+                while (Time.time < delay || NetworkSystem.Instance.InRoom)
                     yield return null;
 
                 currentCoroutine = null;

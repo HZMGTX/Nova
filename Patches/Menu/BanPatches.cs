@@ -21,7 +21,6 @@
 
 using GorillaNetworking;
 using HarmonyLib;
-using Photon.Pun;
 using PlayFab;
 using PlayFab.CloudScriptModels;
 using PlayFab.Internal;
@@ -118,21 +117,21 @@ namespace Seralyth.Patches.Menu
                             else
                                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ANTI-BAN</color><color=grey>]</color> Your account is currently banned.");
                             Dictionary<string, List<string>>.Enumerator enumerator = error.ErrorDetails.GetEnumerator();
-                            if (enumerator.Current.Value[0] != "Indefinite")
-                            {
-                                fakeError = new PlayFabError
-                                {
-                                    Error = PlayFabErrorCode.UnknownError,
-                                    ErrorMessage = $"Your {(error.ErrorMessage.ToLower().Contains("this ip") ? "IP address" : "account")} has been banned. Hours left: {(int)((DateTime.Parse(enumerator.Current.Value[0]) - DateTime.UtcNow).TotalHours + 1.0)}",
-                                    ErrorDetails = new Dictionary<string, List<string>>()
-                                };
-                            }
-                            else
+                            if (enumerator.Current.Value[0] == null || enumerator.Current.Value[0] == "Indefinite")
                             {
                                 fakeError = new PlayFabError
                                 {
                                     Error = PlayFabErrorCode.UnknownError,
                                     ErrorMessage = $"Your {(error.ErrorMessage.ToLower().Contains("this ip") ? "IP address" : "account")} has been banned indefinitely.",
+                                    ErrorDetails = new Dictionary<string, List<string>>()
+                                };
+                            }
+                            else if (enumerator.Current.Value[0] != "Indefinite")
+                            {
+                                fakeError = new PlayFabError
+                                {
+                                    Error = PlayFabErrorCode.UnknownError,
+                                    ErrorMessage = $"Your {(error.ErrorMessage.ToLower().Contains("this ip") ? "IP address" : "account")} has been banned. Hours left: {(int)((DateTime.Parse(enumerator.Current.Value[0]) - DateTime.UtcNow).TotalHours + 1.0)}",
                                     ErrorDetails = new Dictionary<string, List<string>>()
                                 };
                             }
@@ -143,7 +142,7 @@ namespace Seralyth.Patches.Menu
                     }
 
                     callRequestContainer.ErrorCallback = overrideError;
-                    if (!PhotonNetwork.InRoom)
+                    if (!NetworkSystem.Instance.InRoom)
                         Task.Run(async () =>
                         {
                             while (GorillaComputer.instance == null)

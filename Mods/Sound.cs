@@ -29,7 +29,6 @@ using Seralyth.Extensions;
 using Seralyth.Managers;
 using Seralyth.Menu;
 using Seralyth.Patches.Menu;
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -256,6 +255,7 @@ namespace Seralyth.Mods
         public static void LoadSoundProperties(string soundName, string soundPath, string hash)
         {
             ButtonInfo playButton = null;
+            ButtonInfo playOnTouch = null;
             ButtonInfo pauseButton = null;
             ButtonInfo durationButton = null;
             ButtonInfo volumeButton = null;
@@ -273,7 +273,7 @@ namespace Seralyth.Mods
                 if (OverlapAudio)
                 {
                     PlayAudio(soundPath);
-                    playButton.enabled = false;
+                    playButton.SetEnabled(false);
                     return;
                 }
 
@@ -324,12 +324,6 @@ namespace Seralyth.Mods
 
                 return string.Join(" ", parts);
             }
-
-            float Step(float value, float step)
-            {
-                return Mathf.Round(value / step) * step;
-            }
-
 
             playButton = new ButtonInfo
             {
@@ -399,32 +393,19 @@ namespace Seralyth.Mods
                     toolTip = "Makes the song loop when it ends."
                 });
 
-
                 skipButton = new ButtonInfo
                 {
                     buttonText = $"Skip SoundboardSound {hashedName}",
                     overlapText = $"Skip <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>",
-                    method = () =>
-                    {
-                        sound.Clip.CurrentTime = Mathf.Clamp(sound.Clip.CurrentTime + skipAmount, 0, sound.Clip.Length);
-                    },
-                    enableMethod = () =>
-                    {
-                        sound.Clip.CurrentTime = Mathf.Clamp(sound.Clip.CurrentTime + skipAmount, 0, sound.Clip.Length);
-                    },
-                    disableMethod = () =>
-                    {
-                        sound.Clip.CurrentTime = Mathf.Clamp(sound.Clip.CurrentTime - skipAmount, 0, sound.Clip.Length);
-                    },
+                    enableMethod = () => sound.Clip.CurrentTime = Mathf.Clamp(sound.Clip.CurrentTime + skipAmount, 0, sound.Clip.Length),
+                    disableMethod = () => sound.Clip.CurrentTime = Mathf.Clamp(sound.Clip.CurrentTime - skipAmount, 0, sound.Clip.Length),
                     incremental = true,
                     isTogglable = false,
                     toolTip = "Skips forward or backward in the sound by the skip amount."
                 };
 
                 list.Add(skipButton);
-
                 list.Add(durationButton);
-
                 list.Add(new ButtonInfo
                 {
                     label = true,
@@ -432,84 +413,42 @@ namespace Seralyth.Mods
                     overlapText = $"Length: {FormatDuration(sound.Clip.Length)}"
                 });
 
-                volumeButton = new ButtonInfo
-                {
-                    buttonText = $"Change SoundboardSound {hashedName}'s Volume",
-                    overlapText = $"Change Volume <color=grey>[</color><color=green>{Math.Round(sound.Clip.Volume, 1)}</color><color=grey>]</color>",
-                    method = () =>
-                    {
-                        sound.Clip.Volume = Mathf.Clamp(Step(sound.Clip.Volume + 0.05f, 0.05f), 0, 10);
-                        volumeButton.overlapText = $"Change Volume <color=grey>[</color><color=green>{sound.Clip.Volume:F2}</color><color=grey>]</color>";
-                    },
-                    enableMethod = () =>
-                    {
-                        sound.Clip.Volume = Mathf.Clamp(Step(sound.Clip.Volume + 0.05f, 0.05f), 0, 10);
-                        volumeButton.overlapText = $"Change Volume <color=grey>[</color><color=green>{sound.Clip.Volume:F2}</color><color=grey>]</color>";
-                    },
-                    disableMethod = () =>
-                    {
-                        sound.Clip.Volume = Mathf.Clamp(Step(sound.Clip.Volume - 0.05f, 0.05f), 0, 10);
-                        volumeButton.overlapText = $"Change Volume <color=grey>[</color><color=green>{sound.Clip.Volume:F2}</color><color=grey>]</color>";
-                    },
-                    incremental = true,
-                    isTogglable = false,
-                    toolTip = "Changes the volume of the sound. Higher volumes will make the sound louder, while lower volumes will make it quieter."
-                };
+                volumeButton = ButtonHelper.CreateNumeric(
+                    $"Change SoundboardSound {hashedName}'s Volume",
+                    min: 0,
+                    max: 200,
+                    defaultValue: Mathf.RoundToInt(Mathf.Clamp(sound.Clip.Volume, 0, 10) / 0.05f),
+                    apply: v => sound.Clip.Volume = v * 0.05f,
+                    display: v => (v * 0.05f).ToString("F2"),
+                    toolTip: "Changes the volume of the sound. Higher volumes will make the sound louder, while lower volumes will make it quieter.",
+                    overlapText: "Change Volume");
 
-                speedButton = new ButtonInfo
-                {
-                    buttonText = $"Change SoundboardSound {hashedName}'s Speed",
-                    overlapText = $"Change Speed <color=grey>[</color><color=green>{Math.Round(sound.Clip.Speed, 1)}</color><color=grey>]</color>",
-                    method = () =>
-                    {
-                        sound.Clip.Speed = Mathf.Clamp(Step(sound.Clip.Speed + 0.05f, 0.05f), 0, 5);
-                        speedButton.overlapText = $"Change Speed <color=grey>[</color><color=green>{sound.Clip.Speed:F2}</color><color=grey>]</color>";
-                    },
-                    enableMethod = () =>
-                    {
-                        sound.Clip.Speed = Mathf.Clamp(Step(sound.Clip.Speed + 0.05f, 0.05f), 0, 5);
-                        speedButton.overlapText = $"Change Speed <color=grey>[</color><color=green>{sound.Clip.Speed:F2}</color><color=grey>]</color>";
-                    },
-                    disableMethod = () =>
-                    {
-                        sound.Clip.Speed = Mathf.Clamp(Step(sound.Clip.Speed - 0.05f, 0.05f), 0, 5);
-                        speedButton.overlapText = $"Change Speed <color=grey>[</color><color=green>{sound.Clip.Speed:F2}</color><color=grey>]</color>";
-                    },
-                    incremental = true,
-                    isTogglable = false,
-                    toolTip = "Changes the speed of the sound. Higher speeds will make the pitch higher, while lower speeds will make the pitch lower."
-                };
+                speedButton = ButtonHelper.CreateNumeric(
+                    $"Change SoundboardSound {hashedName}'s Speed",
+                    min: 0,
+                    max: 100,
+                    defaultValue: Mathf.RoundToInt(Mathf.Clamp(sound.Clip.Speed, 0, 5) / 0.05f),
+                    apply: v => sound.Clip.Speed = v * 0.05f,
+                    display: v => (v * 0.05f).ToString("F2"),
+                    toolTip: "Changes the speed of the sound. Higher speeds will make the pitch higher, while lower speeds will make it lower.",
+                    overlapText: "Change Speed");
 
-                skipAmountButton = new ButtonInfo
-                {
-                    buttonText = $"Change Skip Amount SoundboardSound {hashedName}",
-                    overlapText = $"Skip Amount <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>",
-                    method = () =>
+                skipAmountButton = ButtonHelper.CreateNumeric(
+                    $"Change Skip Amount SoundboardSound {hashedName}",
+                    min: 0,
+                    max: 60,
+                    defaultValue: Mathf.RoundToInt(skipAmount / 0.5f),
+                    apply: v =>
                     {
-                        skipAmount += 0.5f;
-                        skipAmountButton.overlapText = $"Skip Amount <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
-                        skipButton.overlapText = $"Skip <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
+                        skipAmount = v * 0.5f;
+                        skipButton.overlapText = $"Skip Amount <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
                     },
-                    enableMethod = () =>
-                    {
-                        skipAmount += 0.5f;
-                        skipAmountButton.overlapText = $"Skip Amount <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
-                        skipButton.overlapText = $"Skip <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
-                    },
-                    disableMethod = () =>
-                    {
-                        skipAmount = Mathf.Max(0f, skipAmount - 0.5f);
-                        skipAmountButton.overlapText = $"Skip Amount <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
-                        skipButton.overlapText = $"Skip <color=grey>[</color><color=green>{skipAmount:0.0}s</color><color=grey>]</color>";
-                    },
-                    incremental = true,
-                    isTogglable = false,
-                    toolTip = "Changes how much time is skipped when you press the skip button."
-
-                };
+                    display: v => $"{v * 0.5f:0.0}s",
+                    persist: false,
+                    toolTip: "Changes how much time is skipped when you press the skip button.",
+                    overlapText: "Skip Amount");
 
                 list.Add(skipAmountButton);
-
                 list.Add(volumeButton);
                 list.Add(speedButton);
             }
@@ -551,7 +490,7 @@ namespace Seralyth.Mods
         public static bool disableLocalSoundboard;
         public static void PlayAudio(AudioClip sound, bool disableMicrophone = false)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 if (soundboardAudioManager == null)
                 {
@@ -633,7 +572,7 @@ namespace Seralyth.Mods
 
                 if (!activeSounds.ContainsKey(hash))
                 {
-                    if (RecorderPatch.enabled && PhotonNetwork.InRoom)
+                    if (RecorderPatch.enabled && NetworkSystem.Instance.InRoom)
                     {
                         var id = VoiceManager.Get().AudioClip(clip, false);
                         activeSounds[hash] = new SoundData { Clip = id, AudioClip = clip };
@@ -665,7 +604,7 @@ namespace Seralyth.Mods
 
         public static void PlayAudio(string file)
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 LoadSoundFromFile(file, clip =>
                 {
@@ -688,11 +627,11 @@ namespace Seralyth.Mods
                 foreach (ButtonInfo button in buttonArray)
                 {
                     if (button != null && button.enabled)
-                        button.enabled = false;
+                        button.SetEnabled(false);
                 }
             }
 
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 if (RecorderPatch.enabled)
                 {
@@ -705,7 +644,7 @@ namespace Seralyth.Mods
                             foreach (var button in row)
                             {
                                 if (keys.Contains(button.buttonText))
-                                    button.enabled = false;
+                                    button.SetEnabled(false);
                             }
                         }
 
@@ -730,7 +669,7 @@ namespace Seralyth.Mods
 
         public static void FixMicrophone()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
             if (RecorderPatch.enabled)
             {
@@ -743,7 +682,7 @@ namespace Seralyth.Mods
                         foreach (var button in row)
                         {
                             if (keys.Contains(button.buttonText))
-                                button.enabled = false;
+                                button.SetEnabled(false);
                         }
                     }
 
@@ -794,33 +733,11 @@ namespace Seralyth.Mods
             Process.Start(filePath);
         }
 
-        public static void SoundBindings(bool positive = true)
-        {
-            string[] names = {
-                "None",
-                "A",
-                "B",
-                "X",
-                "Y",
-                "Left Grip",
-                "Right Grip",
-                "Left Trigger",
-                "Right Trigger",
-                "Left Joystick",
-                "Right Joystick"
-            };
-
-            if (positive)
-                BindMode++;
-            else
-                BindMode--;
-
-            BindMode %= names.Length;
-            if (BindMode < 0)
-                BindMode = names.Length - 1;
-
-            Buttons.GetIndex("Sound Bindings").overlapText = "Sound Bindings <color=grey>[</color><color=green>" + names[BindMode] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] BindModeNames = {
+            "None", "A", "B", "X", "Y", "Left Grip", "Right Grip",
+            "Left Trigger", "Right Trigger", "Left Joystick", "Right Joystick"
+        };
+        public static void ApplySoundBindings(int index) => BindMode = index;
 
         public static float sendEffectDelay;
         public static void BetaPlayTag(int id, float volume)
@@ -856,7 +773,7 @@ namespace Seralyth.Mods
                 else
                     return;
 
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, soundId, false, 999999f);
                     RPCProtection();
@@ -900,22 +817,6 @@ namespace Seralyth.Mods
         }
 
         public static int soundId;
-        public static void DecreaseSoundID()
-        {
-            soundId--;
-            if (soundId < 0)
-                soundId = GTPlayer.Instance.materialData.Count - 1;
-
-            Buttons.GetIndex("Custom Sound Spam").overlapText = "Custom Sound Spam <color=grey>[</color><color=green>" + soundId + "</color><color=grey>]</color>";
-        }
-
-        public static void IncreaseSoundID()
-        {
-            soundId++;
-            soundId %= GTPlayer.Instance.materialData.Count;
-
-            Buttons.GetIndex("Custom Sound Spam").overlapText = "Custom Sound Spam <color=grey>[</color><color=green>" + soundId + "</color><color=grey>]</color>";
-        }
 
         public static void CustomSoundSpam() => SoundSpam(soundId);
 

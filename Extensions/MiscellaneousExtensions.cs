@@ -33,13 +33,16 @@ namespace Seralyth.Extensions
     public static class MiscellaneousExtensions
     {
         public static bool CanCallNow(this FXSystemSettings settings, int index, float? time = null) =>
-            settings.GetCallLimiter(index).CanCallNow(time);
+            settings.GetCallLimiter(index).CanCallNow(time, settings.GetCallLimitType(index).UseNetWorkTime);
 
         public static float GetDelay(this FXSystemSettings settings, int index) =>
-            settings.GetCallLimiter(index).GetDelay();
+            settings.GetCallLimiter(index).GetDelay(settings.GetCallLimitType(index).UseNetWorkTime);
 
         public static CallLimiter GetCallLimiter(this FXSystemSettings settings, int index) =>
             settings.callSettings[index].CallLimitSettings;
+
+        public static CallLimitType<CallLimiter> GetCallLimitType(this FXSystemSettings settings, int index) =>
+            settings.callSettings[index];
 
         public static void Serialize(this PhotonView view, Photon.Realtime.RaiseEventOptions options = null, int timeOffset = 0) =>
             SendSerialize(view, options, timeOffset);

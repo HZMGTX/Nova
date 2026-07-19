@@ -20,6 +20,7 @@
  */
 
 using Seralyth.Classes.Menu;
+using Seralyth.Managers;
 using UnityEngine;
 
 namespace Seralyth.Classes.Mods
@@ -36,13 +37,16 @@ namespace Seralyth.Classes.Mods
 
         public void Update()
         {
-            if (gameObjectRenderer.material.shader != targetRenderer.material.shader)
-                gameObjectRenderer.material = new Material(targetRenderer.material.shader);
+            if (gameObjectRenderer.sharedMaterial.shader != targetRenderer.sharedMaterial.shader)
+            {
+                LogManager.Log("Creating new material");
+                gameObjectRenderer.material = new Material(targetRenderer.sharedMaterial.shader);
+            }
 
-            if (targetRenderer.material.mainTexture != null && gameObjectRenderer.material.mainTexture != targetRenderer.material.mainTexture)
-                gameObjectRenderer.material.mainTexture = targetRenderer.material.mainTexture;
+            if (targetRenderer.sharedMaterial.mainTexture != null && gameObjectRenderer.sharedMaterial.mainTexture != targetRenderer.sharedMaterial.mainTexture)
+                gameObjectRenderer.material.mainTexture = targetRenderer.sharedMaterial.mainTexture;
 
-            gameObjectRenderer.material.color = targetRenderer.material.color;
+            gameObjectRenderer.material.color = targetRenderer.sharedMaterial.color;
         }
 
         public Renderer gameObjectRenderer;

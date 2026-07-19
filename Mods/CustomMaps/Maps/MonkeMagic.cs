@@ -23,6 +23,7 @@ using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
 using Seralyth.Classes.Menu;
+using Seralyth.Extensions;
 using Seralyth.Managers;
 using System.Collections.Generic;
 using System.Linq;
@@ -77,7 +78,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
                 if (gunLocked && lockTarget != null && Time.time > lightningDelay)
                 {
                     lightningDelay = Time.time + 0.1f;
-                    PhotonNetwork.RaiseEvent(180, new object[] { "SummonThunder", (double)GetPlayerFromVRRig(lockTarget).ActorNumber }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
+                    PhotonNetwork.RaiseEvent(180, new object[] { "SummonThunder", (double)lockTarget.GetPlayer().ActorNumber }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
                     RPCProtection();
                 }
 
@@ -155,7 +156,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
             if (Time.time > materialDelay)
             {
                 materialDelay = Time.time + 0.2f;
-                PhotonNetwork.RaiseEvent(180, new object[] { "ChangingMaterial", (double)GetPlayerFromVRRig(lockTarget).ActorNumber, (double)Random.Range(0, VRRig.LocalRig.materialsToChangeTo.Length) }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
+                PhotonNetwork.RaiseEvent(180, new object[] { "ChangingMaterial", (double)lockTarget.GetPlayer().ActorNumber, (double)Random.Range(0, VRRig.LocalRig.materialsToChangeTo.Length) }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
                 RPCProtection();
             }
         }
@@ -180,7 +181,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > lucyDelay)
                     {
                         lucyDelay = Time.time + 0.2f;
-                        PhotonNetwork.RaiseEvent(180, new object[] { "SummonLucy", (double)GetPlayerFromVRRig(lockTarget).ActorNumber }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
+                        PhotonNetwork.RaiseEvent(180, new object[] { "SummonLucy", (double)lockTarget.GetPlayer().ActorNumber }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
                         RPCProtection();
                     }
                 }
@@ -218,7 +219,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
 
                 if (gunLocked && lockTarget != null && Time.time > crashDelay)
                 {
-                    NetPlayer Player = GetPlayerFromVRRig(lockTarget);
+                    NetPlayer Player = lockTarget.GetPlayer();
                     CrashPlayer(Player.ActorNumber);
                     crashDelay = Time.time + 0.2f;
                 }
@@ -244,10 +245,10 @@ namespace Seralyth.Mods.CustomMaps.Maps
             if (Time.time < crashDelay)
                 return;
 
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -268,7 +269,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
         {
             if (Time.time < crashDelay)
                 return;
-            foreach (var Player in from rig in VRRigCache.ActiveRigs where !rig.isLocal && (Vector3.Distance(GorillaTagger.Instance.leftHandTransform.position, rig.headMesh.transform.position) < 0.25f || Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, rig.headMesh.transform.position) < 0.25f) select GetPlayerFromVRRig(rig))
+            foreach (var Player in from rig in VRRigExtensions.ActiveRigs where !rig.isLocal && (Vector3.Distance(GorillaTagger.Instance.leftHandTransform.position, rig.headMesh.transform.position) < 0.25f || Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, rig.headMesh.transform.position) < 0.25f) select rig.GetPlayer())
             {
                 CrashPlayer(Player.ActorNumber);
                 crashDelay = Time.time + 0.2f;
@@ -278,7 +279,7 @@ namespace Seralyth.Mods.CustomMaps.Maps
         {
             if (Time.time < crashDelay)
                 return;
-            foreach (var Player in from vrrig in VRRigCache.ActiveRigs where !vrrig.isMyPlayer && !vrrig.isOfflineVRRig && (Vector3.Distance(vrrig.rightHandTransform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.leftHandTransform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.transform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5) select GetPlayerFromVRRig(vrrig))
+            foreach (var Player in from vrrig in VRRigExtensions.ActiveRigs where !vrrig.isMyPlayer && !vrrig.isOfflineVRRig && (Vector3.Distance(vrrig.rightHandTransform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.leftHandTransform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.transform.position, GorillaTagger.Instance.offlineVRRig.transform.position) <= 0.5) select GetPlayerFromVRRig(vrrig))
             {
                 CrashPlayer(Player.ActorNumber);
                 crashDelay = Time.time + 0.2f;

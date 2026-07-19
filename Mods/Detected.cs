@@ -27,8 +27,6 @@ using Photon.Realtime;
 using Seralyth.Extensions;
 using Seralyth.Managers;
 using Seralyth.Menu;
-using Seralyth.Patches.Menu;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -63,94 +61,7 @@ namespace Seralyth.Mods
             else Buttons.CurrentCategoryName = "Detected Mods";
         }
 
-        public static float masterDelay;
         public static Dictionary<VRRig, int> viewIdArchive = new Dictionary<VRRig, int>();
-        public static void SetMasterClientGun()
-        {
-            if (GetGunInput(false))
-            {
-                var GunData = RenderGun();
-                RaycastHit Ray = GunData.Ray;
-
-                if (GetGunInput(true))
-                {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (gunTarget && !gunTarget.IsLocal())
-                    {
-                        if (Time.time > masterDelay)
-                        {
-                            PhotonNetwork.SetMasterClient(gunTarget.GetPhotonPlayer());
-                            masterDelay = Time.time + 0.02f;
-                        }
-                    }
-                }
-            }
-        }
-
-        public static void SetMasterClientAll()
-        {
-            if (Time.time > masterDelay)
-            {
-                PhotonNetwork.SetMasterClient(GetTargetPlayer().GetPhotonPlayer());
-                masterDelay = Time.time + 0.02f;
-            }
-        }
-
-        public static void SetMasterClientAura()
-        {
-            if (!PhotonNetwork.InRoom) return;
-            List<VRRig> nearbyPlayers = new List<VRRig>();
-
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
-            {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
-                    nearbyPlayers.Add(vrrig);
-                else if (nearbyPlayers.Contains(vrrig))
-                    nearbyPlayers.Remove(vrrig);
-            }
-
-            if (nearbyPlayers.Count <= 0) return;
-            foreach (var nearbyPlayer in nearbyPlayers.Where(nearbyPlayer => Time.time > masterDelay))
-            {
-                PhotonNetwork.SetMasterClient(nearbyPlayer.GetPhotonPlayer());
-                masterDelay = Time.time + 0.02f;
-            }
-        }
-
-        public static void SetMasterClientOnTouch()
-        {
-            if (!PhotonNetwork.InRoom) return;
-
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
-            {
-                if (!rig.IsLocal())
-                {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count <= 0) return;
-            {
-                foreach (var rig in touchedPlayers.Where(rig => Time.time > masterDelay))
-                {
-                    PhotonNetwork.SetMasterClient(rig.GetPhotonPlayer());
-                    masterDelay = Time.time + 0.02f;
-                }
-            }
-        }
-
-        public static void AutoSetMasterClient()
-        {
-            if (!PhotonNetwork.InRoom) return;
-            if (!PhotonNetwork.IsMasterClient)
-                PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-        }
 
         public static void Destroy(object target, Hashtable hashtable = null, RaiseEventOptions raiseEventOptions = null, int viewID = -1)
         {
@@ -163,112 +74,63 @@ namespace Seralyth.Mods
                         hashtable = new Hashtable { { 0, viewID == -1 ? view.ViewID : viewID } };
                     }
                     raiseEventOptions ??= new RaiseEventOptions { TargetActors = new[] { rig.GetPlayer().ActorNumber } };
-                    PhotonNetwork.NetworkingClient.OpRaiseEvent(Photon.Pun.PunEvent.Destroy, hashtable, raiseEventOptions, SendOptions.SendReliable);
+                    PhotonNetwork.NetworkingClient.OpRaiseEvent(PunEvent.Destroy, hashtable, raiseEventOptions, SendOptions.SendReliable);
                     break;
                 case Player player:
                     hashtable ??= new Hashtable { { 0, player.ActorNumber } };
                     raiseEventOptions ??= new RaiseEventOptions { TargetActors = new[] { player.ActorNumber } };
-                    PhotonNetwork.NetworkingClient.OpRaiseEvent(Photon.Pun.PunEvent.DestroyPlayer, hashtable, raiseEventOptions, SendOptions.SendReliable);
+                    PhotonNetwork.NetworkingClient.OpRaiseEvent(PunEvent.DestroyPlayer, hashtable, raiseEventOptions, SendOptions.SendReliable);
                     break;
                 case GameObject _:
                     break;
             }
         }
 
-        public static void CrashGun()
+        public static void ObliterateGun()
         {
             if (GetGunInput(false))
             {
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                if (gunLocked && lockTarget != null)
-                {
-                    PhotonNetwork.SetMasterClient(lockTarget.GetPhotonPlayer());
-                    PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-                }
-
                 if (GetGunInput(true))
                 {
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        gunLocked = true;
-                        lockTarget = gunTarget;
+                        foreach (PhotonView view in PhotonNetwork.PhotonViewCollection)
+                        {
+                            Destroy(gunTarget, new Hashtable
+                            {
+                                { 0, view.ViewID }
+                            }, new RaiseEventOptions
+                            {
+                                TargetActors = new[] { gunTarget.Creator.ActorNumber }
+                            });
+                        }
+
                     }
                 }
             }
-            else
-            {
-                if (gunLocked)
-                    gunLocked = false;
-            }
         }
 
-        public static void CrashAll()
+        public static void ObliterateAll()
         {
-            PhotonNetwork.SetMasterClient(GetTargetPlayer().GetPhotonPlayer());
-            PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-        }
-
-        public static void CrashAura()
-        {
-            if (!PhotonNetwork.InRoom) return;
-            List<VRRig> nearbyPlayers = new List<VRRig>();
-
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
-                    nearbyPlayers.Add(vrrig);
-                else if (nearbyPlayers.Contains(vrrig))
-                    nearbyPlayers.Remove(vrrig);
-            }
-
-            if (nearbyPlayers.Count > 0)
-            {
-                foreach (VRRig nearbyPlayer in nearbyPlayers)
+                foreach (PhotonView view in PhotonNetwork.PhotonViewCollection)
                 {
-                    PhotonNetwork.SetMasterClient(nearbyPlayer.GetPhotonPlayer());
-                    PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-                }
-            }
-        }
-
-        public static void CrashOnTouch()
-        {
-            if (!PhotonNetwork.InRoom) return;
-
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
-            {
-                if (!rig.IsLocal())
-                {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    Destroy(rig, new Hashtable
                     {
-                        touchedPlayers.Add(rig);
-                    }
+                        { 0, view.ViewID }
+                    }, new RaiseEventOptions
+                    {
+                        TargetActors = new[] { rig.Creator.ActorNumber }
+                    });
                 }
+
             }
 
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
-                {
-                    PhotonNetwork.SetMasterClient(rig.GetPhotonPlayer());
-                    PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-                }
-            }
-        }
-
-        public static void CrashWhenTouched()
-        {
-            foreach (var playerFromVRRig in from vrrig in VRRigCache.ActiveRigs where !vrrig.isMyPlayer && !vrrig.isOfflineVRRig && (Vector3.Distance(vrrig.rightHandTransform.position, VRRig.LocalRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.leftHandTransform.position, VRRig.LocalRig.transform.position) <= 0.5 || Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) <= 0.5) select GetPlayerFromVRRig(vrrig))
-            {
-                PhotonNetwork.SetMasterClient(playerFromVRRig.GetPlayer());
-                PhotonNetwork.SetMasterClient(PhotonNetwork.LocalPlayer);
-            }
         }
 
         public static void GhostGun()
@@ -302,7 +164,7 @@ namespace Seralyth.Mods
 
         public static void GhostAll()
         {
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
@@ -332,12 +194,12 @@ namespace Seralyth.Mods
 
         public static void GhostAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -370,16 +232,15 @@ namespace Seralyth.Mods
 
         public static void GhostOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedRigs = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                         touchedRigs.Add(rig);
                 }
             }
@@ -456,7 +317,7 @@ namespace Seralyth.Mods
             if (Time.time > muteDelay)
             {
                 muteDelay = Time.time + 0.15f;
-                foreach (VRRig rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal() && rig.muted))
+                foreach (VRRig rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal() && rig.muted))
                 {
                     try
                     {
@@ -488,7 +349,7 @@ namespace Seralyth.Mods
 
         public static void UnghostAll()
         {
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (viewIdArchive.TryGetValue(rig, out int viewID))
                     Destroy(rig, null, null, viewID);
@@ -497,12 +358,12 @@ namespace Seralyth.Mods
 
         public static void UnghostAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -520,16 +381,15 @@ namespace Seralyth.Mods
 
         public static void UnghostOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedRigs = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedRigs.Add(rig);
                     }
@@ -555,7 +415,7 @@ namespace Seralyth.Mods
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        foreach (VRRig rig in VRRigCache.ActiveRigs)
+                        foreach (VRRig rig in VRRigExtensions.ActiveRigs)
                         {
                             bool includeLocal = !Buttons.GetIndex("Isolate Others").enabled || !rig.IsLocal();
                             PhotonView view = GetPhotonViewFromVRRig(rig);
@@ -577,7 +437,7 @@ namespace Seralyth.Mods
 
         public static void IsolateAll()
         {
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 bool includeLocal = !Buttons.GetIndex("Isolate Others").enabled || !rig.IsLocal();
                 if (includeLocal)
@@ -598,12 +458,12 @@ namespace Seralyth.Mods
 
         public static void IsolateAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -631,16 +491,15 @@ namespace Seralyth.Mods
 
         public static void IsolateOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedRigs = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedRigs.Add(rig);
                     }
@@ -649,7 +508,7 @@ namespace Seralyth.Mods
 
             foreach (VRRig touchedRig in touchedRigs)
             {
-                foreach (VRRig otherRig in VRRigCache.ActiveRigs)
+                foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
                 {
                     bool includeLocal = !Buttons.GetIndex("Isolate Others").enabled || !otherRig.IsLocal();
                     PhotonView view = GetPhotonViewFromVRRig(otherRig);
@@ -697,18 +556,18 @@ namespace Seralyth.Mods
 
         public static void LagAll()
         {
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
                 Destroy(rig.GetPhotonPlayer());
         }
 
         public static void LagAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -723,16 +582,15 @@ namespace Seralyth.Mods
 
         public static void LagOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -783,7 +641,7 @@ namespace Seralyth.Mods
         public static void MuteAll()
         {
             if (!(Time.time > muteDelay)) return;
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
                 Destroy(rig.GetPhotonPlayer());
 
             muteDelay = Time.time + 0.15f;
@@ -791,12 +649,12 @@ namespace Seralyth.Mods
 
         public static void MuteAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -814,16 +672,15 @@ namespace Seralyth.Mods
 
         public static void MuteOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedRigs = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                         touchedRigs.Add(rig);
                 }
             }
@@ -835,15 +692,6 @@ namespace Seralyth.Mods
 
                 muteDelay = Time.time + 0.15f;
             }
-        }
-
-        private static Coroutine disablePatchCoroutine;
-        public static IEnumerator DisablePatch()
-        {
-            while (PhotonNetwork.InRoom || PhotonNetwork.IsMasterClient)
-                yield return null;
-
-            GameModePatch.enabled = false;
         }
 
         public static string name = "SERALYTH";
@@ -898,12 +746,12 @@ namespace Seralyth.Mods
 
         public static void ChangeNameAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -924,16 +772,15 @@ namespace Seralyth.Mods
 
         public static void ChangeNameOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -946,7 +793,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = name
+                        [ActorProperties.PlayerName] = name
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(rig.GetPlayer().ActorNumber, hashtable);
                 }
@@ -964,7 +811,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
+                        [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(lockTarget.GetPlayer().ActorNumber, hashtable);
                     MonkeAgent.instance.SendReport("evading the name ban", lockTarget.GetPlayer().UserId, lockTarget.GetPlayer().NickName);
@@ -993,7 +840,7 @@ namespace Seralyth.Mods
             {
                 Hashtable hashtable = new Hashtable
                 {
-                    [Photon.Realtime.ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
+                    [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
                 };
                 PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(player.ActorNumber, hashtable);
                 MonkeAgent.instance.SendReport("evading the name ban", player.UserId, player.NickName);
@@ -1002,12 +849,12 @@ namespace Seralyth.Mods
 
         public static void BanAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -1019,7 +866,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
+                        [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(nearbyPlayer.GetPlayer().ActorNumber, hashtable);
                     MonkeAgent.instance.SendReport("evading the name ban", nearbyPlayer.GetPlayer().UserId, nearbyPlayer.GetPlayer().NickName);
@@ -1029,16 +876,15 @@ namespace Seralyth.Mods
 
         public static void BanOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -1051,7 +897,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
+                        [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(rig.GetPlayer().ActorNumber, hashtable);
                     MonkeAgent.instance.SendReport("evading the name ban", rig.GetPlayer().UserId, rig.GetPlayer().NickName);
@@ -1081,7 +927,7 @@ namespace Seralyth.Mods
 
                         Hashtable toRemove = new Hashtable();
 
-                        foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals("didTutorial") select key)
+                        foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
                             toRemove[key] = null;
 
                         if (toRemove.Count > 0)
@@ -1102,7 +948,7 @@ namespace Seralyth.Mods
 
                 Hashtable toRemove = new Hashtable();
 
-                foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals("didTutorial") select key)
+                foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
                     toRemove[key] = null;
 
                 if (toRemove.Count > 0)
@@ -1112,12 +958,12 @@ namespace Seralyth.Mods
 
         public static void BypassModCheckersAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -1130,7 +976,7 @@ namespace Seralyth.Mods
 
                 Hashtable toRemove = new Hashtable();
 
-                foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals("didTutorial") select key)
+                foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
                     toRemove[key] = null;
 
                 if (toRemove.Count > 0)
@@ -1140,16 +986,15 @@ namespace Seralyth.Mods
 
         public static void BypassModCheckersOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -1164,7 +1009,7 @@ namespace Seralyth.Mods
 
                     Hashtable toRemove = new Hashtable();
 
-                    foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals("didTutorial") select key)
+                    foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
                         toRemove[key] = null;
 
                     if (toRemove.Count > 0)
@@ -1209,12 +1054,12 @@ namespace Seralyth.Mods
 
         public static void BreakModCheckersAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -1235,16 +1080,15 @@ namespace Seralyth.Mods
 
         public static void BreakModCheckersOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -1278,7 +1122,7 @@ namespace Seralyth.Mods
                     {
                         customPropertyDelay = Time.time + 0.25f;
 
-                        Hashtable props = new Hashtable { { "didTutorial", true } };
+                        Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, true } };
                         gunTarget.GetPhotonPlayer().SetCustomProperties(props);
                     }
                 }
@@ -1289,19 +1133,19 @@ namespace Seralyth.Mods
         {
             foreach (Player player in PhotonNetwork.PlayerList)
             {
-                Hashtable props = new Hashtable { { "didTutorial", true } };
+                Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, true } };
                 player.SetCustomProperties(props);
             }
         }
 
         public static void GamemodeIncludeAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -1311,7 +1155,7 @@ namespace Seralyth.Mods
             {
                 foreach (VRRig nearbyPlayer in nearbyPlayers)
                 {
-                    Hashtable props = new Hashtable { { "didTutorial", true } };
+                    Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, true } };
                     nearbyPlayer.GetPhotonPlayer().SetCustomProperties(props);
                 }
             }
@@ -1319,16 +1163,15 @@ namespace Seralyth.Mods
 
         public static void GamemodeIncludeOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -1339,7 +1182,7 @@ namespace Seralyth.Mods
             {
                 foreach (VRRig rig in touchedPlayers)
                 {
-                    Hashtable props = new Hashtable { { "didTutorial", true } };
+                    Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, true } };
                     rig.GetPhotonPlayer().SetCustomProperties(props);
                 }
             }
@@ -1359,7 +1202,7 @@ namespace Seralyth.Mods
                     {
                         customPropertyDelay = Time.time + 0.25f;
 
-                        Hashtable props = new Hashtable { { "didTutorial", false } };
+                        Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, false } };
                         gunTarget.GetPhotonPlayer().SetCustomProperties(props);
                     }
                 }
@@ -1370,19 +1213,19 @@ namespace Seralyth.Mods
         {
             foreach (Player player in PhotonNetwork.PlayerList)
             {
-                Hashtable props = new Hashtable { { "didTutorial", false } };
+                Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, false } };
                 player.SetCustomProperties(props);
             }
         }
 
         public static void GamemodeExcludeAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
                 else if (nearbyPlayers.Contains(vrrig))
                     nearbyPlayers.Remove(vrrig);
@@ -1392,7 +1235,7 @@ namespace Seralyth.Mods
             {
                 foreach (VRRig nearbyPlayer in nearbyPlayers)
                 {
-                    Hashtable props = new Hashtable { { "didTutorial", false } };
+                    Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, false } };
                     nearbyPlayer.GetPhotonPlayer().SetCustomProperties(props);
                 }
             }
@@ -1400,16 +1243,15 @@ namespace Seralyth.Mods
 
         public static void GamemodeExcludeOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -1420,7 +1262,7 @@ namespace Seralyth.Mods
             {
                 foreach (VRRig rig in touchedPlayers)
                 {
-                    Hashtable props = new Hashtable { { "didTutorial", false } };
+                    Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, false } };
                     rig.GetPhotonPlayer().SetCustomProperties(props);
                 }
             }
@@ -1428,7 +1270,7 @@ namespace Seralyth.Mods
 
         public static void BreakGamemode(bool breaking)
         {
-            Hashtable props = new Hashtable { { "didTutorial", !breaking } };
+            Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, !breaking } };
 
             foreach (Player player in PhotonNetwork.PlayerList)
                 player.SetCustomProperties(props);
@@ -1439,7 +1281,7 @@ namespace Seralyth.Mods
             string queue = Buttons.GetIndex("Switch to Modded Gamemode").enabled ? GorillaComputer.instance.currentQueue + "MODDED_" : GorillaComputer.instance.currentQueue;
             Hashtable hash = new Hashtable
             {
-                { "gameMode", string.Join("", GorillaComputer.instance.allowedMapsToJoin) + queue + GorillaComputer.instance.currentGameMode.Value }
+                {RoomConfig.Room_GameModePropKey, string.Join("", GorillaComputer.instance.allowedMapsToJoin) + queue + GorillaComputer.instance.currentGameMode.Value }
             };
             PhotonNetwork.CurrentRoom.SetCustomProperties(hash);
         }
@@ -1451,7 +1293,7 @@ namespace Seralyth.Mods
 
             Hashtable hash = new Hashtable
             {
-                { "gameMode", GorillaComputer.instance.currentGameMode.Value }
+                { RoomConfig.Room_GameModePropKey, string.Empty }
             };
             PhotonNetwork.CurrentRoom.SetCustomProperties(hash);
         }
@@ -1469,31 +1311,37 @@ namespace Seralyth.Mods
         public static bool moddedGamemode;
         public static void ChangeGamemode(GameModeType gamemode)
         {
-            if (!PhotonNetwork.IsMasterClient)
-            {
-                NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not master client.");
+            if (!NetworkSystem.Instance.InRoom)
                 return;
-            }
 
-            if (disablePatchCoroutine != null)
-                disablePatchCoroutine = CoroutineManager.instance.StartCoroutine(DisablePatch());
-
-            GameModePatch.enabled = true;
             NetworkSystem.Instance.NetDestroy(GameMode.activeNetworkHandler.NetView.gameObject);
-
-            string queue = moddedGamemode ? GorillaComputer.instance.currentQueue + "MODDED_" : GorillaComputer.instance.currentQueue;
 
             Hashtable hash = new Hashtable
             {
-                { "gameMode", $"{PhotonNetwork.CurrentRoom.IsVisible}|{queue}|{gamemode}"}
+                {
+                    RoomConfig.Room_GameModePropKey,
+                    new GameModeString
+                    {
+                        zone = PhotonNetworkController.Instance.currentJoinTrigger.networkZone,
+                        queue = moddedGamemode ? GorillaComputer.instance.currentQueue + "MODDED_" : GorillaComputer.instance.currentQueue,
+                        gameType = gamemode.ToString()
+                    }.ToString()
+                }
             };
             PhotonNetwork.CurrentRoom.SetCustomProperties(hash);
+        }
 
-            GameMode.activeGameMode.StopPlaying();
-            GameMode.activeGameMode = null;
-            GameMode.activeNetworkHandler = null;
-
-            GameMode.LoadGameMode(gamemode.ToString());
+        public static void BanSelf()
+        {
+            for (int i = 0; i > 2; i++)
+            {
+                GorillaServer.Instance.CheckForBadName(new CheckForBadNameRequest
+                {
+                    name = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)],
+                    forRoom = true,
+                    forTroop = false
+                }, null, null);
+            }
         }
     }
 }

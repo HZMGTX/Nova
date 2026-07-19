@@ -224,7 +224,7 @@ namespace Seralyth.Managers
                 {
                     case int rpcId:
                         VRRig.LocalRig.PlayHandTapLocal(rpcId, rightHand, buttonClickVolume / 10f);
-                        if (PhotonNetwork.InRoom && serversidedButtonSounds)
+                        if (NetworkSystem.Instance.InRoom && serversidedButtonSounds)
                             GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.Others, rpcId, rightHand, buttonClickVolume / 10f);
                         RPCProtection();
                         break;

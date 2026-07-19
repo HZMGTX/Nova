@@ -24,8 +24,6 @@ using GorillaExtensions;
 using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Extensions;
-using Seralyth.Managers;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -83,15 +81,15 @@ namespace Seralyth.Patches.Menu
         [HarmonyPatch(typeof(DeployedChild), nameof(DeployedChild.Deploy))]
         public class Deploy
         {
-            public static void Postfix(DeployedChild __instance, DeployableObject parent, Vector3 launchPos, Quaternion launchRot, Vector3 releaseVel, bool isRemote = false)
+            public static void Prefix(DeployedChild __instance, DeployableObject parent, Vector3 launchPos, Quaternion launchRot, Vector3 releaseVel, bool isRemote = false)
             {
-                if (enabled && parent.m_VRRig.GetPlayer() != NetworkSystem.Instance.LocalPlayer && __instance._rigidbody.linearVelocity.magnitude > 5f)
-                    __instance.gameObject.Destroy();
+                if (enabled && parent.m_VRRig != VRRig.LocalRig && releaseVel.magnitude > 10f)
+                    return;
             }
         }
 
         [HarmonyPatch(typeof(LuauVm), nameof(LuauVm.OnEvent))]
-        public class OnEvent
+        public class LuauVmOnEvent
         {
             public static bool Prefix(EventData eventData)
             {
@@ -144,6 +142,20 @@ namespace Seralyth.Patches.Menu
             }
         }
 
-
+        [HarmonyPatch(typeof(GTSignalRelay), "Photon.Realtime.IOnEventCallback.OnEvent", new System.Type[] { typeof(EventData) })]
+        public class GTSignalRelayOnEvent
+        {
+            public static bool Prefix(EventData eventData)
+            {
+                if (enabled && eventData.Code == 186 && eventData.CustomData is object[] array)
+                {
+                    if (array.Length == 0)
+                        return false;
+                    if (!(array[0] is int))
+                        return false;
+                }
+                return true;
+            }
+        }
     }
 }

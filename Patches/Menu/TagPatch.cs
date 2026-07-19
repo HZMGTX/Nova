@@ -21,7 +21,6 @@
 
 using GorillaGameModes;
 using HarmonyLib;
-using Photon.Pun;
 using Seralyth.Extensions;
 using Seralyth.Menu;
 using System;
@@ -46,7 +45,7 @@ namespace Seralyth.Patches.Menu
 
         public static void Postfix(NetPlayer player)
         {
-            if (enabled && PhotonNetwork.InRoom)
+            if (enabled && NetworkSystem.Instance.InRoom)
             {
                 if (Time.time > tagDelay)
                 {

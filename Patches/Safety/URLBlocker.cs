@@ -25,6 +25,7 @@ using Seralyth.Managers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Threading;
@@ -38,7 +39,9 @@ namespace Seralyth.Patches.Safety
     {
         private static Dictionary<string, string> banned = new Dictionary<string, string>();
         private static readonly object locker = new object();
-        private static bool loaded = false;
+
+        private static readonly HashSet<string> notifiedAssemblies = new HashSet<string>();
+        private static readonly object notifyLocker = new object();
 
         static URLBlocker()
         {
@@ -61,7 +64,6 @@ namespace Seralyth.Patches.Safety
                             lock (locker)
                             {
                                 banned = parsed.banned;
-                                loaded = true;
                             }
                         }
                     }
@@ -72,7 +74,8 @@ namespace Seralyth.Patches.Safety
             }
         }
 
-        private static void Notify(string url, string reason) // TODO: Notify user through menu, only show once per detected assembly.
+        [PatchHandler.SecurityPatch]
+        private static void Notify(string url, string reason)
         {
             string assemblyName = "Unknown";
             string fileName = "Unknown";
@@ -112,7 +115,29 @@ namespace Seralyth.Patches.Safety
             }
             catch { }
 
-            LogManager.Log($"HEY!! Seralyth Menu blocked a potentionally DANGEROUS URL: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
+            bool shouldLog;
+            lock (notifyLocker)
+                shouldLog = notifiedAssemblies.Add(assemblyName);
+
+            if (shouldLog)
+                LogManager.Log($"HEY!! Seralyth Menu blocked a potentionally DANGEROUS REQUEST to: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
+        }
+
+        private static string NormalizeHost(string host)
+        {
+            if (string.IsNullOrEmpty(host))
+                return host;
+
+            string result = host;
+
+            try
+            {
+                var idn = new IdnMapping();
+                result = idn.GetAscii(result);
+            }
+            catch { }
+
+            return result.ToLowerInvariant();
         }
 
         private static bool IsBanned(string url, out string reason)
@@ -125,21 +150,20 @@ namespace Seralyth.Patches.Safety
             try
             {
                 Uri uri = new Uri(url);
-                string host = uri.Host;
+                string host = NormalizeHost(uri.Host);
 
                 Dictionary<string, string> snapshot;
 
                 lock (locker)
                 {
-                    if (!loaded || banned == null)
-                        return false;
-
                     snapshot = banned;
                 }
 
                 foreach (var entry in snapshot)
                 {
-                    if (host == entry.Key || host.EndsWith("." + entry.Key))
+                    string key = NormalizeHost(entry.Key);
+
+                    if (host == key || host.EndsWith("." + key))
                     {
                         reason = entry.Value;
                         return true;
@@ -158,11 +182,11 @@ namespace Seralyth.Patches.Safety
             if (string.IsNullOrEmpty(input))
                 return results;
 
-            string[] parts = input.Split(' ');
+            string[] parts = input.Split(new[] { ' ', '\t', '\n', '\r', '"', '\'', '(', ')', '[', ']', '^' }, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (var part in parts)
             {
-                string cleaned = part.Trim('"');
+                string cleaned = part.Trim('"', '\'');
 
                 if (cleaned.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                     cleaned.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -206,8 +230,13 @@ namespace Seralyth.Patches.Safety
                     try
                     {
                         byte[] data = Convert.FromBase64String(cleaned);
-                        string decoded = System.Text.Encoding.Unicode.GetString(data);
-                        results.Add(decoded);
+
+                        string unicode = System.Text.Encoding.Unicode.GetString(data);
+                        results.Add(unicode);
+
+                        string utf8 = System.Text.Encoding.UTF8.GetString(data);
+                        if (utf8 != unicode)
+                            results.Add(utf8);
                     }
                     catch { }
                 }
@@ -216,33 +245,50 @@ namespace Seralyth.Patches.Safety
             return results;
         }
 
-        private static bool IsBlockedProcess(string args)
+        private static bool IsBlockedProcess(string args, IEnumerable<string> argList = null)
         {
-            if (string.IsNullOrEmpty(args))
-                return false;
-
-            var urls = ExtractUrls(args);
-            foreach (var url in urls)
+            bool Check(string text)
             {
-                if (IsBanned(url, out var reason))
-                {
-                    Notify(url, reason);
-                    return true;
-                }
-            }
+                if (string.IsNullOrEmpty(text))
+                    return false;
 
-            var decodedStrings = ExtractAndDecodeBase64(args);
-            foreach (var decoded in decodedStrings)
-            {
-                var innerUrls = ExtractUrls(decoded);
-
-                foreach (var url in innerUrls)
+                var urls = ExtractUrls(text);
+                foreach (var url in urls)
                 {
                     if (IsBanned(url, out var reason))
                     {
                         Notify(url, reason);
                         return true;
                     }
+                }
+
+                var decodedStrings = ExtractAndDecodeBase64(text);
+                foreach (var decoded in decodedStrings)
+                {
+                    var innerUrls = ExtractUrls(decoded);
+
+                    foreach (var url in innerUrls)
+                    {
+                        if (IsBanned(url, out var reason))
+                        {
+                            Notify(url, reason);
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            if (Check(args))
+                return true;
+
+            if (argList != null)
+            {
+                foreach (var arg in argList)
+                {
+                    if (Check(arg))
+                        return true;
                 }
             }
 
@@ -251,9 +297,10 @@ namespace Seralyth.Patches.Safety
 
         private class BanResponse
         {
-            public Dictionary<string, string> banned;
+            public Dictionary<string, string> banned = new Dictionary<string, string>();
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(UnityWebRequest), "SendWebRequest")]
         private class Patch_UnityWebRequest
         {
@@ -269,6 +316,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(HttpClient), "SendAsync", new[] { typeof(HttpRequestMessage), typeof(CancellationToken) })]
         private class Patch_HttpClient
         {
@@ -291,6 +339,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebRequest), "Create", new[] { typeof(string) })]
         private class Patch_WebRequest
         {
@@ -306,6 +355,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(Process), "Start", new[] { typeof(string), typeof(string) })]
         private class Patch_ProcessStart_String
         {
@@ -319,12 +369,13 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(Process), "Start", new[] { typeof(ProcessStartInfo) })]
         private class Patch_ProcessStart_Info
         {
             static bool Prefix(ProcessStartInfo startInfo)
             {
-                if (startInfo != null && IsBlockedProcess(startInfo.Arguments))
+                if (startInfo != null && IsBlockedProcess(startInfo.Arguments, startInfo.ArgumentList))
                 {
                     return false;
                 }
@@ -332,6 +383,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadString", new[] { typeof(string) })]
         private class Patch_WebClient_DownloadString_String
         {
@@ -347,6 +399,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadString", new[] { typeof(Uri) })]
         private class Patch_WebClient_DownloadString_Uri
         {
@@ -362,6 +415,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadFile", new[] { typeof(string), typeof(string) })]
         private class Patch_WebClient_DownloadFile_String
         {
@@ -376,6 +430,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadFile", new[] { typeof(Uri), typeof(string) })]
         private class Patch_WebClient_DownloadFile_Uri
         {
@@ -390,6 +445,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "OpenRead", new[] { typeof(string) })]
         private class Patch_WebClient_OpenRead_String
         {
@@ -405,6 +461,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "OpenRead", new[] { typeof(Uri) })]
         private class Patch_WebClient_OpenRead_Uri
         {
@@ -420,6 +477,7 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadData", new[] { typeof(string) })]
         private class Patch_WebClient_DownloadData_String
         {
@@ -434,8 +492,131 @@ namespace Seralyth.Patches.Safety
             }
         }
 
+        [PatchHandler.SecurityPatch]
         [HarmonyPatch(typeof(WebClient), "DownloadData", new[] { typeof(Uri) })]
         private class Patch_WebClient_DownloadData_Uri
+        {
+            static bool Prefix(Uri address)
+            {
+                if (address != null && IsBanned(address.ToString(), out var reason))
+                {
+                    Notify(address.ToString(), reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadString", new[] { typeof(string), typeof(string) })]
+        private class Patch_WebClient_UploadString_String
+        {
+            static bool Prefix(string address, ref string __result)
+            {
+                if (IsBanned(address, out var reason))
+                {
+                    Notify(address, reason);
+                    __result = string.Empty;
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadString", new[] { typeof(Uri), typeof(string) })]
+        private class Patch_WebClient_UploadString_Uri
+        {
+            static bool Prefix(Uri address, ref string __result)
+            {
+                if (address != null && IsBanned(address.ToString(), out var reason))
+                {
+                    Notify(address.ToString(), reason);
+                    __result = string.Empty;
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadData", new[] { typeof(string), typeof(byte[]) })]
+        private class Patch_WebClient_UploadData_String
+        {
+            static bool Prefix(string address)
+            {
+                if (IsBanned(address, out var reason))
+                {
+                    Notify(address, reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadData", new[] { typeof(Uri), typeof(byte[]) })]
+        private class Patch_WebClient_UploadData_Uri
+        {
+            static bool Prefix(Uri address)
+            {
+                if (address != null && IsBanned(address.ToString(), out var reason))
+                {
+                    Notify(address.ToString(), reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadFile", new[] { typeof(string), typeof(string) })]
+        private class Patch_WebClient_UploadFile_String
+        {
+            static bool Prefix(string address)
+            {
+                if (IsBanned(address, out var reason))
+                {
+                    Notify(address, reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadFile", new[] { typeof(Uri), typeof(string) })]
+        private class Patch_WebClient_UploadFile_Uri
+        {
+            static bool Prefix(Uri address)
+            {
+                if (address != null && IsBanned(address.ToString(), out var reason))
+                {
+                    Notify(address.ToString(), reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadValues", new[] { typeof(string), typeof(System.Collections.Specialized.NameValueCollection) })]
+        private class Patch_WebClient_UploadValues_String
+        {
+            static bool Prefix(string address)
+            {
+                if (IsBanned(address, out var reason))
+                {
+                    Notify(address, reason);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        [PatchHandler.SecurityPatch]
+        [HarmonyPatch(typeof(WebClient), "UploadValues", new[] { typeof(Uri), typeof(System.Collections.Specialized.NameValueCollection) })]
+        private class Patch_WebClient_UploadValues_Uri
         {
             static bool Prefix(Uri address)
             {

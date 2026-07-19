@@ -50,9 +50,7 @@ namespace Seralyth
             Bootstrapper.Initialize();
         }
 
-        public override void OnDeinitializeMelon()
-        {
-            Seralyth.Menu.Main.UnloadMenu();
-        }
+        public override void OnDeinitializeMelon() =>
+            Menu.Main.UnloadMenu();
     }
 }

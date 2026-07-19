@@ -33,7 +33,7 @@ namespace Seralyth.Utilities
         {
             List<NetPlayer> infected = new List<NetPlayer>();
 
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance == null)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null)
                 return infected;
 
             switch (GorillaGameManager.instance.GameType())
@@ -95,7 +95,7 @@ namespace Seralyth.Utilities
 
         public static void AddInfected(NetPlayer plr)
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance == null || plr == null)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || plr == null)
                 return;
 
             switch (GorillaGameManager.instance.GameType())
@@ -135,7 +135,7 @@ namespace Seralyth.Utilities
 
         public static void RemoveInfected(NetPlayer plr)
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance == null || plr == null)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || plr == null)
                 return;
 
             switch (GorillaGameManager.instance.GameType())
@@ -185,7 +185,7 @@ namespace Seralyth.Utilities
 
         public static void AddRock(NetPlayer plr)
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance == null || plr == null)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || plr == null)
                 return;
 
             switch (GorillaGameManager.instance.GameType())
@@ -217,7 +217,7 @@ namespace Seralyth.Utilities
 
         public static void RemoveRock(NetPlayer plr)
         {
-            if (!PhotonNetwork.InRoom || GorillaGameManager.instance == null || plr == null)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || plr == null)
                 return;
 
             switch (GorillaGameManager.instance.GameType())

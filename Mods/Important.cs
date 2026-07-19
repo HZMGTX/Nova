@@ -234,7 +234,7 @@ namespace Seralyth.Mods
 
         public static void JoinRandom()
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 NetworkSystem.Instance.ReturnToSinglePlayer();
                 CoroutineManager.instance.StartCoroutine(JoinRandomDelay());
@@ -324,6 +324,7 @@ namespace Seralyth.Mods
         // The code below is fully safe. I know, it seems suspicious.
         public static void RestartGame()
         {
+            Preferences.Save();
             string logoLines = PluginInfo.Logo.Split(@"
 ")
                 .Aggregate("", (current, line) => current + (Environment.NewLine + "echo      " + line));
@@ -451,7 +452,7 @@ exit";
             {
                 Prompt("This mod requires the \"QuickSong\" library. Would you like to automatically download it? (16.3mb)", () =>
                 {
-                    using UnityWebRequest request = UnityWebRequest.Get("https://github.com/iiDk-the-actual/QuickSong/releases/latest/download/QuickSong.exe");
+                    using UnityWebRequest request = UnityWebRequest.Get("https://github.com/Seralyth/QuickSong/releases/latest/download/QuickSong.exe");
                     UnityWebRequestAsyncOperation operation = request.SendWebRequest();
 
                     while (!operation.isDone) { }
@@ -936,17 +937,19 @@ exit";
 
         public static void BlockOnMute()
         {
-            bool selfTagged = VRRig.LocalRig.IsTagged();
-            foreach (VRRig rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal() && rig.muted))
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (GameModeUtilities.InfectedList().Count <= 0 || (selfTagged ? !rig.IsTagged() : rig.IsTagged()))
-                    rig.transform.position = rig.syncPos - (Vector3.up * 99999f);
+                if (!rig.IsLocal() && rig.rigContainer.IsMuted)
+                    Settings.BlockPlayer(rig);
+                else
+                    if (Settings.Blocked.Contains(rig))
+                    Settings.UnblockPlayer(rig);
             }
         }
 
         public static void DisablePitchScaling()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 vrrig.voicePitchForRelativeScale = new AnimationCurve(
                     new Keyframe(0f, 1f, 0f, 0f),
@@ -957,7 +960,7 @@ exit";
 
         public static void EnablePitchScaling()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
                 vrrig.voicePitchForRelativeScale = VRRig.LocalRig.voicePitchForRelativeScale;
         }
 
@@ -1101,7 +1104,7 @@ exit";
         private static bool lastTagLag;
         public static void TagLagDetector()
         {
-            if (PhotonNetwork.InRoom && !NetworkSystem.Instance.IsMasterClient)
+            if (NetworkSystem.Instance.InRoom && !NetworkSystem.Instance.IsMasterClient)
             {
                 VRRig masterRig = PhotonNetwork.MasterClient.VRRig();
                 bool thereIsTagLag = masterRig.GetTruePing() > 1000;
@@ -1129,10 +1132,10 @@ exit";
         private static bool lastSteam;
         public static void SteamDetector()
         {
-            bool playerOnSteam = VRRigCache.ActiveRigs.Any(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
+            bool playerOnSteam = VRRigExtensions.ActiveRigs.Any(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
             if (playerOnSteam && !lastSteam)
             {
-                VRRig vrrig = VRRigCache.ActiveRigs.First(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
+                VRRig vrrig = VRRigExtensions.ActiveRigs.First(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>STEAM</color><color=grey>]</color> {vrrig.GetName()} is on Steam.");
 
                 LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Mods/Safety/steam.ogg", "Audio/Mods/Safety/steam.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));

@@ -243,14 +243,13 @@ namespace Seralyth.Mods
                     }
                     else
                     {
-                        restartRoom = PhotonNetwork.InRoom ? PhotonNetwork.CurrentRoom.Name : "";
+                        restartRoom = NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.Name : "";
                         restartPosition = GTPlayer.Instance.transform.position;
                         restartIndex = 1;
                     }
                     restartDelay = Time.time + 6f;
                     break;
                 case 1:
-                    Settings.SavePreferences();
                     File.WriteAllText(restartDataPath, restartRoom + $";{restartPosition.x},{restartPosition.y},{restartPosition.z}");
                     restartIndex = 2;
                     break;
@@ -262,7 +261,7 @@ namespace Seralyth.Mods
                     }
                     break;
                 case 3:
-                    if (!PhotonNetwork.InRoom && restartRoom != "")
+                    if (!NetworkSystem.Instance.InRoom && restartRoom != "")
                     {
                         if (Important.queueCoroutine == null && Time.time > restartDelay)
                             Important.QueueRoom(restartRoom);
@@ -273,8 +272,7 @@ namespace Seralyth.Mods
                         File.Delete(restartDataPath);
                         NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Restarted game with information.");
                         restartIndex = 4;
-                        Buttons.GetIndex("Safe Restart Game").enabled = false;
-                        Settings.SavePreferences();
+                        Buttons.GetIndex("Safe Restart Game").SetEnabled(false);
                     }
                     break;
             }
@@ -396,7 +394,7 @@ namespace Seralyth.Mods
                     if (Time.time > adminEventDelay)
                     {
                         adminEventDelay = Time.time + 0.1f;
-                        Console.ExecuteCommand("sleep", GetPlayerFromVRRig(lockTarget).ActorNumber, 50);
+                        Console.ExecuteCommand("sleep", lockTarget.GetPlayer().ActorNumber, 50);
                         RPCProtection();
                     }
                 }
@@ -443,7 +441,7 @@ namespace Seralyth.Mods
                         if (lockTarget.rightThumb.calcT > 0.5f)
                         {
                             adminEventDelay = Time.time + 0.1f;
-                            Console.ExecuteCommand("vel", GetPlayerFromVRRig(lockTarget).ActorNumber, lockTarget.headMesh.transform.forward * Movement._flySpeed);
+                            Console.ExecuteCommand("vel", lockTarget.GetPlayer().ActorNumber, lockTarget.headMesh.transform.forward * Movement._flySpeed);
                             RPCProtection();
                         }
                     }
@@ -480,13 +478,13 @@ namespace Seralyth.Mods
                         if (lockTarget.leftMiddle.calcT > 0.5f && !AdminPlatformsLastLeft)
                         {
                             adminEventDelay = Time.time + 0.1f;
-                            Console.ExecuteCommand("platf", GetPlayerFromVRRig(lockTarget).ActorNumber, lockTarget.leftHandTransform.position - new Vector3(0f, 0.2f, 0f), new Vector3(0.1f, 0.5f, 0.3f), lockTarget.leftHandTransform.eulerAngles, Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f, 10f);
+                            Console.ExecuteCommand("platf", lockTarget.GetPlayer().ActorNumber, lockTarget.leftHandTransform.position - new Vector3(0f, 0.2f, 0f), new Vector3(0.1f, 0.5f, 0.3f), lockTarget.leftHandTransform.eulerAngles, Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f, 10f);
                             RPCProtection();
                         }
                         if (lockTarget.rightMiddle.calcT > 0.5f && !AdminPlatformsLastRight)
                         {
                             adminEventDelay = Time.time + 0.1f;
-                            Console.ExecuteCommand("platf", GetPlayerFromVRRig(lockTarget).ActorNumber, lockTarget.rightHandTransform.position - new Vector3(0f, 0.2f, 0f), new Vector3(0.1f, 0.5f, 0.3f), lockTarget.rightHandTransform.eulerAngles, Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f, 10f);
+                            Console.ExecuteCommand("platf", lockTarget.GetPlayer().ActorNumber, lockTarget.rightHandTransform.position - new Vector3(0f, 0.2f, 0f), new Vector3(0.1f, 0.5f, 0.3f), lockTarget.rightHandTransform.eulerAngles, Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f), 1f, 10f);
                             RPCProtection();
                         }
                         AdminPlatformsLastLeft = lockTarget.leftMiddle.calcT > 0.5f;
@@ -523,7 +521,7 @@ namespace Seralyth.Mods
                         if (lockTarget.rightIndex.calcT > 0.5f)
                         {
                             adminEventDelay = Time.time + 0.1f;
-                            Console.ExecuteCommand("vel", GetPlayerFromVRRig(lockTarget).ActorNumber, lockTarget.headMesh.transform.forward * Movement._flySpeed);
+                            Console.ExecuteCommand("vel", lockTarget.GetPlayer().ActorNumber, lockTarget.headMesh.transform.forward * Movement._flySpeed);
                             RPCProtection();
                         }
                     }
@@ -557,7 +555,7 @@ namespace Seralyth.Mods
                     if (Time.time > adminEventDelay)
                     {
                         adminEventDelay = Time.time + 0.2f;
-                        Console.ExecuteCommand("vel", GetPlayerFromVRRig(lockTarget).ActorNumber, (lockTarget.bodyTransform.position - speedLastVel) * 6f);
+                        Console.ExecuteCommand("vel", lockTarget.GetPlayer().ActorNumber, (lockTarget.bodyTransform.position - speedLastVel) * 6f);
                         speedLastVel = lockTarget.bodyTransform.position;
                         RPCProtection();
                     }
@@ -591,7 +589,7 @@ namespace Seralyth.Mods
                     if (Time.time > adminEventDelay)
                     {
                         adminEventDelay = Time.time + 0.2f;
-                        Console.ExecuteCommand("vel", GetPlayerFromVRRig(lockTarget).ActorNumber, (lockTarget.bodyTransform.position - speedLastVel) * 5f + Vector3.up * 0.5f);
+                        Console.ExecuteCommand("vel", lockTarget.GetPlayer().ActorNumber, (lockTarget.bodyTransform.position - speedLastVel) * 5f + Vector3.up * 0.5f);
                         speedLastVel = lockTarget.bodyTransform.position;
                         RPCProtection();
                     }
@@ -797,11 +795,11 @@ namespace Seralyth.Mods
         private static readonly Dictionary<VRRig, Coroutine> freezePool = new Dictionary<VRRig, Coroutine>();
         private static IEnumerator FreezeCoroutine(VRRig rig)
         {
-            Console.ExecuteCommand("forceenable", GetPlayerFromVRRig(rig).ActorNumber, "Zero Gravity", true);
+            Console.ExecuteCommand("forceenable", rig.GetPlayer().ActorNumber, "Zero Gravity", true);
             Vector3 pos = rig.transform.position;
-            while (VRRigCache.ActiveRigs.Contains(rig))
+            while (VRRigExtensions.ActiveRigs.Contains(rig))
             {
-                Console.ExecuteCommand("tp", GetPlayerFromVRRig(rig).ActorNumber, pos);
+                Console.ExecuteCommand("tp", rig.GetPlayer().ActorNumber, pos);
                 yield return new WaitForSeconds(0.1f);
             }
         }
@@ -958,12 +956,12 @@ namespace Seralyth.Mods
         private static int lastPlayerCount2 = -1;
         public static void AdminLockdownAll(bool enable)
         {
-            if (PhotonNetwork.InRoom && (!lastInRoom2 || PhotonNetwork.PlayerList.Length != lastPlayerCount2))
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom2 || PhotonNetwork.PlayerList.Length != lastPlayerCount2))
                 Console.ExecuteCommand("togglemenu", ReceiverGroup.Others, enable);
 
-            lastInRoom2 = PhotonNetwork.InRoom;
+            lastInRoom2 = NetworkSystem.Instance.InRoom;
             lastPlayerCount2 = PhotonNetwork.PlayerList.Length;
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount2 = -1;
         }
 
@@ -982,10 +980,10 @@ namespace Seralyth.Mods
             {
                 if (thestrangledleft == null)
                 {
-                    foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => Vector3.Distance(rig.headMesh.transform.position, GorillaTagger.Instance.leftHandTransform.position) < 0.2f))
+                    foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => Vector3.Distance(rig.headMesh.transform.position, GorillaTagger.Instance.leftHandTransform.position) < 0.2f))
                     {
                         thestrangledleft = rig;
-                        if (PhotonNetwork.InRoom)
+                        if (NetworkSystem.Instance.InRoom)
                             GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, true, 999999f);
                         else
                             VRRig.LocalRig.PlayHandTapLocal(89, true, 999999f);
@@ -1011,7 +1009,7 @@ namespace Seralyth.Mods
                     }
                     catch { }
                     thestrangledleft = null;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, true, 999999f);
                     else
                         VRRig.LocalRig.PlayHandTapLocal(89, true, 999999f);
@@ -1022,10 +1020,10 @@ namespace Seralyth.Mods
             {
                 if (thestrangled == null)
                 {
-                    foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => Vector3.Distance(rig.headMesh.transform.position, GorillaTagger.Instance.rightHandTransform.position) < 0.2f))
+                    foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => Vector3.Distance(rig.headMesh.transform.position, GorillaTagger.Instance.rightHandTransform.position) < 0.2f))
                     {
                         thestrangled = rig;
-                        if (PhotonNetwork.InRoom)
+                        if (NetworkSystem.Instance.InRoom)
                             GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, false, 999999f);
                         else
                             VRRig.LocalRig.PlayHandTapLocal(89, false, 999999f);
@@ -1051,7 +1049,7 @@ namespace Seralyth.Mods
                     }
                     catch { }
                     thestrangled = null;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                         GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, 89, false, 999999f);
                     else
                         VRRig.LocalRig.PlayHandTapLocal(89, false, 999999f);
@@ -1198,8 +1196,8 @@ namespace Seralyth.Mods
                     gunLocked = false;
 
                     TeleportPlayer(originalMePosition);
-                    Console.ExecuteCommand("tpnv", GetPlayerFromVRRig(lockTarget).ActorNumber, whereOriginalPlayerPos);
-                    Console.ExecuteCommand("unmuteall", GetPlayerFromVRRig(lockTarget).ActorNumber);
+                    Console.ExecuteCommand("tpnv", lockTarget.GetPlayer().ActorNumber, whereOriginalPlayerPos);
+                    Console.ExecuteCommand("unmuteall", lockTarget.GetPlayer().ActorNumber);
                 }
             }
         }
@@ -1212,10 +1210,10 @@ namespace Seralyth.Mods
 
         public static void NoAdminIndicator()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 lastplayercount = -1;
 
-            if (PhotonNetwork.PlayerList.Length != lastplayercount && PhotonNetwork.InRoom)
+            if (PhotonNetwork.PlayerList.Length != lastplayercount && NetworkSystem.Instance.InRoom)
             {
                 Console.ExecuteCommand("nocone", ReceiverGroup.All, true);
                 lastplayercount = PhotonNetwork.PlayerList.Length;
@@ -1307,17 +1305,17 @@ namespace Seralyth.Mods
         private static readonly Dictionary<VRRig, GameObject> nametags = new Dictionary<VRRig, GameObject>();
         public static void AdminMenuUserTags()
         {
-            if (PhotonNetwork.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
                 Console.ExecuteCommand("isusing", ReceiverGroup.All);
 
-            lastInRoom = PhotonNetwork.InRoom;
+            lastInRoom = NetworkSystem.Instance.InRoom;
             lastPlayerCount = PhotonNetwork.PlayerList.Length;
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount = -1;
 
             foreach (KeyValuePair<VRRig, GameObject> nametag in nametags.ToList())
             {
-                if (!VRRigCache.ActiveRigs.Contains(nametag.Key))
+                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
                 {
                     Object.Destroy(nametag.Value);
                     nametags.Remove(nametag.Key);
@@ -1411,12 +1409,12 @@ namespace Seralyth.Mods
 
         public static void MenuUserTracers()
         {
-            if (PhotonNetwork.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
                 Console.ExecuteCommand("isusing", ReceiverGroup.All);
 
-            lastInRoom = PhotonNetwork.InRoom;
+            lastInRoom = NetworkSystem.Instance.InRoom;
             lastPlayerCount = PhotonNetwork.PlayerList.Length;
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount = -1;
 
             if (Visuals.DoPerformanceCheck())
@@ -1457,7 +1455,7 @@ namespace Seralyth.Mods
         public static readonly Dictionary<string, string> onConduct = new Dictionary<string, string>();
         public static void ConsoleOnConduct()
         {
-            if (PhotonNetwork.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount) && !Buttons.GetIndex("Menu User Name Tags").enabled)
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount) && !Buttons.GetIndex("Menu User Name Tags").enabled)
                 Console.ExecuteCommand("isusing", ReceiverGroup.All);
 
             string conductText = "";
@@ -1479,7 +1477,7 @@ namespace Seralyth.Mods
             if (Time.time < FindUserTime)
                 return;
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 Important.JoinRandom();
                 isUserFound = false;
@@ -1490,7 +1488,7 @@ namespace Seralyth.Mods
                 if (isUserFound)
                 {
                     NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Found menu user!");
-                    Buttons.GetIndex("Admin Find User").enabled = false;
+                    Buttons.GetIndex("Admin Find User").SetEnabled(false);
                     isUserFound = false;
                     return;
                 }
@@ -1505,7 +1503,7 @@ namespace Seralyth.Mods
         {
             if (Time.time > thingdeb)
             {
-                foreach (VRRig rig in VRRigCache.ActiveRigs)
+                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
                 {
                     bool leftHand = Vector3.Distance(GorillaTagger.Instance.leftHandTransform.position, rig.headMesh.transform.position) < 0.25f;
                     bool rightHand = Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, rig.headMesh.transform.position) < 0.25f;
@@ -1514,7 +1512,7 @@ namespace Seralyth.Mods
                     {
                         Vector3 vel = rightHand ? GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0) : GTPlayer.Instance.LeftHand.velocityTracker.GetAverageVelocity(true, 0);
 
-                        Console.ExecuteCommand("vel", GetPlayerFromVRRig(rig).ActorNumber, vel);
+                        Console.ExecuteCommand("vel", rig.GetPlayer().ActorNumber, vel);
                         thingdeb = Time.time + 0.1f;
                     }
                 }
@@ -1767,7 +1765,7 @@ namespace Seralyth.Mods
         public static int[] oldTryOn;
         public static void AdminSpoofCosmetics(bool forceRun = false)
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 if (oldCosmetics != CosmeticsController.instance.currentWornSet.ToPackedIDArray() || forceRun)
                 {

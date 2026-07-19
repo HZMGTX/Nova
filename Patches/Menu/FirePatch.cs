@@ -38,7 +38,7 @@ namespace Seralyth.Patches.Menu
             if (enabled && __instance.blaster.LocalEquippedOrActivated)
             {
                 List<NetPlayer> infected = InfectedList();
-                List<VRRig> rigs = VRRigCache.ActiveRigs
+                List<VRRig> rigs = VRRigExtensions.ActiveRigs
                     .Where(rig => !rig.isLocal)
                     .Where(rig => !infected.Contains(rig.GetPlayer()))
                     .ToList();

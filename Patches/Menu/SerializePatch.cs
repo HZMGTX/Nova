@@ -41,7 +41,7 @@ namespace Seralyth.Patches.Menu
 
         public static bool Prefix()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return true;
 
             try

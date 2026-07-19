@@ -24,6 +24,7 @@ using GorillaExtensions;
 using GorillaGameModes;
 using GorillaLocomotion;
 using GorillaLocomotion.Climbing;
+using GorillaLocomotion.Swimming;
 using GorillaNetworking;
 using GorillaTag;
 using GorillaTag.Cosmetics;
@@ -102,64 +103,28 @@ namespace Seralyth.Mods
                 VRRig.LocalRig.head.trackingRotationOffset.x = Mathf.Lerp(VRRig.LocalRig.head.trackingRotationOffset.x, 0f, 0.1f);
         }
 
+        // value is an index of 0.05 steps (0..100), not the raw float, since CycleSetting only steps by 1.
         public static float soundboardVolumeIndex = 1;
-        public static void ChangeSoundboardVolume(bool positive = true)
+        public static void ApplySoundboardVolume(int index)
         {
-            if (positive)
-                soundboardVolumeIndex += 0.05f;
-            else
-                soundboardVolumeIndex -= 0.05f;
-
-            if (soundboardVolumeIndex > 5)
-                soundboardVolumeIndex = 0;
-            if (soundboardVolumeIndex < 0)
-                soundboardVolumeIndex = 5;
-
-            soundboardVolumeIndex = Mathf.Round(soundboardVolumeIndex / 0.05f) * 0.05f;
-
+            soundboardVolumeIndex = index * 0.05f;
             VoiceManager.Get().ClipVolume = soundboardVolumeIndex;
-
-            Buttons.GetIndex("Change Soundboard Volume").overlapText = "Change Default Soundboard Volume <color=grey>[</color><color=green>" + soundboardVolumeIndex + "</color><color=grey>]</color>";
         }
 
         public static float soundboardSpeedIndex = 1;
-        public static void ChangeSoundboardSpeed(bool positive = true)
+        public static void ApplySoundboardSpeed(int index)
         {
-            if (positive)
-                soundboardSpeedIndex += 0.05f;
-            else
-                soundboardSpeedIndex -= 0.05f;
-
-            if (soundboardSpeedIndex > 5)
-                soundboardSpeedIndex = 0;
-            if (soundboardSpeedIndex < 0)
-                soundboardSpeedIndex = 5;
-
-            soundboardSpeedIndex = Mathf.Round(soundboardSpeedIndex / 0.05f) * 0.05f;
-
+            soundboardSpeedIndex = index * 0.05f;
             VoiceManager.Get().ClipSpeed = soundboardSpeedIndex;
-
-            Buttons.GetIndex("Change Soundboard Speed").overlapText = "Change Default Soundboard Speed <color=grey>[</color><color=green>" + soundboardSpeedIndex + "</color><color=grey>]</color>";
         }
 
         public static int headSpinIndex;
-        public static void ChangeHeadSpinSpeed(bool positive = true)
+        public static readonly float[] HeadSpinSpeedAmounts = { 2f, 7.5f, 8f, 9f, 200f };
+        public static readonly string[] HeadSpinSpeedNames = { "Very Slow", "Slow", "Normal", "Fast", "Very Fast" };
+        public static void ApplyHeadSpinSpeed(int index)
         {
-            float[] speedAmounts = { 2f, 7.5f, 8f, 9f, 200f };
-            string[] speedNames = { "Very Slow", "Slow", "Normal", "Fast", "Very Fast" };
-
-            if (positive)
-                headSpinIndex++;
-            else
-                headSpinIndex--;
-
-            headSpinIndex %= speedAmounts.Length;
-            if (headSpinIndex < 0)
-                headSpinIndex = speedAmounts.Length - 1;
-
-            headSpinSpeed = speedAmounts[headSpinIndex];
-
-            Buttons.GetIndex("Change Head Spin Speed").overlapText = "Change Head Spin Speed <color=grey>[</color><color=green>" + speedNames[headSpinIndex] + "</color><color=grey>]</color>";
+            headSpinIndex = index;
+            headSpinSpeed = HeadSpinSpeedAmounts[index];
         }
 
         private static float headSpinSpeed = 10f;
@@ -304,66 +269,65 @@ namespace Seralyth.Mods
             VRRig.LocalRig.enabled = true;
         }
 
-        public static void BetaWaterSplash(Vector3 splashPosition, Quaternion splashRotation, float splashScale, float boundingRadius, bool bigSplash, bool enteringWater, object general = null)
+        public static void BetaWaterSplash(Vector3 splashPosition, Quaternion splashRotation, float splashScale = 4, float boundingRadius = 100f, bool bigSplash = true, bool enteringWater = false, object general = null, bool bypassDelay = false)
         {
-            general ??= RpcTarget.All;
-
-            splashScale = Mathf.Clamp(splashScale, 1E-05f, 1f);
-            boundingRadius = Mathf.Clamp(boundingRadius, 0.0001f, 0.5f);
-
-            if ((GorillaTagger.Instance.bodyCollider.transform.position - splashPosition).sqrMagnitude >= 8.5f)
+            if (CanCallWaterSplashNow() || bypassDelay)
             {
-                VRRig.LocalRig.enabled = false;
-                VRRig.LocalRig.transform.position = splashPosition + Vector3.down * 2f;
-
-                if (waterSplashCoroutine != null)
-                    CoroutineManager.instance.StopCoroutine(waterSplashCoroutine);
-
-                waterSplashCoroutine = CoroutineManager.instance.StartCoroutine(EnableRig());
-            }
-
-            object[] parameters = {
-                splashPosition,
-                splashRotation,
-                splashScale,
-                boundingRadius,
-                bigSplash,
-                enteringWater
-            };
-
-            try
-            {
-                switch (general)
+                try
                 {
-                    case NetPlayer player:
-                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", NetPlayerToPlayer(player), parameters);
-                        break;
-                    case RpcTarget target:
-                        {
-                            if (target == RpcTarget.All)
+                    general ??= RpcTarget.All;
+
+                    splashScale = Mathf.Clamp(splashScale, 1E-05f, 1f);
+                    boundingRadius = Mathf.Clamp(boundingRadius, 0.0001f, 0.5f);
+
+                    if ((GorillaTagger.Instance.bodyCollider.transform.position - splashPosition).sqrMagnitude >= 8.5f)
+                    {
+                        VRRig.LocalRig.transform.position = splashPosition;
+                        SendSerialize(VRRig.LocalRig.GetPhotonView());
+                    }
+
+                    object[] parameters = {
+                        splashPosition,
+                        splashRotation,
+                        splashScale,
+                        boundingRadius,
+                        bigSplash,
+                        enteringWater
+                    };
+
+                    switch (general)
+                    {
+                        case NetPlayer player:
+                            GorillaTagger.Instance.myVRRig.SendRPC(WaterVolume.WaterSplashRPC, NetPlayerToPlayer(player), parameters);
+                            break;
+                        case RpcTarget target:
                             {
-                                ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.rippleEffect, splashPosition, splashRotation, GTPlayer.Instance.waterParams.rippleEffectScale * boundingRadius * 2f);
-                                ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.splashEffect, splashPosition, splashRotation, splashScale).GetComponent<WaterSplashEffect>().PlayEffect(bigSplash, enteringWater, splashScale);
+                                if (target == RpcTarget.All)
+                                {
+                                    ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.rippleEffect, splashPosition, splashRotation, GTPlayer.Instance.waterParams.rippleEffectScale * boundingRadius * 2f);
+                                    ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.splashEffect, splashPosition, splashRotation, splashScale).GetComponent<WaterSplashEffect>().PlayEffect(bigSplash, enteringWater, splashScale);
 
-                                target = RpcTarget.Others;
+                                    target = RpcTarget.Others;
+                                }
+
+                                GorillaTagger.Instance.myVRRig.SendRPC(WaterVolume.WaterSplashRPC, target, parameters);
+                                break;
                             }
+                        case int[] targets:
+                            {
+                                if (targets.Contains(NetworkSystem.Instance.LocalPlayer.ActorNumber))
+                                    ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.rippleEffect, splashPosition, splashRotation, GTPlayer.Instance.waterParams.rippleEffectScale * boundingRadius * 2f);
 
-                            GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", target, parameters);
-                            break;
-                        }
-                    case int[] targets:
-                        {
-                            if (targets.Contains(NetworkSystem.Instance.LocalPlayer.ActorNumber))
-                                ObjectPools.instance.Instantiate(GTPlayer.Instance.waterParams.rippleEffect, splashPosition, splashRotation, GTPlayer.Instance.waterParams.rippleEffectScale * boundingRadius * 2f);
+                                VRRig.LocalRig.GetPhotonView().RPC(WaterVolume.WaterSplashRPC, new RaiseEventOptions { TargetActors = targets }, parameters);
+                                break;
+                            }
+                    }
 
-                            VRRig.LocalRig.GetPhotonView().RPC("RPC_PlaySplashEffect", new RaiseEventOptions { TargetActors = targets }, parameters);
-                            break;
-                        }
+                    RPCProtection();
                 }
+                catch { }
             }
-            catch { }
 
-            RPCProtection();
         }
 
         public static float splashDel;
@@ -371,7 +335,7 @@ namespace Seralyth.Mods
         {
             if (Time.time > splashDel && (rightGrab || leftGrab))
             {
-                BetaWaterSplash(rightGrab ? GorillaTagger.Instance.rightHandTransform.position : GorillaTagger.Instance.leftHandTransform.position, rightGrab ? GorillaTagger.Instance.rightHandTransform.rotation : GorillaTagger.Instance.leftHandTransform.rotation, 4f, 100f, true, false);
+                BetaWaterSplash(rightGrab ? GorillaTagger.Instance.rightHandTransform.position : GorillaTagger.Instance.leftHandTransform.position, rightGrab ? GorillaTagger.Instance.rightHandTransform.rotation : GorillaTagger.Instance.leftHandTransform.rotation);
                 splashDel = Time.time + 0.1f;
             }
         }
@@ -392,7 +356,7 @@ namespace Seralyth.Mods
                             Vector3 splashPosition = lockTarget.rightMiddle.calcT > 0.5f ? lockTarget.rightHandTransform.position : lockTarget.leftHandTransform.position;
                             Quaternion splashRotation = lockTarget.rightMiddle.calcT > 0.5f ? lockTarget.rightHandTransform.rotation : lockTarget.leftHandTransform.rotation;
 
-                            BetaWaterSplash(splashPosition, splashRotation, 4f, 100f, true, false);
+                            BetaWaterSplash(splashPosition, splashRotation);
                             splashDel = Time.time + 0.1f;
                         }
                     }
@@ -414,23 +378,34 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void WaterSplashAura()
+        public static bool CanCallWaterSplashNow()
         {
-            if (Time.time > splashDel)
+            float time = Time.time;
+            int num = -1;
+            float num2 = time + 10f;
+
+            for (int i = 0; i < WaterVolume.splashRPCSendTimes.Length; i++)
             {
-                BetaWaterSplash(VRRig.LocalRig.transform.position + RandomVector3(2f), RandomQuaternion(), 4f, 100f, true, false);
-                splashDel = Time.time + 0.1f;
+                if (WaterVolume.splashRPCSendTimes[i] < num2)
+                {
+                    num2 = WaterVolume.splashRPCSendTimes[i];
+                    num = i;
+                }
             }
+
+            if (num != -1 && time - 0.5f > num2)
+            {
+                WaterVolume.splashRPCSendTimes[num] = time;
+                return true;
+            }
+            return false;
         }
 
-        public static void OrbitWaterSplash()
-        {
-            if (Time.time > splashDel)
-            {
-                BetaWaterSplash(GorillaTagger.Instance.headCollider.transform.position + new Vector3(MathF.Cos((float)Time.frameCount / 30), 1f, MathF.Sin((float)Time.frameCount / 30)), RandomQuaternion(), 4f, 100f, true, false);
-                splashDel = Time.time + 0.1f;
-            }
-        }
+        public static void WaterSplashAura() =>
+            BetaWaterSplash(VRRig.LocalRig.transform.position + RandomVector3(2f), RandomQuaternion());
+
+        public static void OrbitWaterSplash() =>
+            BetaWaterSplash(GorillaTagger.Instance.headCollider.transform.position + new Vector3(MathF.Cos((float)Time.frameCount / 30), 1f, MathF.Sin((float)Time.frameCount / 30)), RandomQuaternion());
 
         public static void WaterSplashGun()
         {
@@ -439,30 +414,42 @@ namespace Seralyth.Mods
                 var GunData = RenderGun();
                 GameObject NewPointer = GunData.NewPointer;
 
-                if (GetGunInput(true) && Time.time > splashDel)
+                if (GetGunInput(true))
+                    BetaWaterSplash(NewPointer.transform.position, RandomQuaternion());
+            }
+        }
+
+        public static void WaterSplashAll()
+        {
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+            {
+                if (CanCallWaterSplashNow())
                 {
-                    splashDel = Time.time + 0.1f;
-                    BetaWaterSplash(NewPointer.transform.position, RandomQuaternion(), 4f, 100f, true, false);
+                    VRRig.LocalRig.transform.position = rig.transform.position;
+                    SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { rig.Creator.ActorNumber } });
+                    BetaWaterSplash(rig.head.rigTarget.position, RandomQuaternion(), bypassDelay: true);
                 }
             }
         }
 
+        public static void WaterSplashOnTouch()
+        {
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
+                    BetaWaterSplash(rig.head.rigTarget.position, RandomQuaternion());
+        }
+
         public static void WaterSplashWalk()
         {
-            if (Time.time > splashDel)
+            if (GTPlayer.Instance.IsHandTouching(true))
             {
-                if (GTPlayer.Instance.IsHandTouching(true))
-                {
-                    RaycastHit ray = GTPlayer.Instance.lastHitInfoHand;
-                    BetaWaterSplash(GorillaTagger.Instance.leftHandTransform.position, Quaternion.Euler(ray.normal), 4f, 100f, true, false);
-                    splashDel = Time.time + 0.1f;
-                }
-                else if (GTPlayer.Instance.IsHandTouching(false))
-                {
-                    RaycastHit ray = GTPlayer.Instance.lastHitInfoHand;
-                    BetaWaterSplash(GorillaTagger.Instance.rightHandTransform.position, Quaternion.Euler(ray.normal), 4f, 100f, true, false);
-                    splashDel = Time.time + 0.1f;
-                }
+                RaycastHit ray = GTPlayer.Instance.lastHitInfoHand;
+                BetaWaterSplash(GorillaTagger.Instance.leftHandTransform.position, Quaternion.Euler(ray.normal));
+            }
+            else if (GTPlayer.Instance.IsHandTouching(false))
+            {
+                RaycastHit ray = GTPlayer.Instance.lastHitInfoHand;
+                BetaWaterSplash(GorillaTagger.Instance.rightHandTransform.position, Quaternion.Euler(ray.normal));
             }
         }
 
@@ -472,7 +459,7 @@ namespace Seralyth.Mods
         {
             bool isBoopLeft = false;
             bool isBoopRight = false;
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                 {
@@ -490,7 +477,7 @@ namespace Seralyth.Mods
             }
             if (isBoopLeft && !lastlhboop)
             {
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, sound, true, 999999f);
                     RPCProtection();
@@ -500,7 +487,7 @@ namespace Seralyth.Mods
             }
             if (isBoopRight && !lastrhboop)
             {
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlayHandTap", RpcTarget.All, sound, false, 999999f);
                     RPCProtection();
@@ -828,21 +815,9 @@ namespace Seralyth.Mods
             }
         }
 
+        // value is an index of 5-degree steps (0..36), not the raw FOV, since CycleSetting only steps by 1.
         public static int targetFOV = 90;
-        public static void ChangeTargetFOV(bool positive = true)
-        {
-            if (positive)
-                targetFOV += 5;
-            else
-                targetFOV -= 5;
-
-            if (targetFOV > 180)
-                targetFOV = 0;
-            if (targetFOV < 0)
-                targetFOV = 180;
-
-            Buttons.GetIndex("Change Target FOV").overlapText = "Change Target FOV <color=grey>[</color><color=green>" + targetFOV + "</color><color=grey>]</color>";
-        }
+        public static void ApplyTargetFOV(int index) => targetFOV = index * 5;
 
         public static void CameraFOV()
         {
@@ -863,7 +838,7 @@ namespace Seralyth.Mods
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                foreach (VRRig rig in VRRigCache.Instance.GetAllRigs())
+                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
                     rig.voiceAudio.volume = rig != lockTarget ? 0.1f : 2f;
 
                 if (GetGunInput(true))
@@ -887,7 +862,7 @@ namespace Seralyth.Mods
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                foreach (VRRig rig in VRRigCache.Instance.GetAllRigs())
+                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
                     rig.voiceAudio.volume = rig != lockTarget ? 1f : 0.1f;
 
                 if (GetGunInput(true))
@@ -906,7 +881,7 @@ namespace Seralyth.Mods
 
         public static void ResetVoiceAll()
         {
-            foreach (VRRig rig in VRRigCache.Instance.GetAllRigs())
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
                 rig.voiceAudio.volume = 1f;
         }
 
@@ -994,7 +969,7 @@ namespace Seralyth.Mods
 
                     try
                     {
-                        foreach (var report in from line in GorillaScoreboardTotalUpdater.allScoreboardLines where line.linePlayer == GetPlayerFromVRRig(lockTarget) && Vector3.Distance(line.reportButton.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 50f select line.reportButton.gameObject.transform)
+                        foreach (var report in from line in GorillaScoreboardTotalUpdater.allScoreboardLines where line.linePlayer == lockTarget.GetPlayer() && Vector3.Distance(line.reportButton.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 50f select line.reportButton.gameObject.transform)
                         {
                             VRRig.LocalRig.transform.position = report.transform.position;
                             VRRig.LocalRig.leftHand.rigTarget.transform.position = report.transform.position;
@@ -1398,7 +1373,7 @@ namespace Seralyth.Mods
         private static float lastTimeDingied;
         public static void QuestNoises()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (rightTrigger > 0.5f && Time.time > lastTimeDingied)
             {
                 lastTimeDingied = Time.time + VRRig.LocalRig.fxSettings.GetDelay(10);
@@ -1430,7 +1405,7 @@ namespace Seralyth.Mods
         private static bool returnOrTeleport;
         public static void ArcadeTeleporterEffectSpam()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (Time.time > spamDelay)
             {
                 spamDelay = Time.time + 0.1f;
@@ -1443,7 +1418,7 @@ namespace Seralyth.Mods
 
         public static void StumpTeleporterEffectSpam()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (Time.time > spamDelay)
             {
                 spamDelay = Time.time + 0.1f;
@@ -1456,7 +1431,7 @@ namespace Seralyth.Mods
 
         public static void SetBasementDoorState(bool open)
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (Time.time > spamDelay)
             {
                 spamDelay = Time.time + 0.1f;
@@ -1468,7 +1443,7 @@ namespace Seralyth.Mods
 
         public static void SetElevatorDoorState(bool open)
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (Time.time > spamDelay)
             {
                 spamDelay = Time.time + 0.1f;
@@ -1481,7 +1456,7 @@ namespace Seralyth.Mods
         private static bool openOrClose;
         public static void BasementDoorSpam()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             if (Time.time > spamDelay)
             {
                 spamDelay = Time.time + 0.05f;
@@ -1516,19 +1491,7 @@ namespace Seralyth.Mods
             Object.Destroy(virtualStumpAd.gameObject);
         }
 
-        public static void ChangeCustomQuestScore(bool positive = true)
-        {
-            if (positive)
-                targetQuestScore++;
-            else
-                targetQuestScore--;
-
-            targetQuestScore %= 100000;
-            if (targetQuestScore < 0)
-                targetQuestScore = 99999;
-
-            Buttons.GetIndex("Change Custom Quest Score").overlapText = "Change Custom Quest Score <color=grey>[</color><color=green>" + targetQuestScore + "</color><color=grey>]</color>";
-        }
+        public static void ApplyCustomQuestScore(int index) => targetQuestScore = index;
 
         public static void FakeFPS()
         {
@@ -1556,7 +1519,7 @@ namespace Seralyth.Mods
 
         public static void SetPropDistanceLimit(float distance)
         {
-            if (PhotonNetwork.InRoom && GorillaGameManager.instance.GameType() == GameModeType.PropHunt)
+            if (NetworkSystem.Instance.InRoom && GorillaGameManager.instance.GameType() == GameModeType.PropHunt)
             {
                 GorillaPropHuntGameManager hauntManager = (GorillaPropHuntGameManager)GorillaGameManager.instance;
                 hauntManager.m_ph_hand_follow_distance = distance;
@@ -1749,7 +1712,7 @@ namespace Seralyth.Mods
 
         public static void GhostReactorFreezeAll()
         {
-            VRRig randomPlayer = GetRandomVRRig(false);
+            VRRig randomPlayer = GetRandomVRRig();
             Overpowered.CreateItem(randomPlayer.GetPlayer(), Overpowered.ObjectByName["GhostReactorEnergyCostGate"], randomPlayer.headMesh.transform.position + RandomVector3(), RandomQuaternion(), Vector3.zero, Vector3.zero);
         }
 
@@ -1965,7 +1928,7 @@ namespace Seralyth.Mods
         public static void SetMicrophoneQuality(int bitrate, int samplingRate)
         {
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             if (!NetworkSystem.Instance.LocalRecorder)
@@ -1988,7 +1951,7 @@ namespace Seralyth.Mods
 
         public static void SetMicrophoneAmplification(float gain)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             if (RecorderPatch.enabled)
@@ -2030,7 +1993,7 @@ namespace Seralyth.Mods
             if (button.enabled)
             {
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are using Legacy Microphone. This mod does not support using the old microphone system.");
-                button.enabled = false;
+                Buttons.GetIndex("Echo Microphone").SetEnabled(false);
                 return;
             }
 
@@ -2071,7 +2034,7 @@ namespace Seralyth.Mods
             if (button.enabled)
             {
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are using Legacy Microphone. This mod does not support using the old microphone system.");
-                button.enabled = false;
+                Buttons.GetIndex("Glitchy Microphone").SetEnabled(false);
                 return;
             }
 
@@ -2148,7 +2111,7 @@ namespace Seralyth.Mods
                 {
                     VoiceManager.Get().PostProcessors["Lag"] = buffer =>
                     {
-                        if (UnityEngine.Random.value < 0.25f)
+                        if (Random.value < 0.25f)
                             Array.Clear(buffer, 0, buffer.Length);
                     };
                 }
@@ -2163,7 +2126,7 @@ namespace Seralyth.Mods
                 VoiceManager.Get().MuteMicrophone = mute;
             else
             {
-                if (!PhotonNetwork.InRoom)
+                if (!NetworkSystem.Instance.InRoom)
                     return;
                 Recorder mic = NetworkSystem.Instance.VoiceConnection.PrimaryRecorder;
                 if (mic.IsRecording != mute)
@@ -2174,7 +2137,7 @@ namespace Seralyth.Mods
 
         public static void SetMicrophonePitch(float pitch)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             if (RecorderPatch.enabled)
@@ -2211,7 +2174,7 @@ namespace Seralyth.Mods
 
         public static void SetDebugEchoMode(bool value)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
             if (NetworkSystem.Instance.VoiceConnection.PrimaryRecorder != null && NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.IsRecording)
                 NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.DebugEchoMode = value;
@@ -2380,12 +2343,12 @@ namespace Seralyth.Mods
         public static DictationRecognizer drec;
         public static void MaskVoice()
         {
-            ButtonInfo mod = Buttons.GetIndex("AI Assistant");
+            ButtonInfo mod = Buttons.GetIndex("Mask Voice");
 
             if (Application.platform == RuntimePlatform.WindowsPlayer && Environment.OSVersion.Version.Major < 10)
-                PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.enabled = false);
+                PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.SetEnabled(false));
             else if (Application.platform != RuntimePlatform.WindowsPlayer)
-                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.enabled = false);
+                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.SetEnabled(false));
 
             drec = new DictationRecognizer();
             drec.DictationResult += (text, confidence) =>
@@ -2396,8 +2359,7 @@ namespace Seralyth.Mods
 
                 if (NetworkSystem.Instance.VoiceConnection.PrimaryRecorder != null)
                 {
-                    NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.IsRecording = true;
-                    if (PhotonNetwork.InRoom)
+                    if (NetworkSystem.Instance.InRoom)
                         SpeakText(text, true);
                     else
                         NarrateText(text);
@@ -2417,7 +2379,7 @@ namespace Seralyth.Mods
                 {
                     DisableMaskVoice();
                     NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Online Speech Recognition is not enabled on this device. Either open the menu to enable it, or check your internet connection.", 3000);
-                    Prompt("Online Speech Recognition is not enabled on your device. Would you like to open the Settings page to enable it?", () => { Process.Start("ms-settings:privacy-speech"); PromptSingle("Once you enable Online Speech Recognition, turn this mod back on!", () => mod.enabled = false); }, () => PromptSingle("You will not be able to use this mod until you enable Online Speech Recognition.", () => mod.enabled = false));
+                    Prompt("Online Speech Recognition is not enabled on your device. Would you like to open the Settings page to enable it?", () => { Process.Start("ms-settings:privacy-speech"); PromptSingle("Once you enable Online Speech Recognition, turn this mod back on!", () => mod.SetEnabled(false)); }, () => PromptSingle("You will not be able to use this mod until you enable Online Speech Recognition.", () => mod.SetEnabled(false)));
                 }
             };
             drec.DictationHypothesis += (text) =>
@@ -2434,8 +2396,6 @@ namespace Seralyth.Mods
         {
             drec?.Stop();
             drec?.Dispose();
-
-            NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.IsRecording = true;
         }
 
         public static void ProcessFrameBuffer(float[] data) =>
@@ -2709,7 +2669,7 @@ Piece Name: {gunTarget.name}";
 
             ThrowableBug bugObject = GetBugObject(objectName);
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 OwnershipPatch.blacklistedGuards.Clear();
                 return;
@@ -2723,25 +2683,6 @@ Piece Name: {gunTarget.name}";
 
             if (!OwnershipPatch.blacklistedGuards.Contains(bugObject.worldShareableInstance.guard))
                 OwnershipPatch.blacklistedGuards.Add(bugObject.worldShareableInstance.guard);
-        }
-
-        public static void SpazSnowballs()
-        {
-            if (leftGrab)
-            {
-                GrowingSnowballThrowable Snowball = GetProjectile($"{Projectiles.SnowballName}LeftAnchor") as GrowingSnowballThrowable;
-                Snowball.randomizeColor = true;
-                Snowball.SetSnowballActiveLocal(true);
-                Snowball.SetSizeLevelAuthority(Random.Range(1, 6));
-            }
-
-            if (rightGrab)
-            {
-                GrowingSnowballThrowable Snowball = GetProjectile($"{Projectiles.SnowballName}RightAnchor") as GrowingSnowballThrowable;
-                Snowball.randomizeColor = true;
-                Snowball.SetSnowballActiveLocal(true);
-                Snowball.SetSizeLevelAuthority(Random.Range(1, 6));
-            }
         }
 
         public static void FastSnowballs()
@@ -2789,7 +2730,7 @@ Piece Name: {gunTarget.name}";
                 SlingshotProjectile projectileInstance = projectileArray[index].projectileInstance;
                 if (projectileInstance == null || !projectileInstance.gameObject.activeSelf) continue;
 
-                foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()).Where(rig => rig.Distance(projectileInstance.transform.position) < 0.5f))
+                foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()).Where(rig => rig.Distance(projectileInstance.transform.position) < 0.5f))
                     projectileInstance.transform.position = rig.headMesh.transform.position;
             }
         }
@@ -2799,7 +2740,7 @@ Piece Name: {gunTarget.name}";
         {
             SerializePatch.OverrideSerialization = () =>
             {
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
@@ -2840,125 +2781,6 @@ Piece Name: {gunTarget.name}";
             };
         }
 
-        // These mods are kind of suggestive
-        // I've seen way more graphic stuff on other menus so don't you come at me for my suggestive mods
-        public static void SnowballButtocks()
-        {
-            VRRig.LocalRig.enabled = false;
-
-            VRRig.LocalRig.transform.position = GorillaTagger.Instance.bodyCollider.transform.position + new Vector3(0f, 0.15f, 0f);
-            VRRig.LocalRig.transform.rotation = GorillaTagger.Instance.bodyCollider.transform.rotation;
-            VRRig.LocalRig.head.rigTarget.transform.rotation = GorillaTagger.Instance.headCollider.transform.rotation;
-
-            VRRig.LocalRig.leftHand.rigTarget.transform.position = VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.TransformDirection(
-                new Vector3(-0.0436f, -0.3f, -0.1563f)
-            );
-            VRRig.LocalRig.rightHand.rigTarget.transform.position = VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.TransformDirection(
-                new Vector3(-0.0072f, -0.2964f, -0.1563f)
-            );
-
-            VRRig.LocalRig.leftHand.rigTarget.transform.rotation = VRRig.LocalRig.transform.rotation * Quaternion.Euler(330f, 344.5f, 0f);
-            VRRig.LocalRig.rightHand.rigTarget.transform.rotation = VRRig.LocalRig.transform.rotation * Quaternion.Euler(340f, 165.5f, 160f);
-
-            VRRig.LocalRig.leftIndex.calcT = 1f;
-            VRRig.LocalRig.leftMiddle.calcT = 1f;
-            VRRig.LocalRig.leftThumb.calcT = 1f;
-
-            VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
-            VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
-            VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
-
-            VRRig.LocalRig.rightIndex.calcT = 1f;
-            VRRig.LocalRig.rightMiddle.calcT = 1f;
-            VRRig.LocalRig.rightThumb.calcT = 1f;
-
-            VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
-            VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
-            VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
-
-            GrowingSnowballThrowable LeftHandSnowball = GetProjectile($"{Projectiles.SnowballName}LeftAnchor") as GrowingSnowballThrowable;
-            if (!LeftHandSnowball.gameObject.activeSelf)
-            {
-                LeftHandSnowball.SetSnowballActiveLocal(true);
-                LeftHandSnowball.SetSizeLevelAuthority(3);
-
-                VRRig.LocalRig.SetThrowableProjectileColor(true, VRRig.LocalRig.playerColor);
-                LeftHandSnowball.ApplyColor(VRRig.LocalRig.playerColor);
-            }
-
-            GrowingSnowballThrowable RightHandSnowball = GetProjectile($"{Projectiles.SnowballName}RightAnchor") as GrowingSnowballThrowable;
-            if (!RightHandSnowball.gameObject.activeSelf)
-            {
-                RightHandSnowball.SetSnowballActiveLocal(true);
-                RightHandSnowball.SetSizeLevelAuthority(3);
-
-                VRRig.LocalRig.SetThrowableProjectileColor(false, VRRig.LocalRig.playerColor);
-                RightHandSnowball.ApplyColor(VRRig.LocalRig.playerColor);
-            }
-        }
-
-        public static void SnowballBreasts()
-        {
-            VRRig.LocalRig.enabled = false;
-
-            VRRig.LocalRig.transform.position = GorillaTagger.Instance.bodyCollider.transform.position + new Vector3(0f, 0.15f, 0f);
-            VRRig.LocalRig.transform.rotation = GorillaTagger.Instance.bodyCollider.transform.rotation;
-            VRRig.LocalRig.head.rigTarget.transform.rotation = GorillaTagger.Instance.headCollider.transform.rotation;
-
-            VRRig.LocalRig.leftHand.rigTarget.transform.position = VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.TransformDirection(
-                new Vector3(-0.08f, -0.0691f, 0f)
-            );
-            VRRig.LocalRig.rightHand.rigTarget.transform.position = VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.TransformDirection(
-                new Vector3(-0.0073f, -0.2182f, 0.0164f)
-            );
-
-            VRRig.LocalRig.leftHand.rigTarget.transform.rotation = VRRig.LocalRig.transform.rotation * Quaternion.Euler(350f, 140f, 62f);
-            VRRig.LocalRig.rightHand.rigTarget.transform.rotation = VRRig.LocalRig.transform.rotation * Quaternion.Euler(8f, 30f, 8f);
-
-            VRRig.LocalRig.leftIndex.calcT = 1f;
-            VRRig.LocalRig.leftMiddle.calcT = 1f;
-            VRRig.LocalRig.leftThumb.calcT = 1f;
-
-            VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
-            VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
-            VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
-
-            VRRig.LocalRig.rightIndex.calcT = 1f;
-            VRRig.LocalRig.rightMiddle.calcT = 1f;
-            VRRig.LocalRig.rightThumb.calcT = 1f;
-
-            VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
-            VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
-            VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
-
-            GrowingSnowballThrowable LeftHandSnowball = GetProjectile($"{Projectiles.SnowballName}LeftAnchor") as GrowingSnowballThrowable;
-            if (!LeftHandSnowball.gameObject.activeSelf)
-            {
-                LeftHandSnowball.SetSnowballActiveLocal(true);
-                LeftHandSnowball.IncreaseSize(3);
-
-                VRRig.LocalRig.SetThrowableProjectileColor(true, VRRig.LocalRig.playerColor);
-                LeftHandSnowball.ApplyColor(VRRig.LocalRig.playerColor);
-            }
-
-            GrowingSnowballThrowable RightHandSnowball = GetProjectile($"{Projectiles.SnowballName}RightAnchor") as GrowingSnowballThrowable;
-            if (!RightHandSnowball.gameObject.activeSelf)
-            {
-                RightHandSnowball.SetSnowballActiveLocal(true);
-                RightHandSnowball.IncreaseSize(3);
-
-                VRRig.LocalRig.SetThrowableProjectileColor(false, VRRig.LocalRig.playerColor);
-                RightHandSnowball.ApplyColor(VRRig.LocalRig.playerColor);
-            }
-        }
-
-        public static void DisableSnowballGenitals()
-        {
-            VRRig.LocalRig.enabled = true;
-
-            GetProjectile($"{Projectiles.SnowballName}LeftAnchor").SetSnowballActiveLocal(false);
-            GetProjectile($"{Projectiles.SnowballName}lRightAnchor").SetSnowballActiveLocal(false);
-        }
 
         public static void FastHoverboard()
         {
@@ -3056,7 +2878,7 @@ Piece Name: {gunTarget.name}";
         {
             SerializePatch.OverrideSerialization = () =>
             {
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
 
@@ -3197,9 +3019,9 @@ Piece Name: {gunTarget.name}";
                 return;
 
             List<NetPlayer> infected = InfectedList();
-            List<VRRig> rigs = VRRigCache.ActiveRigs
+            List<VRRig> rigs = VRRigExtensions.ActiveRigs
                 .Where(rig => !rig.isLocal)
-                .Where(rig => !infected.Contains(GetPlayerFromVRRig(rig)))
+                .Where(rig => !infected.Contains(rig.GetPlayer()))
                 .ToList();
 
             Transform head = GorillaTagger.Instance.headCollider.transform;
@@ -3219,7 +3041,7 @@ Piece Name: {gunTarget.name}";
             if (targetRig == null)
                 return;
 
-            Visuals.VisualizeAura(targetRig.headMesh.transform.position, 0.1f, Color.green, -91752);
+            Visuals.Visualize(PrimitiveType.Sphere, targetRig.headMesh.transform.position, Quaternion.identity, new Vector3(0.1f, 0.1f, 0.1f), Color.green, -91752, 0.1f);
         }
 
         private static bool lastDrawing;
@@ -3236,18 +3058,12 @@ Piece Name: {gunTarget.name}";
             lastDrawing = slingshot.InDrawingState();
         }
 
-        public static int oldIndex = -1;
         public static void SlingshotSelf(bool active = true)
         {
             try
             {
-                var slingshot = VRRig.LocalRig.projectileWeapon;
-                if (oldIndex == -1)
-                    oldIndex = VRRig.LocalRig.ActiveTransferrableObjectIndex(0);
-                if (slingshot == null)
-                    slingshot = VRRig.LocalRig.transform.Find("rig/body_pivot/Slingshot Chest Snap/DropZoneAnchor/Slingshot").GetComponent<Slingshot>();
-                VRRig.LocalRig.SetActiveTransferrableObjectIndex(0, active ? 212 : oldIndex);
-                slingshot.gameObject.SetActive(active);
+                VRRig.LocalRig.SetActiveTransferrableObjectIndex(0, active ? VRRig.LocalRig.GetSlingshot().objectIndex : -1);
+                VRRig.LocalRig.myBodyDockPositions.RefreshTransferrableItems();
             }
             catch { }
         }
@@ -3358,7 +3174,7 @@ Piece Name: {gunTarget.name}";
 
             GameObject bugObject = bug.gameObject;
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return bug;
 
             RequestableOwnershipGuard guard = bug.worldShareableInstance.guard;
@@ -3555,19 +3371,8 @@ Piece Name: {gunTarget.name}";
             ThrowableBug bug = GetBug("Floating Bug Holdable");
             ThrowableBug firefly = bug != null ? GetBug("Firefly") : bug;
 
-            string projectileName = Projectiles.ProjectileObjectNames[Projectiles.projMode * 2];
-
             if (rightGrab && Time.time > everythingSpamDelay)
             {
-                SnowballThrowable projectile = GetProjectile(projectileName);
-                projectile.SetSnowballActiveLocal(true);
-                CoroutineManager.instance.StartCoroutine(Projectiles.DisableProjectile(projectile));
-
-                if (Overpowered.DisableCoroutine != null)
-                    CoroutineManager.instance.StopCoroutine(Overpowered.DisableCoroutine);
-
-                Overpowered.DisableCoroutine = CoroutineManager.instance.StartCoroutine(Overpowered.DisableSnowball(false));
-                GetProjectile($"{Projectiles.SnowballName}RightAnchor").SetSnowballActiveLocal(true);
 
                 everythingSpamDelay = Time.time + 0.0625f;
 
@@ -3646,7 +3451,7 @@ Piece Name: {gunTarget.name}";
                         }
                     case 2:
                         {
-                            if (!PhotonNetwork.InRoom)
+                            if (!NetworkSystem.Instance.InRoom)
                                 break;
 
                             LckSocialCamera camera = LckSocialCameraManager.Instance._networkedCococam;
@@ -3690,7 +3495,7 @@ Piece Name: {gunTarget.name}";
                         }
                     case 3:
                         {
-                            if (!PhotonNetwork.InRoom)
+                            if (!NetworkSystem.Instance.InRoom)
                                 break;
 
                             LckSocialCamera camera = LckSocialCameraManager.Instance._networkedTablet;
@@ -3737,10 +3542,10 @@ Piece Name: {gunTarget.name}";
                         BetaDropBoard(GorillaTagger.Instance.rightHandTransform.position, GorillaTagger.Instance.rightHandTransform.rotation, GetGunDirection(GorillaTagger.Instance.rightHandTransform) * ShootStrength, Vector3.zero, RandomColor());
                         break;
                     case 6:
-                        Projectiles.BetaFireProjectile(projectileName, GorillaTagger.Instance.rightHandTransform.position, GetGunDirection(GorillaTagger.Instance.rightHandTransform) * ShootStrength, RandomColor());
+                        Projectiles.SendProjectile(Projectiles.GetAll()[Random.Range(0, Projectiles.GetAll().Count)], GorillaTagger.Instance.rightHandTransform.position, GetGunDirection(GorillaTagger.Instance.rightHandTransform) * ShootStrength, RandomColor());
                         break;
                     case 7:
-                        Overpowered.BetaSpawnSnowball(GorillaTagger.Instance.rightHandTransform.position, GetGunDirection(GorillaTagger.Instance.rightHandTransform) * ShootStrength, 0);
+                        Projectiles.SendProjectile(Projectiles.GetGrowingSnowballProjectileEntry(), GorillaTagger.Instance.rightHandTransform.position, GetGunDirection(GorillaTagger.Instance.rightHandTransform) * ShootStrength);
                         break;
                 }
             }
@@ -4284,7 +4089,7 @@ Piece Name: {gunTarget.name}";
         {
             CosmeticsController.instance.ApplyCosmeticItemToSet(CosmeticsController.instance.currentWornSet, CosmeticsController.instance.GetItemFromDict(cosmeticName), true, false);
             CosmeticsController.instance.ApplyCosmeticItemToSet(VRRig.LocalRig.tryOnSet, CosmeticsController.instance.GetItemFromDict(cosmeticName), true, false);
-            CosmeticsController.instance.UpdateWornCosmetics(PhotonNetwork.InRoom);
+            CosmeticsController.instance.UpdateWornCosmetics(NetworkSystem.Instance.InRoom);
             RPCProtection();
         }
 
@@ -4601,7 +4406,7 @@ Piece Name: {gunTarget.name}";
         public static void AtticAntiReport()
         {
             if (Time.time > startTimeBuilding)
-                Buttons.GetIndex("Attic Anti Report").enabled = false;
+                return;
 
             foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.linePlayer == NetworkSystem.Instance.LocalPlayer))
             {
@@ -4672,7 +4477,7 @@ Piece Name: {gunTarget.name}";
                         NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not master client.");
                     else
                     {
-                        Player target = NetPlayerToPlayer(GetPlayerFromVRRig(lockTarget));
+                        Player target = NetPlayerToPlayer(lockTarget.GetPlayer());
                         RequestCreatePiece(-566818631, lockTarget.headMesh.transform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
                         RequestCreatePiece(-566818631, lockTarget.leftHandTransform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
                         RequestCreatePiece(-566818631, lockTarget.rightHandTransform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
@@ -4730,7 +4535,7 @@ Piece Name: {gunTarget.name}";
                     else
                     {
                         floatPower += (0.3f - floatPower) * 0.05f;
-                        RequestCreatePiece(-566818631, lockTarget.transform.position + Vector3.down * floatPower, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(GetPlayerFromVRRig(lockTarget)), true);
+                        RequestCreatePiece(-566818631, lockTarget.transform.position + Vector3.down * floatPower, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(lockTarget.GetPlayer()), true);
                         RPCProtection();
                     }
                 }
@@ -4765,7 +4570,7 @@ Piece Name: {gunTarget.name}";
                         NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not master client.");
                     else
                     {
-                        RequestCreatePiece(-566818631, lockTarget.transform.position + Vector3.down * 0.35f, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(GetPlayerFromVRRig(lockTarget)), false, true, Vector3.up * 50f);
+                        RequestCreatePiece(-566818631, lockTarget.transform.position + Vector3.down * 0.35f, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(lockTarget.GetPlayer()), false, true, Vector3.up * 50f);
                         RPCProtection();
                     }
                 }
@@ -4800,7 +4605,7 @@ Piece Name: {gunTarget.name}";
                         NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not master client.");
                     else
                     {
-                        RequestCreatePiece(-566818631, lockTarget.transform.position, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(GetPlayerFromVRRig(lockTarget)), false, true, (GorillaTagger.Instance.headCollider.transform.position - lockTarget.transform.position).normalized * 50f);
+                        RequestCreatePiece(-566818631, lockTarget.transform.position, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(lockTarget.GetPlayer()), false, true, (GorillaTagger.Instance.headCollider.transform.position - lockTarget.transform.position).normalized * 50f);
                         RPCProtection();
                     }
                 }
@@ -4835,7 +4640,7 @@ Piece Name: {gunTarget.name}";
                         NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not master client.");
                     else
                     {
-                        RequestCreatePiece(-566818631, lockTarget.transform.position, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(GetPlayerFromVRRig(lockTarget)), false, true, (lockTarget.transform.position - GorillaTagger.Instance.headCollider.transform.position).normalized * 50f);
+                        RequestCreatePiece(-566818631, lockTarget.transform.position, Quaternion.Euler(0f, Random.Range(0f, 350f), 0f), 0, NetPlayerToPlayer(lockTarget.GetPlayer()), false, true, (lockTarget.transform.position - GorillaTagger.Instance.headCollider.transform.position).normalized * 50f);
                         RPCProtection();
                     }
                 }
@@ -4960,20 +4765,10 @@ Piece Name: {gunTarget.name}";
 
         public static int blockDebounceIndex = 2;
         public static float blockDebounce = 0.1f;
-        public static void ChangeBlockDelay(bool positive = true)
+        public static void ApplyBlockDelay(int index)
         {
-            if (positive)
-                blockDebounceIndex++;
-            else
-                blockDebounceIndex--;
-
-            if (blockDebounceIndex > 20)
-                blockDebounceIndex = 1;
-            if (blockDebounceIndex < 1)
-                blockDebounceIndex = 20;
-
-            blockDebounce = blockDebounceIndex / 20f;
-            Buttons.GetIndex("Change Block Delay").overlapText = "Change Block Delay <color=grey>[</color><color=green>" + blockDebounce + "</color><color=grey>]</color>";
+            blockDebounceIndex = index;
+            blockDebounce = index / 20f;
         }
 
         public static void RequestCreatePiece(int pieceType, Vector3 position, Quaternion rotation, int materialType, object target = null, bool overrideFreeze = false, bool forceGravity = false, Vector3? velocity = null, Vector3? angVelocity = null)
@@ -6114,20 +5909,10 @@ Piece Name: {gunTarget.name}";
         public static int cycleSpeedIndex = 2;
         public static float nameCycleDebounce = 1f;
 
-        public static void ChangeCycleDelay(bool positive = true)
+        public static void ApplyCycleDelay(int index)
         {
-            if (positive)
-                cycleSpeedIndex++;
-            else
-                cycleSpeedIndex--;
-
-            if (cycleSpeedIndex > 4)
-                cycleSpeedIndex = 1;
-            if (cycleSpeedIndex < 1)
-                cycleSpeedIndex = 4;
-
-            nameCycleDebounce = cycleSpeedIndex / 2f;
-            Buttons.GetIndex("Change Cycle Delay").overlapText = "Change Name Cycle Delay <color=grey>[</color><color=green>" + nameCycleDebounce + "</color><color=grey>]</color>";
+            cycleSpeedIndex = index;
+            nameCycleDebounce = index / 2f;
         }
 
         public static void GoldenNameTag(bool isGolden)
@@ -6167,7 +5952,7 @@ Piece Name: {gunTarget.name}";
         public static string name;
         public static void AnimatedName()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 ChangeName(name);
                 return;
@@ -6771,10 +6556,10 @@ Piece Name: {gunTarget.name}";
 
         public static void CopyIDAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -6794,16 +6579,15 @@ Piece Name: {gunTarget.name}";
 
         public static void CopyIDOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -6812,7 +6596,7 @@ Piece Name: {gunTarget.name}";
 
             if (touchedPlayers.Count > 0)
             {
-                foreach (var id in touchedPlayers.Select(rig => GetPlayerFromVRRig(rig).UserId))
+                foreach (var id in touchedPlayers.Select(rig => rig.GetPlayer().UserId))
                 {
                     NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> " + id, 5000);
                     GUIUtility.systemCopyBuffer = id;
@@ -6822,7 +6606,7 @@ Piece Name: {gunTarget.name}";
 
         public static void CopyIDAll()
         {
-            foreach (var id in VRRigCache.ActiveRigs.Select(vrrig => GetPlayerFromVRRig(vrrig).UserId))
+            foreach (var id in VRRigExtensions.ActiveRigs.Select(vrrig => GetPlayerFromVRRig(vrrig).UserId))
             {
                 NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> " + id, 5000);
                 GUIUtility.systemCopyBuffer = id;
@@ -6858,7 +6642,7 @@ Piece Name: {gunTarget.name}";
         public static void NarrateIDAll()
         {
             string ids = "";
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                     ids += "Name: " + GetPlayerFromVRRig(vrrig).NickName + ". I D: " + string.Join(" ", GetPlayerFromVRRig(vrrig).UserId) + ". ";
@@ -6869,10 +6653,10 @@ Piece Name: {gunTarget.name}";
         private static float allNarrationDelay;
         public static void NarrateIDAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -6893,16 +6677,15 @@ Piece Name: {gunTarget.name}";
 
         public static void NarrateIDOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -6945,7 +6728,7 @@ Piece Name: {gunTarget.name}";
         public static void NarrateFakeDoxxAll()
         {
             string ids = "";
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                     ids += "Name: " + GetPlayerFromVRRig(vrrig).NickName + ". I P  ADD DRESS: " + string.Join(" ", $"{Random.Range(1, 255)}.{Random.Range(1, 255)}.{Random.Range(1, 255)}") + ". ";
@@ -6955,10 +6738,10 @@ Piece Name: {gunTarget.name}";
 
         public static void NarrateFakeDoxxAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -6979,16 +6762,15 @@ Piece Name: {gunTarget.name}";
 
         public static void NarrateFakeDoxxOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -7041,10 +6823,10 @@ Piece Name: {gunTarget.name}";
 
         public static void CopyCreationDateAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -7059,16 +6841,15 @@ Piece Name: {gunTarget.name}";
 
         public static void CopyCreationDateOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
             List<VRRig> touchedPlayers = new List<VRRig>();
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (!rig.IsLocal())
                 {
-                    if (Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f ||
-                        Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f)
+                    if (rig.IsBeingTouched())
                     {
                         touchedPlayers.Add(rig);
                     }
@@ -7077,14 +6858,14 @@ Piece Name: {gunTarget.name}";
 
             if (touchedPlayers.Count > 0)
             {
-                foreach (var date in touchedPlayers.Select(rig => GetCreationDate(GetPlayerFromVRRig(rig).UserId, CopyCreationDate)).Where(date => date != "Loading..."))
+                foreach (var date in touchedPlayers.Select(rig => GetCreationDate(rig.GetPlayer().UserId, CopyCreationDate)).Where(date => date != "Loading..."))
                     CopyCreationDate(date);
             }
         }
 
         public static void CopyCreationDateAll()
         {
-            foreach (var date in VRRigCache.ActiveRigs.Select(vrrig => GetCreationDate(GetPlayerFromVRRig(vrrig).UserId, CopyCreationDate)).Where(date => date != "Loading..."))
+            foreach (var date in VRRigExtensions.ActiveRigs.Select(vrrig => GetCreationDate(GetPlayerFromVRRig(vrrig).UserId, CopyCreationDate)).Where(date => date != "Loading..."))
             {
                 CopyCreationDate(date);
             }
@@ -7105,16 +6886,16 @@ Piece Name: {gunTarget.name}";
 
         public static void NarrateCreationDateAll()
         {
-            foreach (var date in VRRigCache.ActiveRigs.Select(vrrig => GetCreationDate(GetPlayerFromVRRig(vrrig).UserId, SpeakText)).Where(date => date != "Loading..."))
+            foreach (var date in VRRigExtensions.ActiveRigs.Select(vrrig => GetCreationDate(GetPlayerFromVRRig(vrrig).UserId, SpeakText)).Where(date => date != "Loading..."))
                 SpeakText(date);
         }
 
         public static void NarrateCreationDateAura()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
             List<VRRig> nearbyPlayers = new List<VRRig>();
 
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
                     nearbyPlayers.Add(vrrig);
@@ -7131,14 +6912,14 @@ Piece Name: {gunTarget.name}";
 
         public static void NarrateCreationDateOnTouch()
         {
-            if (!PhotonNetwork.InRoom) return;
+            if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()).Where(rig => Vector3.Distance(rig.transform.position, VRRig.LocalRig.rightHandTransform.position) <= 0.35f || Vector3.Distance(rig.transform.position, VRRig.LocalRig.leftHandTransform.position) <= 0.35f).ToList();
+            List<VRRig> touchedPlayers = VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()).Where(rig => rig.IsBeingTouched()).ToList();
 
             if (touchedPlayers.Count <= 0 || Time.time < allNarrationDelay) return;
             allNarrationDelay = Time.time + 10f;
 
-            foreach (var date in touchedPlayers.Select(rig => GetCreationDate(GetPlayerFromVRRig(rig).UserId, date => SpeakText(date))).Where(date => date != "Loading..."))
+            foreach (var date in touchedPlayers.Select(rig => GetCreationDate(rig.GetPlayer().UserId, date => SpeakText(date))).Where(date => date != "Loading..."))
                 SpeakText(date);
         }
 

@@ -46,7 +46,7 @@ namespace Seralyth.Utilities
         public static Player NetPlayerToPlayer(NetPlayer p) =>
             p.GetPlayerRef();
 
-        public static Player GetRandomPlayer(bool includeSelf) =>
+        public static Player GetRandomPlayer(bool includeSelf = false) =>
             includeSelf ?
             PhotonNetwork.PlayerList[Random.Range(0, PhotonNetwork.PlayerList.Length)] :
             PhotonNetwork.PlayerListOthers[Random.Range(0, PhotonNetwork.PlayerListOthers.Length)];
@@ -57,12 +57,12 @@ namespace Seralyth.Utilities
         {
             if (!(Time.time > rigTargetChange) && rigTarget.Active()) return rigTarget;
             rigTargetChange = Time.time + targetChangeDelay;
-            rigTarget = GetRandomVRRig(false);
+            rigTarget = GetRandomVRRig();
 
             return rigTarget;
         }
 
-        public static VRRig GetRandomVRRig(bool includeSelf) =>
+        public static VRRig GetRandomVRRig(bool includeSelf = false) =>
             GetVRRigFromPlayer(GetRandomPlayer(includeSelf));
 
         public static NetworkView GetNetworkViewFromVRRig(VRRig p) =>

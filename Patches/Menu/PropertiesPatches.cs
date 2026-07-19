@@ -37,7 +37,7 @@ namespace Seralyth.Patches.Menu
             {
                 if (__instance.IsLocal && enabled)
                 {
-                    if (propertiesToSet.Any(prop => prop.Key.ToString() != "didTutorial"))
+                    if (propertiesToSet.Any(prop => prop.Key.ToString() != PlayerConfig.Player_HasDoneTutorial))
                         return false;
                 }
 
@@ -52,7 +52,7 @@ namespace Seralyth.Patches.Menu
             {
                 if (__instance.IsLocal && enabled)
                 {
-                    if (value.Any(prop => prop.Key.ToString() != "didTutorial"))
+                    if (value.Any(prop => prop.Key.ToString() != PlayerConfig.Player_HasDoneTutorial))
                         return false;
                 }
 

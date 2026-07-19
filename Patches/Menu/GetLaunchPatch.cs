@@ -20,12 +20,12 @@
  */
 
 using HarmonyLib;
+using Seralyth.Extensions;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using static Seralyth.Menu.Main;
 using static Seralyth.Utilities.GameModeUtilities;
-using static Seralyth.Utilities.RigUtilities;
 
 namespace Seralyth.Patches.Menu
 {
@@ -42,9 +42,9 @@ namespace Seralyth.Patches.Menu
                     return;
 
                 List<NetPlayer> infected = InfectedList();
-                List<VRRig> rigs = VRRigCache.ActiveRigs
+                List<VRRig> rigs = VRRigExtensions.ActiveRigs
                     .Where(rig => !rig.isLocal)
-                    .Where(rig => !infected.Contains(GetPlayerFromVRRig(rig)))
+                    .Where(rig => !infected.Contains(rig.GetPlayer()))
                     .ToList();
 
 

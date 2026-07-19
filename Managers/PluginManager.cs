@@ -26,7 +26,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using static Seralyth.Menu.Main;
 using static Seralyth.Utilities.FileUtilities;
@@ -46,6 +46,17 @@ namespace Seralyth.Managers
             public Assembly Assembly;
         }
 
+
+        private class PluginHooks
+        {
+            public MethodInfo OnEnable;
+            public MethodInfo OnDisable;
+            public MethodInfo[] OnGUI;
+            public MethodInfo[] Update;
+        }
+
+        private static readonly HttpClient httpClient = new HttpClient();
+
         public static readonly List<Plugin> Plugins = new List<Plugin>();
         public static void LoadPlugins()
         {
@@ -53,15 +64,12 @@ namespace Seralyth.Managers
 
             if (Plugins.Count > 0)
             {
-                foreach (var Plugin in Plugins.Where(Plugin => Plugin.Enabled))
-                    DisablePlugin(Plugin.Assembly);
+                foreach (var plugin in Plugins.Where(plugin => plugin.Enabled))
+                    DisablePlugin(plugin.Assembly);
             }
 
+            cacheHooks.Clear();
             cacheAssembly.Clear();
-
-            cacheUpdate.Clear();
-            cacheOnGUI.Clear();
-
             Plugins.Clear();
 
             if (!Directory.Exists($"{PluginInfo.BaseDirectory}/Plugins"))
@@ -74,18 +82,22 @@ namespace Seralyth.Managers
             {
                 string text = File.ReadAllText($"{PluginInfo.BaseDirectory}/Plugins/DisabledPlugins.txt");
                 if (text.Length > 1)
-                    disabledPlugins = text.Split("\n");
+                    disabledPlugins = text
+                        .Split('\n')
+                        .Select(line => line.Trim())
+                        .Where(line => line.Length > 0)
+                        .ToArray();
             }
 
-            string[] Files = Directory.GetFiles($"{PluginInfo.BaseDirectory}/Plugins");
-            foreach (string File in Files)
+            string[] files = Directory.GetFiles($"{PluginInfo.BaseDirectory}/Plugins");
+            foreach (string file in files)
             {
                 try
                 {
-                    if (GetFileExtension(File) != "dll") continue;
-                    string pluginName = File.Replace($"{PluginInfo.BaseDirectory}/Plugins/", "");
+                    if (!GetFileExtension(file).Equals("dll", StringComparison.OrdinalIgnoreCase)) continue;
+                    string pluginName = file.Replace($"{PluginInfo.BaseDirectory}/Plugins/", "");
 
-                    Assembly assembly = GetAssembly(File);
+                    Assembly assembly = GetAssembly(file);
                     string[] pluginData = GetPluginInfo(assembly);
 
                     Plugin plugin = new Plugin()
@@ -93,7 +105,7 @@ namespace Seralyth.Managers
                         FileName = pluginName,
                         Name = pluginData[0],
                         Description = pluginData[1],
-                        Assembly = GetAssembly(File),
+                        Assembly = assembly,
                         Enabled = !disabledPlugins.Contains(pluginName)
                     };
 
@@ -102,16 +114,16 @@ namespace Seralyth.Managers
 
                     Plugins.Add(plugin);
                 }
-                catch (Exception e) { LogManager.Log("Error with loading plugin " + File + ": " + e); }
+                catch (Exception e) { LogManager.Log("Error with loading plugin " + file + ": " + e); }
             }
 
-            foreach (Plugin Plugin in Plugins)
+            foreach (Plugin plugin in Plugins)
             {
                 try
                 {
-                    Buttons.AddButton(Buttons.GetCategory("Plugin Settings"), new ButtonInfo { buttonText = Plugin.FileName, overlapText = (Plugin.Enabled ? "<color=grey>[</color><color=green>ON</color><color=grey>]</color>" : "<color=grey>[</color><color=red>OFF</color><color=grey>]</color>") + " " + Plugin.Name, method = () => TogglePlugin(Plugin), isTogglable = false, toolTip = Plugin.Description });
+                    Buttons.AddButton(Buttons.GetCategory("Plugin Settings"), new ButtonInfo { buttonText = plugin.FileName, overlapText = (plugin.Enabled ? "<color=grey>[</color><color=green>ON</color><color=grey>]</color>" : "<color=grey>[</color><color=red>OFF</color><color=grey>]</color>") + " " + plugin.Name, method = () => TogglePlugin(plugin), isTogglable = false, toolTip = plugin.Description });
                 }
-                catch (Exception e) { LogManager.Log("Error with enabling plugin " + Plugin.Name + ": " + e); }
+                catch (Exception e) { LogManager.Log("Error with enabling plugin " + plugin.Name + ": " + e); }
             }
 
             Buttons.AddButton(Buttons.GetCategory("Plugin Settings"), new ButtonInfo { buttonText = "Open Plugins Folder", method = OpenPluginsFolder, isTogglable = false, toolTip = "Opens a folder containing all of your plugins." });
@@ -119,18 +131,49 @@ namespace Seralyth.Managers
             Buttons.AddButton(Buttons.GetCategory("Plugin Settings"), new ButtonInfo { buttonText = "Get More Plugins", method = LoadPluginLibrary, isTogglable = false, toolTip = "Opens a public plugin library, where you can download your own plugins." });
         }
 
+        private static string SanitizeFileName(string name)
+        {
+            char[] invalid = Path.GetInvalidFileNameChars();
+            string cleaned = new string(name.Where(c => !invalid.Contains(c)).ToArray());
+            cleaned = cleaned.Replace("..", "");
+            return cleaned;
+        }
+
         public static void DownloadPlugin(string name, string url)
         {
-            if (name.Contains(".."))
-                name = name.Replace("..", "");
+            // just in case
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri uri) || uri.Scheme != Uri.UriSchemeHttps)
+            {
+                LogManager.Log($"Refused to download plugin '{name}': URL is not a valid HTTPS address ({url}).");
+                NotificationManager.SendNotification("<color=grey>[</color><color=red>FAILED</color><color=grey>]</color> Refused to download " + name + ": invalid or insecure URL.");
+                return;
+            }
 
-            string filename = url.Split("/")[^1];
+            string filename = SanitizeFileName(uri.Segments[^1]);
+            if (string.IsNullOrWhiteSpace(filename) || !filename.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+            {
+                LogManager.Log($"Refused to download plugin '{name}': resolved filename '{filename}' is not a valid dll name.");
+                NotificationManager.SendNotification("<color=grey>[</color><color=red>FAILED</color><color=grey>]</color> Refused to download " + name + ": invalid file.");
+                return;
+            }
 
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Plugins/" + filename))
-                File.Delete($"{PluginInfo.BaseDirectory}/Plugins/" + filename);
+            string destination = Path.Combine($"{PluginInfo.BaseDirectory}/Plugins", filename);
 
-            WebClient stream = new WebClient();
-            stream.DownloadFile(url, $"{PluginInfo.BaseDirectory}/Plugins/" + filename);
+            try
+            {
+                byte[] data = httpClient.GetByteArrayAsync(uri).GetAwaiter().GetResult();
+
+                if (File.Exists(destination))
+                    File.Delete(destination);
+
+                File.WriteAllBytes(destination, data);
+            }
+            catch (Exception e)
+            {
+                LogManager.Log("Error downloading plugin " + name + ": " + e);
+                NotificationManager.SendNotification("<color=grey>[</color><color=red>FAILED</color><color=grey>]</color> Could not download " + name + ".");
+                return;
+            }
 
             LoadPlugins();
             NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Successfully downloaded " + name + " to your plugins.");
@@ -145,7 +188,7 @@ namespace Seralyth.Managers
 
             plugin.Enabled = !plugin.Enabled;
 
-            string disabledPluginsString = Plugins.Where(plugin => !plugin.Enabled).Select(plugin => plugin.FileName).Aggregate("", (current, disabledPlugin) => current + (disabledPlugin + "\n"));
+            string disabledPluginsString = Plugins.Where(p => !p.Enabled).Select(p => p.FileName).Aggregate("", (current, disabledPlugin) => current + (disabledPlugin + "\n"));
 
             File.WriteAllText($"{PluginInfo.BaseDirectory}/Plugins/DisabledPlugins.txt", disabledPluginsString);
 
@@ -158,7 +201,8 @@ namespace Seralyth.Managers
             {
                 try
                 {
-                    PluginUpdate(plugin.Assembly);
+                    foreach (MethodInfo method in ResolveHooks(plugin.Assembly).Update)
+                        method.Invoke(null, null);
                 }
                 catch (Exception e) { LogManager.Log("Error with Update() with plugin " + plugin.Name + ": " + e); }
             }
@@ -170,7 +214,8 @@ namespace Seralyth.Managers
             {
                 try
                 {
-                    PluginOnGUI(plugin.Assembly);
+                    foreach (MethodInfo method in ResolveHooks(plugin.Assembly).OnGUI)
+                        method.Invoke(null, null);
                 }
                 catch (Exception e) { LogManager.Log("Error with OnGUI() with plugin " + plugin.Name + ": " + e); }
             }
@@ -182,99 +227,82 @@ namespace Seralyth.Managers
             if (cacheAssembly.TryGetValue(dllName, out var assembly))
                 return assembly;
 
-            Assembly Assembly = Assembly.Load(File.ReadAllBytes(dllName.Replace("/", "\\")));
-            cacheAssembly.Add(dllName, Assembly);
-            return Assembly;
+            Assembly loaded = Assembly.Load(File.ReadAllBytes(dllName.Replace("/", "\\")));
+            cacheAssembly.Add(dllName, loaded);
+            return loaded;
         }
 
-        private static string[] GetPluginInfo(Assembly Assembly)
+        private static string[] GetPluginInfo(Assembly assembly)
         {
-            Type[] Types = Assembly.GetTypes();
-            foreach (Type Type in Types)
+            foreach (Type type in assembly.GetTypes())
             {
-                FieldInfo Name = Type.GetField("Name", BindingFlags.Public | BindingFlags.Static);
-                FieldInfo Description = Type.GetField("Description", BindingFlags.Public | BindingFlags.Static);
-                if (Name != null && Description != null)
-                    return new[] { (string)Name.GetValue(null), (string)Description.GetValue(null) };
+                FieldInfo name = type.GetField("Name", BindingFlags.Public | BindingFlags.Static);
+                FieldInfo description = type.GetField("Description", BindingFlags.Public | BindingFlags.Static);
+                if (name != null && description != null)
+                    return new[] { (string)name.GetValue(null), (string)description.GetValue(null) };
             }
 
             return new[] { "null", "null" };
         }
 
-        private static void EnablePlugin(Assembly Assembly)
+        private static readonly Dictionary<Assembly, PluginHooks> cacheHooks = new Dictionary<Assembly, PluginHooks>();
+        private static PluginHooks ResolveHooks(Assembly assembly)
         {
-            Type[] Types = Assembly.GetTypes();
-            foreach (Type Type in Types)
+            if (cacheHooks.TryGetValue(assembly, out var cached))
+                return cached;
+
+            Type[] types = assembly.GetTypes();
+
+            PluginHooks hooks = new PluginHooks
             {
-                try
-                {
-                    MethodInfo Method = Type.GetMethod("OnEnable", BindingFlags.Public | BindingFlags.Static);
-                    Method?.Invoke(null, null);
-                }
-                catch { }
-            }
+                OnEnable = types
+                    .Select(type => type.GetMethod("OnEnable", BindingFlags.Public | BindingFlags.Static))
+                    .FirstOrDefault(method => method != null),
+                OnDisable = types
+                    .Select(type => type.GetMethod("OnDisable", BindingFlags.Public | BindingFlags.Static))
+                    .FirstOrDefault(method => method != null),
+                OnGUI = types
+                    .Select(type => type.GetMethod("OnGUI", BindingFlags.Public | BindingFlags.Static))
+                    .Where(method => method != null)
+                    .ToArray(),
+                Update = types
+                    .Select(type => type.GetMethod("Update", BindingFlags.Public | BindingFlags.Static))
+                    .Where(method => method != null)
+                    .ToArray()
+            };
+
+            cacheHooks.Add(assembly, hooks);
+            return hooks;
         }
 
-        private static void DisablePlugin(Assembly Assembly)
+        private static void EnablePlugin(Assembly assembly)
         {
-            Type[] Types = Assembly.GetTypes();
-            foreach (Type Type in Types)
+            try
             {
-                try
-                {
-                    MethodInfo Method = Type.GetMethod("OnDisable", BindingFlags.Public | BindingFlags.Static);
-                    Method?.Invoke(null, null);
-                }
-                catch { }
+                ResolveHooks(assembly).OnEnable?.Invoke(null, null);
             }
+            catch (Exception e) { LogManager.Log($"Error invoking OnEnable() on {assembly.GetName().Name}: {e}"); }
         }
 
-        private static readonly Dictionary<Assembly, MethodInfo[]> cacheOnGUI = new Dictionary<Assembly, MethodInfo[]>();
-        private static void PluginOnGUI(Assembly Assembly)
+        private static void DisablePlugin(Assembly assembly)
         {
-            if (cacheOnGUI.TryGetValue(Assembly, out var value))
+            try
             {
-                foreach (MethodInfo Method in value)
-                    Method.Invoke(null, null);
+                ResolveHooks(assembly).OnDisable?.Invoke(null, null);
             }
-            else
-            {
-                Type[] Types = Assembly.GetTypes();
-                List<MethodInfo> Methods = Types.Select(Type => Type.GetMethod("OnGUI", BindingFlags.Public | BindingFlags.Static)).Where(Method => Method != null).ToList();
-
-                cacheOnGUI.Add(Assembly, Methods.ToArray());
-
-                foreach (MethodInfo Method in Methods)
-                    Method.Invoke(null, null);
-            }
-        }
-
-        private static readonly Dictionary<Assembly, MethodInfo[]> cacheUpdate = new Dictionary<Assembly, MethodInfo[]>();
-        private static void PluginUpdate(Assembly Assembly)
-        {
-            if (cacheUpdate.TryGetValue(Assembly, out var value))
-            {
-                foreach (MethodInfo Method in value)
-                    Method.Invoke(null, null);
-            }
-            else
-            {
-                Type[] Types = Assembly.GetTypes();
-                List<MethodInfo> Methods = Types.Select(Type => Type.GetMethod("Update", BindingFlags.Public | BindingFlags.Static)).Where(Method => Method != null).ToList();
-
-                cacheUpdate.Add(Assembly, Methods.ToArray());
-
-                foreach (MethodInfo Method in Methods)
-                    Method.Invoke(null, null);
-            }
+            catch (Exception e) { LogManager.Log($"Error invoking OnDisable() on {assembly.GetName().Name}: {e}"); }
         }
 
         #region Menu Integration
         public static void ReloadPlugins()
         {
-            Mods.Settings.SavePreferences();
+            Dictionary<string, bool> snapshot = Plugins.ToDictionary(p => p.FileName, p => p.Enabled);
+
             LoadPlugins();
-            Mods.Settings.LoadPreferences();
+
+            foreach (Plugin plugin in Plugins)
+                if (snapshot.TryGetValue(plugin.FileName, out bool wasEnabled) && plugin.Enabled != wasEnabled)
+                    TogglePlugin(plugin);
 
             if (isSearching)
                 Mods.Settings.Search();
@@ -297,8 +325,8 @@ namespace Seralyth.Managers
             {
                 if (plugin.Length <= 2) continue;
                 index++;
-                string[] Data = plugin.Split(";");
-                buttonInfos.Add(new ButtonInfo { buttonText = "PluginDownload" + index, overlapText = Data[0], method = () => DownloadPlugin(Data[0], Data[2]), isTogglable = false, toolTip = Data[1] });
+                string[] data = plugin.Split(";");
+                buttonInfos.Add(new ButtonInfo { buttonText = "PluginDownload" + index, overlapText = data[0], method = () => DownloadPlugin(data[0], data[2]), isTogglable = false, toolTip = data[1] });
             }
 
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttonInfos.ToArray();

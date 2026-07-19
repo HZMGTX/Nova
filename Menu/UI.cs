@@ -190,6 +190,9 @@ namespace Seralyth.Menu
 
         private float uiUpdateDelay;
 
+        private bool lastInRoom;
+        private string lastRoomName;
+
         private void Update()
         {
             if (uiPrefab == null)
@@ -254,8 +257,9 @@ namespace Seralyth.Menu
                 if (watermark != null)
                     watermark.transform.rotation = Quaternion.Euler(0f, 0f, rockWatermark ? Mathf.Sin(Time.time * 2f) * 10f : 0f);
 
-                versionLabel.SafeSetText(FollowMenuSettings("Build") + " " + PluginInfo.Version + "\n" +
-                                    serverLink.Replace("https://", ""));
+                if (versionLabel.text.IsNullOrEmpty())
+                    versionLabel.SafeSetText(FollowMenuSettings("Build") + " " + PluginInfo.Version + "\n" +
+                                        serverLink.Replace("https://", ""));
 
                 if (versionLabel != null)
                 {
@@ -275,8 +279,15 @@ namespace Seralyth.Menu
                     }
                 }
 
-                roomStatus.SafeSetText(FollowMenuSettings(!PhotonNetwork.InRoom ? "Not connected to room" : "Connected to room ") +
-                   (PhotonNetwork.InRoom ? PhotonNetwork.CurrentRoom.Name : ""));
+                bool inRoom = NetworkSystem.Instance.InRoom;
+                string roomName = inRoom ? PhotonNetwork.CurrentRoom.Name : "";
+
+                if (inRoom != lastInRoom || roomName != lastRoomName)
+                {
+                    lastInRoom = inRoom;
+                    lastRoomName = roomName;
+                    roomStatus.SafeSetText(FollowMenuSettings(!inRoom ? "Not connected to room" : "Connected to room ") + roomName);
+                }
 
                 if (debugUI != null && debugUI.activeSelf)
                 {
@@ -397,7 +408,9 @@ namespace Seralyth.Menu
                 }
 
                 string[] sortedMods = enabledMods
-                    .OrderByDescending(s => arraylist != null ? arraylist.GetPreferredValues(NoRichtextTags(s)).x : s.Length)
+                    .Select(s => (text: s, width: arraylist != null ? arraylist.GetPreferredValues(NoRichtextTags(s)).x : s.Length))
+                    .OrderByDescending(t => t.width)
+                    .Select(t => t.text)
                     .ToArray();
 
                 string modListText = "";

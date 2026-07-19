@@ -19,8 +19,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Thanks to kingofnetflix for doing literally everything in this class. I barely even touched it.
-using Photon.Pun;
 using Seralyth.Classes.Menu;
 using Seralyth.Menu;
 using Seralyth.Mods;
@@ -149,7 +147,7 @@ namespace Seralyth.Managers
 
             if (narrate)
             {
-                if (globalNarrate && PhotonNetwork.InRoom)
+                if (globalNarrate && NetworkSystem.Instance.InRoom)
                     Main.SpeakText(formatResponse);
                 else
                     Main.NarrateText(formatResponse);

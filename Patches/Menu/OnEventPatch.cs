@@ -35,7 +35,7 @@ namespace Seralyth.Patches.Menu
         {
             if (enabled)
             {
-                if (VRRigCache.ActiveRigs.All(rig => rig != null && rig.GetPing() > 500))
+                if (VRRigExtensions.ActiveRigs.All(rig => rig != null && rig.GetPing() > 500))
                     return false;
             }
             return true;

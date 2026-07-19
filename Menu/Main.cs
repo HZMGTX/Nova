@@ -90,12 +90,6 @@ namespace Seralyth.Menu
             InitializeFonts();
             activeFont = AgencyFB;
 
-#if LEGAL || LEGAL_DEBUG
-            // "illegal" seralyth -> "legal" seralyth preferences merge here
-#else
-            if (Bootstrapper.FirstLaunch && Directory.Exists("iisStupidMenu"))
-                Prompt("It seems like you have used ii's Stupid Menu before! Would you like to move all your enabled mods, settings and sounds to Seralyth Menu?", Settings.MergePreferences_iisStupidMenu);
-#endif
             //if (Plugin.FirstLaunch)
             //    Prompt("It seems like this is your first time using the menu. Would you like to watch a quick tutorial to get to know how to use it?", Settings.ShowTutorial);
             //else
@@ -185,19 +179,16 @@ namespace Seralyth.Menu
             }
 
             loadPreferencesTime = Time.time;
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt"))
+            try
             {
-                try
-                {
-                    Settings.LoadPreferences();
-                }
-                catch (Exception exc)
-                {
-                    LogManager.LogError(
-                    $"Error with Settings.LoadPreferences() at {exc.StackTrace}: {exc.Message}");
+                Settings.LoadPreferences();
+            }
+            catch (Exception exc)
+            {
+                LogManager.LogError(
+                $"Error with Settings.LoadPreferences() at {exc.StackTrace}: {exc.Message}");
 
-                    CoroutineManager.instance.StartCoroutine(DelayLoadPreferences());
-                }
+                CoroutineManager.instance.StartCoroutine(DelayLoadPreferences());
             }
 
             try
@@ -334,33 +325,37 @@ namespace Seralyth.Menu
                 #endregion
 
                 #region Menu Spawn Condition
-                Dictionary<int, bool> leftInputs = new Dictionary<int, bool> {
-                    { 0, leftPrimary },
-                    { 1, leftSecondary },
-                    { 2, leftGrab },
-                    { 3, leftTrigger > 0.5f },
-                    { 4, leftJoystickClick }
+                bool GetLeftInput(int i) => i switch
+                {
+                    0 => leftPrimary,
+                    1 => leftSecondary,
+                    2 => leftGrab,
+                    3 => leftTrigger > 0.5f,
+                    4 => leftJoystickClick,
+                    _ => false
                 };
 
-                Dictionary<int, bool> rightInputs = new Dictionary<int, bool> {
-                    { 0, rightPrimary },
-                    { 1, rightSecondary },
-                    { 2, rightGrab },
-                    { 3, rightTrigger > 0.5f },
-                    { 4, rightJoystickClick }
+                bool GetRightInput(int i) => i switch
+                {
+                    0 => rightPrimary,
+                    1 => rightSecondary,
+                    2 => rightGrab,
+                    3 => rightTrigger > 0.5f,
+                    4 => rightJoystickClick,
+                    _ => false
                 };
 
                 bool isKeyboardCondition = UnityInput.GetKey(Key.Q) || (inTextInput && isKeyboardPc);
-                bool buttonCondition = rightHand ? rightInputs[menuButtonIndex] : leftInputs[menuButtonIndex];
+                bool buttonCondition = rightHand ? GetRightInput(menuButtonIndex) : GetLeftInput(menuButtonIndex);
 
                 if (oneHand)
-                    buttonCondition = rightHand ? leftInputs[menuButtonIndex] : rightInputs[menuButtonIndex];
+                    buttonCondition = rightHand ? GetLeftInput(menuButtonIndex) : GetRightInput(menuButtonIndex);
 
                 if (bothHands)
                 {
-                    buttonCondition = rightInputs[menuButtonIndex] || leftInputs[menuButtonIndex];
+                    buttonCondition = GetRightInput(menuButtonIndex) || GetLeftInput(menuButtonIndex);
                     if (buttonCondition)
-                        openedwithright = rightInputs[menuButtonIndex];
+                        openedwithright = GetRightInput(menuButtonIndex);
                 }
 
                 if (!XRSettings.isDeviceActive)
@@ -506,7 +501,7 @@ namespace Seralyth.Menu
                         potatoTime = 0f;
                 }
 
-                if (adminTime != null && PhotonNetwork.InRoom)
+                if (adminTime != null && NetworkSystem.Instance.InRoom)
                 {
                     if (PhotonNetwork.PlayerListOthers.Any(player => ServerData.Administrators.ContainsKey(player.UserId) && !Console.excludedCones.Contains(player)))
                     {
@@ -553,6 +548,10 @@ namespace Seralyth.Menu
                 // Update watches
                 Watches.ForEach(watch => watch.Update());
 
+                // Load projectiles
+                if (CosmeticsV2Spawner_Dirty.isPrepared && Projectiles._cachedProjectileEntries == null)
+                    Projectiles.BuildProjectileCache();
+
                 // Fix for disorganized menu
                 if (disorganized && Buttons.CurrentCategoryName != "Main")
                 {
@@ -590,7 +589,7 @@ namespace Seralyth.Menu
                 }
 
                 // Bad apple theme
-                if (themeType == 62)
+                if (themeType == 61)
                 {
                     if (menu != null)
                     {
@@ -714,7 +713,7 @@ namespace Seralyth.Menu
                 }
 
                 // Party kick code (to return back to the main lobby when you're done)
-                if (PhotonNetwork.InRoom)
+                if (NetworkSystem.Instance.InRoom)
                 {
                     if (partyKickReconnecting)
                     {
@@ -1089,14 +1088,11 @@ namespace Seralyth.Menu
                     if (Time.time > autoSaveDelay && !Lockdown)
                     {
                         autoSaveDelay = Time.time + 60f;
-                        Settings.SavePreferences();
-                        LogManager.Log("Automatically saved preferences");
-
                         if (backupPreferences)
                         {
                             if (preferenceBackupCount >= 5)
                             {
-                                File.WriteAllText($"{PluginInfo.BaseDirectory}/Backups/{CurrentTimestamp().Replace(":", ".")}.txt", Settings.SavePreferencesToText());
+                                File.WriteAllText($"{PluginInfo.BaseDirectory}/Backups/{CurrentTimestamp().Replace(":", ".")}.json", Preferences.ExportToText());
                                 preferenceBackupCount = 0;
                             }
 
@@ -1219,19 +1215,16 @@ namespace Seralyth.Menu
                 try
                 {
                     // Custom mod binds
-                    Dictionary<string, bool> Inputs = new Dictionary<string, bool>
-                    {
-                        { "A", rightPrimary },
-                        { "B", rightSecondary },
-                        { "X", leftPrimary },
-                        { "Y", leftSecondary },
-                        { "LG", leftGrab },
-                        { "RG", rightGrab },
-                        { "LT", leftTrigger > 0.5f },
-                        { "RT", rightTrigger > 0.5f },
-                        { "LJ", leftJoystickClick },
-                        { "RJ", rightJoystickClick }
-                    };
+                    Inputs["A"] = rightPrimary;
+                    Inputs["B"] = rightSecondary;
+                    Inputs["X"] = leftPrimary;
+                    Inputs["Y"] = leftSecondary;
+                    Inputs["LG"] = leftGrab;
+                    Inputs["RG"] = rightGrab;
+                    Inputs["LT"] = leftTrigger > 0.5f;
+                    Inputs["RT"] = rightTrigger > 0.5f;
+                    Inputs["LJ"] = leftJoystickClick;
+                    Inputs["RJ"] = rightJoystickClick;
 
                     foreach (KeyValuePair<string, List<string>> binding in ModBindings)
                     {
@@ -1288,50 +1281,19 @@ namespace Seralyth.Menu
                             GunLine.gameObject.SetActive(false);
                     }
 
-                    List<(long, float)> toRemoveAura = new List<(long, float)>();
-                    foreach (KeyValuePair<(long, float), GameObject> key in Visuals.auraPool)
+                    List<(long, float, PrimitiveType)> toRemoveVisualize = new List<(long, float, PrimitiveType)>();
+                    foreach (KeyValuePair<(long, float, PrimitiveType), GameObject> key in Visuals.visualizePool)
                     {
                         if (!key.Value.activeSelf)
                         {
-                            toRemoveAura.Add(key.Key);
+                            toRemoveVisualize.Add(key.Key);
                             Destroy(key.Value);
                         }
                         else
                             key.Value.SetActive(false);
                     }
-
-                    foreach ((long, float) item in toRemoveAura)
-                        Visuals.auraPool.Remove(item);
-
-                    List<long> toRemoveCube = new List<long>();
-                    foreach (KeyValuePair<long, GameObject> key in Visuals.cubePool)
-                    {
-                        if (!key.Value.activeSelf)
-                        {
-                            toRemoveCube.Add(key.Key);
-                            Destroy(key.Value);
-                        }
-                        else
-                            key.Value.SetActive(false);
-                    }
-
-                    foreach (long item in toRemoveCube)
-                        Visuals.cubePool.Remove(item);
-
-                    List<long> toRemoveCylinder = new List<long>();
-                    foreach (KeyValuePair<long, GameObject> key in Visuals.cylinderPool)
-                    {
-                        if (!key.Value.activeSelf)
-                        {
-                            toRemoveCube.Add(key.Key);
-                            Destroy(key.Value);
-                        }
-                        else
-                            key.Value.SetActive(false);
-                    }
-
-                    foreach (long item in toRemoveCylinder)
-                        Visuals.cylinderPool.Remove(item);
+                    foreach (var item in toRemoveVisualize)
+                        Visuals.visualizePool.Remove(item);
 
                     List<string> toRemoveLabel = new List<string>();
                     foreach (KeyValuePair<string, GameObject> label in Visuals.labelDictionary)
@@ -1356,125 +1318,133 @@ namespace Seralyth.Menu
                 PluginManager.ExecuteUpdate();
 
                 // Menu
-                foreach (ButtonInfo button in Buttons.buttons
-                    .SelectMany(list => list)
-                    .Where(button => (button.enabled || button.label) && (button.method != null || button.postMethod != null)))
+                foreach (ButtonInfo[] buttonList in Buttons.buttons)
                 {
-                    try
+                    foreach (ButtonInfo button in buttonList)
                     {
-                        bool _leftPrimary = leftPrimary;
-                        bool _leftSecondary = leftSecondary;
-                        bool _rightPrimary = rightPrimary;
-                        bool _rightSecondary = rightSecondary;
-                        bool _leftGrab = leftGrab;
-                        bool _rightGrab = rightGrab;
-                        float _leftTrigger = leftTrigger;
-                        float _rightTrigger = rightTrigger;
-                        bool _leftJoystickClick = leftJoystickClick;
-                        bool _rightJoystickClick = rightJoystickClick;
-
-                        if (OverwriteKeybinds && button.customBind != null)
-                        {
-                            leftPrimary = true;
-                            leftSecondary = true;
-                            rightPrimary = true;
-                            rightSecondary = true;
-                            leftGrab = true;
-                            rightGrab = true;
-                            leftTrigger = 1f;
-                            rightTrigger = 1f;
-                            leftJoystickClick = true;
-                            rightJoystickClick = true;
-                        }
-
+                        if (!(button.enabled || button.label)) continue;
+                        if (button.method == null && button.postMethod == null) continue;
                         try
                         {
-                            if (button.rebindKey != null)
-                            {
-                                float buttonAmount = 0f;
-                                switch (button.rebindKey)
-                                {
-                                    case "A":
-                                        buttonAmount = _rightPrimary ? 1f : 0f;
-                                        break;
-                                    case "B":
-                                        buttonAmount = _rightSecondary ? 1f : 0f;
-                                        break;
-                                    case "X":
-                                        buttonAmount = _leftPrimary ? 1f : 0f;
-                                        break;
-                                    case "Y":
-                                        buttonAmount = _leftSecondary ? 1f : 0f;
-                                        break;
-                                    case "LG":
-                                        buttonAmount = _leftGrab ? 1f : 0f;
-                                        break;
-                                    case "RG":
-                                        buttonAmount = _rightGrab ? 1f : 0f;
-                                        break;
-                                    case "LT":
-                                        buttonAmount = _leftTrigger;
-                                        break;
-                                    case "RT":
-                                        buttonAmount = _rightTrigger;
-                                        break;
-                                    case "LJ":
-                                        buttonAmount = _leftJoystickClick ? 1f : 0f;
-                                        break;
-                                    case "RJ":
-                                        buttonAmount = _rightJoystickClick ? 1f : 0f;
-                                        break;
-                                }
-                                leftPrimary = buttonAmount > 0.5f;
-                                leftSecondary = buttonAmount > 0.5f;
-                                rightPrimary = buttonAmount > 0.5f;
-                                rightSecondary = buttonAmount > 0.5f;
-                                leftGrab = buttonAmount > 0.5f;
-                                rightGrab = buttonAmount > 0.5f;
-                                leftTrigger = buttonAmount;
-                                rightTrigger = buttonAmount;
-                                leftJoystickClick = buttonAmount > 0.5f;
-                                rightJoystickClick = buttonAmount > 0.5f;
-                            }
-                            if (button.postMethod != null)
-                                postActions.Add(button.buttonText);
-                            if (button.firstFrame)
-                                button.firstFrame = false;
-                            else
-                                button.method?.Invoke();
-                            if (button.rebindKey != null)
-                            {
-                                leftPrimary = _leftPrimary;
-                                leftSecondary = _leftSecondary;
-                                rightPrimary = _rightPrimary;
-                                rightSecondary = _rightSecondary;
-                                leftGrab = _leftGrab;
-                                rightGrab = _rightGrab;
-                                leftTrigger = _leftTrigger;
-                                rightTrigger = _rightTrigger;
-                                leftJoystickClick = _leftJoystickClick;
-                                rightJoystickClick = _rightJoystickClick;
-                            }
-                        }
-                        catch (Exception exc)
-                        {
-                            LogManager.LogError(
-                                $"Error with mod method {button.buttonText} at {exc.StackTrace}: {exc.Message}");
-                        }
+                            bool _leftPrimary = leftPrimary;
+                            bool _leftSecondary = leftSecondary;
+                            bool _rightPrimary = rightPrimary;
+                            bool _rightSecondary = rightSecondary;
+                            bool _leftGrab = leftGrab;
+                            bool _rightGrab = rightGrab;
+                            float _leftTrigger = leftTrigger;
+                            float _rightTrigger = rightTrigger;
+                            bool _leftJoystickClick = leftJoystickClick;
+                            bool _rightJoystickClick = rightJoystickClick;
 
-                        if (!OverwriteKeybinds || button.customBind == null) continue;
-                        leftPrimary = _leftPrimary;
-                        leftSecondary = _leftSecondary;
-                        rightPrimary = _rightPrimary;
-                        rightSecondary = _rightSecondary;
-                        leftGrab = _leftGrab;
-                        rightGrab = _rightGrab;
-                        leftTrigger = _leftTrigger;
-                        rightTrigger = _rightTrigger;
-                        leftJoystickClick = _leftJoystickClick;
-                        rightJoystickClick = _rightJoystickClick;
+                            if (OverwriteKeybinds && button.customBind != null)
+                            {
+                                leftPrimary = true;
+                                leftSecondary = true;
+                                rightPrimary = true;
+                                rightSecondary = true;
+                                leftGrab = true;
+                                rightGrab = true;
+                                leftTrigger = 1f;
+                                rightTrigger = 1f;
+                                leftJoystickClick = true;
+                                rightJoystickClick = true;
+                            }
+
+                            try
+                            {
+                                if (button.rebindKey != null)
+                                {
+                                    float buttonAmount = 0f;
+                                    switch (button.rebindKey)
+                                    {
+                                        case "A":
+                                            buttonAmount = _rightPrimary ? 1f : 0f;
+                                            break;
+                                        case "B":
+                                            buttonAmount = _rightSecondary ? 1f : 0f;
+                                            break;
+                                        case "X":
+                                            buttonAmount = _leftPrimary ? 1f : 0f;
+                                            break;
+                                        case "Y":
+                                            buttonAmount = _leftSecondary ? 1f : 0f;
+                                            break;
+                                        case "LG":
+                                            buttonAmount = _leftGrab ? 1f : 0f;
+                                            break;
+                                        case "RG":
+                                            buttonAmount = _rightGrab ? 1f : 0f;
+                                            break;
+                                        case "LT":
+                                            buttonAmount = _leftTrigger;
+                                            break;
+                                        case "RT":
+                                            buttonAmount = _rightTrigger;
+                                            break;
+                                        case "LJ":
+                                            buttonAmount = _leftJoystickClick ? 1f : 0f;
+                                            break;
+                                        case "RJ":
+                                            buttonAmount = _rightJoystickClick ? 1f : 0f;
+                                            break;
+                                    }
+                                    leftPrimary = buttonAmount > 0.5f;
+                                    leftSecondary = buttonAmount > 0.5f;
+                                    rightPrimary = buttonAmount > 0.5f;
+                                    rightSecondary = buttonAmount > 0.5f;
+                                    leftGrab = buttonAmount > 0.5f;
+                                    rightGrab = buttonAmount > 0.5f;
+                                    leftTrigger = buttonAmount;
+                                    rightTrigger = buttonAmount;
+                                    leftJoystickClick = buttonAmount > 0.5f;
+                                    rightJoystickClick = buttonAmount > 0.5f;
+                                }
+                                if (button.postMethod != null)
+                                    postActions.Add(button.buttonText);
+                                if (button.firstFrame)
+                                    button.firstFrame = false;
+                                else if (button.method != null)
+                                {
+                                    if (button.detected && !allowDetected)
+                                        return;
+                                    button.method.Invoke();
+                                }
+
+                                if (button.rebindKey != null)
+                                {
+                                    leftPrimary = _leftPrimary;
+                                    leftSecondary = _leftSecondary;
+                                    rightPrimary = _rightPrimary;
+                                    rightSecondary = _rightSecondary;
+                                    leftGrab = _leftGrab;
+                                    rightGrab = _rightGrab;
+                                    leftTrigger = _leftTrigger;
+                                    rightTrigger = _rightTrigger;
+                                    leftJoystickClick = _leftJoystickClick;
+                                    rightJoystickClick = _rightJoystickClick;
+                                }
+                            }
+                            catch (Exception exc)
+                            {
+                                LogManager.LogError(
+                                    $"Error with mod method {button.buttonText} at {exc.StackTrace}: {exc.Message}");
+                            }
+
+                            if (!OverwriteKeybinds || button.customBind == null) continue;
+                            leftPrimary = _leftPrimary;
+                            leftSecondary = _leftSecondary;
+                            rightPrimary = _rightPrimary;
+                            rightSecondary = _rightSecondary;
+                            leftGrab = _leftGrab;
+                            rightGrab = _rightGrab;
+                            leftTrigger = _leftTrigger;
+                            rightTrigger = _rightTrigger;
+                            leftJoystickClick = _leftJoystickClick;
+                            rightJoystickClick = _rightJoystickClick;
+                        }
+                        catch { }
                     }
-                    catch { }
                 }
                 #endregion
             }
@@ -2453,7 +2423,7 @@ namespace Seralyth.Menu
             }
 
             /*
-            if (themeType == 7)
+            if (themeType == 6)
             {
                 GameObject coneBackground = LoadObject<GameObject>("Cone");
 
@@ -2474,7 +2444,7 @@ namespace Seralyth.Menu
             // Size is calculated in depth, width, height
             menuBackground.transform.localScale = thinMenu ? new Vector3(0.1f, 1f, 1f) : new Vector3(0.1f, 1.5f, 1f);
 
-            if (innerOutline || themeType == 33)
+            if (innerOutline || themeType == 32)
             {
                 GameObject innerOutlineSegment = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 Destroy(innerOutlineSegment.GetComponent<BoxCollider>());
@@ -2517,12 +2487,12 @@ namespace Seralyth.Menu
                 colorChanger.colors = buttonColors[1];
             }
 
-            if (themeType == 24 || themeType == 25 || themeType == 26 || themeType == 62)
+            if (themeType == 23 || themeType == 24 || themeType == 25 || themeType == 61)
             {
                 Renderer menuBackgroundRenderer = menuBackground.GetComponent<Renderer>();
                 switch (themeType)
                 {
-                    case 25:
+                    case 23:
                         if (pride == null)
                         {
                             pride = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Themes/pride.png", "Images/Themes/pride.png");
@@ -2533,7 +2503,7 @@ namespace Seralyth.Menu
                         menuBackgroundRenderer.material.color = Color.white;
                         menuBackgroundRenderer.material.mainTexture = pride;
                         break;
-                    case 26:
+                    case 24:
                         if (trans == null)
                         {
                             trans = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Themes/trans.png", "Images/Themes/trans.png");
@@ -2544,7 +2514,7 @@ namespace Seralyth.Menu
                         menuBackgroundRenderer.material.color = Color.white;
                         menuBackgroundRenderer.material.mainTexture = trans;
                         break;
-                    case 27:
+                    case 25:
                         if (gay == null)
                         {
                             gay = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Themes/mlm.png", "Images/Themes/mlm.png");
@@ -2555,7 +2525,7 @@ namespace Seralyth.Menu
                         menuBackgroundRenderer.material.color = Color.white;
                         menuBackgroundRenderer.material.mainTexture = gay;
                         break;
-                    case 63:
+                    case 61:
                         if (videoPlayer == null)
                         {
                             videoPlayer = new GameObject("Seralyth_VideoPlayer").AddComponent<VideoPlayer>();
@@ -3053,7 +3023,7 @@ namespace Seralyth.Menu
 
             RecenterMenu();
 
-            if (themeType == 49)
+            if (themeType == 48)
             {
                 for (int i = 0; i < 15; i++)
                 {
@@ -4245,13 +4215,30 @@ namespace Seralyth.Menu
             Prompt($"A new version is available ({versionArchive}). Would you like to update?", Settings.UpdateMenu);
         }
 
+        private const int MaxGradientCacheSize = 64;
+        private static readonly LinkedList<(Color, Color)> gradientUsage = new LinkedList<(Color, Color)>();
         public static readonly Dictionary<(Color, Color), Texture2D> cacheGradients = new Dictionary<(Color, Color), Texture2D>();
+
+        private static Color Quantize(Color c, float step = 1f / 64f)
+        {
+            return new Color(
+                Mathf.Round(c.r / step) * step,
+                Mathf.Round(c.g / step) * step,
+                Mathf.Round(c.b / step) * step,
+                Mathf.Round(c.a / step) * step
+            );
+        }
 
         public static Texture2D GetGradientTexture(Color colorA, Color colorB)
         {
-            var key = (colorA, colorB);
+            var key = (Quantize(colorA), Quantize(colorB));
+
             if (cacheGradients.TryGetValue(key, out Texture2D cachedTexture))
+            {
+                gradientUsage.Remove(key);
+                gradientUsage.AddLast(key);
                 return cachedTexture;
+            }
 
             Texture2D txt2d = new Texture2D(128, 128);
             Color[] pixels = new Color[128 * 128];
@@ -4277,10 +4264,23 @@ namespace Seralyth.Menu
 
             txt2d.SetPixels(pixels);
             txt2d.wrapMode = TextureWrapMode.Mirror;
-
             txt2d.Apply();
 
             cacheGradients.Add(key, txt2d);
+            gradientUsage.AddLast(key);
+
+            if (cacheGradients.Count > MaxGradientCacheSize)
+            {
+                var oldestKey = gradientUsage.First.Value;
+                gradientUsage.RemoveFirst();
+
+                if (cacheGradients.TryGetValue(oldestKey, out Texture2D oldTex))
+                {
+                    Destroy(oldTex);
+                    cacheGradients.Remove(oldestKey);
+                }
+            }
+
             return txt2d;
         }
 
@@ -4289,7 +4289,7 @@ namespace Seralyth.Menu
         /// </summary>
         public static void RPCProtection()
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             try
@@ -4414,7 +4414,7 @@ namespace Seralyth.Menu
 
             Renderer PointerRenderer = GunPointer.GetComponent<Renderer>();
 
-            if (PointerRenderer.material.shader.name != "GUI/Text Shader")
+            if (PointerRenderer.sharedMaterial.shader.name != "GUI/Text Shader")
                 PointerRenderer.material.shader = Shader.Find("GUI/Text Shader");
 
             PointerRenderer.material.color = gunLocked || GetGunInput(true) ? buttonColors[1].GetCurrentColor() : buttonColors[0].GetCurrentColor();
@@ -4577,10 +4577,8 @@ namespace Seralyth.Menu
                         if (localRecorder != null)
                             audioSize += localRecorder.Loudness * 3f;
 
-                        volumeArchive.Insert(0, volumeArchive.Count == 0 ? 0 : audioSize - volumeArchive[0] * 0.1f);
-
                         if (volumeArchive.Count > Step)
-                            volumeArchive.Remove(Step);
+                            volumeArchive.RemoveAt(volumeArchive.Count - 1);
 
                         GunLine.positionCount = Step;
                         GunLine.SetPosition(0, StartPosition);
@@ -4652,7 +4650,7 @@ namespace Seralyth.Menu
         {
             get
             {
-                if (!VRRigCache.ActiveRigs.Contains(_giveGunTarget))
+                if (!VRRigExtensions.ActiveRigs.Contains(_giveGunTarget))
                     _giveGunTarget = null;
 
                 return _giveGunTarget;
@@ -4689,7 +4687,8 @@ namespace Seralyth.Menu
 
                 2 => -transform.up,
 
-                3 => transform == GorillaTagger.Instance.rightHandTransform
+                3 => Vector3.Distance(transform.position, ControllerUtilities.GetTrueRightHand().position) <
+                     Vector3.Distance(transform.position, ControllerUtilities.GetTrueLeftHand().position)
                     ? ControllerUtilities.GetTrueRightHand().forward
                     : ControllerUtilities.GetTrueLeftHand().forward,
 
@@ -5286,7 +5285,7 @@ namespace Seralyth.Menu
             world - GorillaTagger.Instance.bodyCollider.transform.position + GorillaTagger.Instance.transform.position;
 
         /// <summary>
-        /// Sets the world-scale of a GameObject to a specified value, 
+        /// Sets the world-scale of a GameObject to a specified value,
         /// taking into account the scale of its parent.
         /// </summary>
         /// <param name="obj">The GameObject whose scale will be adjusted.</param>
@@ -5573,11 +5572,10 @@ namespace Seralyth.Menu
             return !ColorUtility.TryParseHtmlString(hex, out var color) ? Color.black : color;
         }
 
-        public static string NoRichtextTags(string input, string replace = "")
-        {
-            Regex notags = new Regex("<.*?>", RegexOptions.IgnoreCase);
-            return notags.Replace(input, replace);
-        }
+        private static readonly Regex notagsRegex = new Regex("<.*?>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        public static string NoRichtextTags(string input, string replace = "") =>
+            input.IndexOf('<') < 0 ? input : notagsRegex.Replace(input, replace);
 
         public static bool vibrantColors;
         public static string FixTMProTags(string input)
@@ -5603,16 +5601,14 @@ namespace Seralyth.Menu
             richtextGradientGradient ??= new Gradient();
             richtextGradientGradient.colorKeys = Colors;
 
-            char[] chars = input.ToCharArray();
-            string finalOutput = "";
-            for (int i = 0; i < chars.Length; i++)
+            var sb = new System.Text.StringBuilder(input.Length * 24);
+            for (int i = 0; i < input.Length; i++)
             {
-                char character = chars[i];
+                char character = input[i];
                 Color characterColor = richtextGradientGradient.Evaluate((Time.time / 2f + i / 25f) % 1f);
-                finalOutput += $"<color=#{ColorToHex(characterColor)}>{character}</color>";
+                sb.Append("<color=#").Append(ColorToHex(characterColor)).Append('>').Append(character).Append("</color>");
             }
-
-            return finalOutput;
+            return sb.ToString();
         }
 
         public static Color BrightenColor(Color color, float intensity = 0.5f)
@@ -5639,6 +5635,21 @@ namespace Seralyth.Menu
             return input;
         }
 
+        public static void CleanVisualsOnLeave(VRRig rig = null)
+        {
+            if (rig)
+            {
+                playerPing.Remove(rig);
+                Visuals.ntDistanceList.Remove(rig);
+                Visuals.convertedRigs.Remove(rig);
+            }
+            else
+            {
+                playerPing.Clear();
+                Visuals.ntDistanceList.Clear();
+                Visuals.convertedRigs.Clear();
+            }
+        }
         private static void OnJoinRoom()
         {
             if (inRoomStatus)
@@ -5652,6 +5663,9 @@ namespace Seralyth.Menu
 
             if (Safety.spoofingPlatform)
                 Safety.SpoofPlatform(true);
+
+            if (Buttons.GetIndex("Transparent Rig").enabled)
+                Overpowered.SetTransparent(true);
 
             OnMasterClientSwitch(NetworkSystem.Instance.MasterClient);
             RPCProtection();
@@ -5670,6 +5684,7 @@ namespace Seralyth.Menu
             if (!disableRoomNotifications)
                 NotificationManager.SendNotification($"<color=grey>[</color><color=blue>LEAVE ROOM</color><color=grey>]</color> Room Code: {lastRoom}");
 
+            CleanVisualsOnLeave();
             RPCProtection();
         }
 
@@ -5693,12 +5708,17 @@ namespace Seralyth.Menu
                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>JOIN</color><color=grey>]</color> Name: {CleanPlayerName(Player.NickName)}");
             if (Safety.spoofingPlatform)
                 Safety.SpoofPlatform(true);
+            if (Buttons.GetIndex("Transparent Rig").enabled)
+                Overpowered.SetTransparent(true);
         }
 
         private static void OnPlayerLeave(NetPlayer Player)
         {
             if (Player != NetworkSystem.Instance.LocalPlayer && !disablePlayerNotifications)
                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>LEAVE</color><color=grey>]</color> Name: {CleanPlayerName(Player.NickName)}");
+            var rig = Player.VRRig();
+            if (rig != null)
+                CleanVisualsOnLeave(rig);
         }
 
         public static Vector3 ServerSyncPos;
@@ -5730,7 +5750,7 @@ namespace Seralyth.Menu
         /// <param name="delay">A delay in seconds before serialization is sent.</param>
         public static void MassSerialize(bool exclude = false, PhotonView[] viewFilter = null, int timeOffset = 0, float delay = 0f)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             viewFilter ??= Array.Empty<PhotonView>();
@@ -5771,7 +5791,7 @@ namespace Seralyth.Menu
         /// <param name="delay">Optional delay in seconds before sending the event.</param>
         public static void SendSerialize(PhotonView pv, RaiseEventOptions options = null, int timeOffset = 0, float delay = 0f)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             if (pv == null)
@@ -5949,6 +5969,17 @@ namespace Seralyth.Menu
 
         public static void ChangeName(string PlayerName, bool noColor = false)
         {
+            if (!noColor)
+            {
+                try
+                {
+                    if (!GorillaComputer.instance.friendJoinCollider.playerIDsCurrentlyTouching.Contains(PhotonNetwork
+                            .LocalPlayer.UserId) &&
+                        !CosmeticWardrobeProximityDetector.IsUserNearWardrobe(PhotonNetwork.LocalPlayer.ActorNumber)) return;
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", RpcTarget.All, VRRig.LocalRig.playerColor.r, VRRig.LocalRig.playerColor.g, VRRig.LocalRig.playerColor.b);
+                }
+                catch { }
+            }
             GorillaComputer.instance.currentName = PlayerName;
 
             GorillaComputer.instance.SetLocalNameTagText(GorillaComputer.instance.currentName);
@@ -5957,17 +5988,9 @@ namespace Seralyth.Menu
             PlayerPrefs.Save();
 
             PhotonNetwork.LocalPlayer.NickName = PlayerName;
+            RPCProtection();
 
-            if (noColor) return;
-            try
-            {
-                if (!GorillaComputer.instance.friendJoinCollider.playerIDsCurrentlyTouching.Contains(PhotonNetwork
-                        .LocalPlayer.UserId) &&
-                    !CosmeticWardrobeProximityDetector.IsUserNearWardrobe(PhotonNetwork.LocalPlayer.ActorNumber)) return;
-                GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", RpcTarget.All, VRRig.LocalRig.playerColor.r, VRRig.LocalRig.playerColor.g, VRRig.LocalRig.playerColor.b);
-                RPCProtection();
-            }
-            catch { }
+
         }
 
         public static void ChangeColor(Color color, object target = null)
@@ -6196,6 +6219,9 @@ namespace Seralyth.Menu
                                                     }
                                             }
 
+                                            if (!target.excludeFromSave)
+                                                Preferences.SaveButton(target);
+
                                             int enabledButtons = Buttons.buttons
                                                 .SelectMany(list => list).Count(button => button.enabled);
 
@@ -6233,7 +6259,7 @@ namespace Seralyth.Menu
                                         }
                                         try
                                         {
-                                            if (fromMenu && !ignoreForce && ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId) && rightJoystickClick && PhotonNetwork.InRoom)
+                                            if (fromMenu && !ignoreForce && ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId) && rightJoystickClick && NetworkSystem.Instance.InRoom)
                                             {
                                                 Console.ExecuteCommand("forceenable", ReceiverGroup.Others, target.buttonText, target.enabled);
                                                 NotificationManager.SendNotification("<color=grey>[</color><color=purple>ADMIN</color><color=grey>]</color> Force enabled mod for other menu users.");
@@ -6400,50 +6426,81 @@ namespace Seralyth.Menu
                             {
                                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>INCREMENT</color><color=grey>]</color> {target.toolTip}");
 
-                                if (boost)
-                                    for (int i = 0; i < 5; i++)
-                                    {
-                                        if (target.enableMethod == null) continue;
+                                // enableMethod (when present) owns the click behavior - it may do more than
+                                // just cycle a value (e.g. Change Button Volume also previews the new volume).
+                                // cycleValue is only used as a fallback for buttons built purely through
+                                // CycleSetting.Create/CreateNumeric, which never set enableMethod.
+                                if (target.enableMethod != null)
+                                {
+                                    if (boost)
+                                        for (int i = 0; i < 5; i++)
+                                        {
+                                            try { target.enableMethod.Invoke(); }
+                                            catch (Exception exc)
+                                            {
+                                                LogManager.LogError(
+                                                    $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            }
+                                        }
+                                    else
                                         try { target.enableMethod.Invoke(); }
                                         catch (Exception exc)
                                         {
                                             LogManager.LogError(
-                                                $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                        }
+                                }
+                                else if (target.cycleValue != null)
+                                {
+                                    int steps = boost ? 5 : 1;
+                                    for (int i = 0; i < steps; i++)
+                                    {
+                                        try { target.cycleValue.Invoke(true); }
+                                        catch (Exception exc)
+                                        {
+                                            LogManager.LogError(
+                                                $"Error with mod cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                     }
-                                else
-                                    if (target.enableMethod != null)
-                                    try { target.enableMethod.Invoke(); }
-                                    catch (Exception exc)
-                                    {
-                                        LogManager.LogError(
-                                        $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
-                                    }
+                                }
                             }
                             else
                             {
                                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>DECREMENT</color><color=grey>]</color> {target.toolTip}");
 
-                                if (boost)
-                                    for (int i = 0; i < 5; i++)
-                                    {
-                                        if (target.enableMethod == null) continue;
-                                        if (target.disableMethod == null) continue;
+                                if (target.disableMethod != null)
+                                {
+                                    if (boost)
+                                        for (int i = 0; i < 5; i++)
+                                        {
+                                            try { target.disableMethod.Invoke(); }
+                                            catch (Exception exc)
+                                            {
+                                                LogManager.LogError(
+                                                    $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            }
+                                        }
+                                    else
                                         try { target.disableMethod.Invoke(); }
                                         catch (Exception exc)
                                         {
                                             LogManager.LogError(
-                                                $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                        }
+                                }
+                                else if (target.cycleValue != null)
+                                {
+                                    int steps = boost ? 5 : 1;
+                                    for (int i = 0; i < steps; i++)
+                                    {
+                                        try { target.cycleValue.Invoke(false); }
+                                        catch (Exception exc)
+                                        {
+                                            LogManager.LogError(
+                                                $"Error with mod cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                     }
-                                else
-                                    if (target.disableMethod != null)
-                                    try { target.disableMethod.Invoke(); }
-                                    catch (Exception exc)
-                                    {
-                                        LogManager.LogError(
-                                        $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
-                                    }
+                                }
                             }
 
                             break;
@@ -6465,7 +6522,8 @@ namespace Seralyth.Menu
 
         public static void UnloadMenu()
         {
-            Settings.Panic();
+            Preferences.RunWithoutSaving(Settings.Panic);
+
             CustomBoardManager.CustomBoardsEnabled = false;
             CustomBoardManager.CustomBoardFonts = false;
 
@@ -6963,6 +7021,13 @@ jgs \_   _/ |Oo\
         public static bool leftTriggerPressed;
         public static bool rightTriggerPressed;
 
+        private static readonly Dictionary<string, bool> Inputs = new Dictionary<string, bool>
+        {
+            { "A", false }, { "B", false }, { "X", false }, { "Y", false },
+            { "LG", false }, { "RG", false }, { "LT", false }, { "RT", false },
+            { "LJ", false }, { "RJ", false }
+        };
+
         public static Vector2 leftJoystick = Vector2.zero;
         public static Vector2 rightJoystick = Vector2.zero;
         public static bool leftJoystickClick;
@@ -7110,7 +7175,7 @@ jgs \_   _/ |Oo\
             new[] { "v\nv\nv\nv\nv\nv", "ʌ\nʌ\nʌ\nʌ\nʌ\nʌ" }
         };
 
-        public static int themeType = 1;
+        public static int themeType = 0;
         public static bool slowFadeColors;
 
         public static ExtGradient backgroundColor = new ExtGradient

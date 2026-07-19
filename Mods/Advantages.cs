@@ -44,11 +44,16 @@ namespace Seralyth.Mods
 
         public static void TagSelf()
         {
+            static void TurnOff()
+            {
+                Buttons.GetIndex("Tag Self").SetEnabled(false);
+                ReloadMenu();
+            }
             if (PhotonNetwork.IsMasterClient)
             {
                 AddInfected(PhotonNetwork.LocalPlayer);
                 NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> You have been tagged.");
-                Buttons.GetIndex("Tag Self").enabled = false;
+                TurnOff();
             }
             else
             {
@@ -56,18 +61,16 @@ namespace Seralyth.Mods
                 {
                     NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> You have been tagged.");
                     VRRig.LocalRig.enabled = true;
-                    Buttons.GetIndex("Tag Self").enabled = false;
+                    TurnOff();
 
                     if (instantTag)
                         SerializePatch.OverrideSerialization = null;
                 }
                 else
                 {
-                    VRRig rig = VRRigCache.ActiveRigs
+                    VRRig rig = VRRigExtensions.ActiveRigs
                         .Where(r => !r.IsLocal() && r.IsTagged())
-                        .OrderBy(r => Vector3.Distance(
-                                        r.transform.position,
-                                        GorillaTagger.Instance.headCollider.transform.position)
+                        .OrderBy(r => r.Distance(VRRig.LocalRig)
                                     + r.LatestVelocity().magnitude)
                         .FirstOrDefault();
 
@@ -106,22 +109,6 @@ namespace Seralyth.Mods
 
                         VRRig.LocalRig.leftHand.rigTarget.transform.rotation = RandomQuaternion();
                         VRRig.LocalRig.rightHand.rigTarget.transform.rotation = RandomQuaternion();
-
-                        VRRig.LocalRig.leftIndex.calcT = 0f;
-                        VRRig.LocalRig.leftMiddle.calcT = 0f;
-                        VRRig.LocalRig.leftThumb.calcT = 0f;
-
-                        VRRig.LocalRig.leftIndex.LerpFinger(1f, false);
-                        VRRig.LocalRig.leftMiddle.LerpFinger(1f, false);
-                        VRRig.LocalRig.leftThumb.LerpFinger(1f, false);
-
-                        VRRig.LocalRig.rightIndex.calcT = 0f;
-                        VRRig.LocalRig.rightMiddle.calcT = 0f;
-                        VRRig.LocalRig.rightThumb.calcT = 0f;
-
-                        VRRig.LocalRig.rightIndex.LerpFinger(1f, false);
-                        VRRig.LocalRig.rightMiddle.LerpFinger(1f, false);
-                        VRRig.LocalRig.rightThumb.LerpFinger(1f, false);
                     }
                 }
             }
@@ -129,20 +116,20 @@ namespace Seralyth.Mods
 
         public static void UntagSelf()
         {
-            if (!NetworkSystem.Instance.IsMasterClient)
+            if (NetworkSystem.Instance.IsMasterClient)
+                RemoveInfected(PhotonNetwork.LocalPlayer);
+            else if (!NetworkSystem.Instance.IsMasterClient)
             {
                 Important.Reconnect();
                 NoTagOnJoin();
             }
-            else
-                RemoveInfected(PhotonNetwork.LocalPlayer);
 
             GTPlayer.Instance.disableMovement = false;
         }
 
         public static void AntiTag()
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 if (PhotonNetwork.IsMasterClient)
                 {
@@ -157,8 +144,21 @@ namespace Seralyth.Mods
             }
             else
             {
-                NoTagOnJoin();
+                TagOnJoin();
                 ReportTagPatch.invinciblePlayers.Clear();
+            }
+        }
+
+        public static void DisableAntiTag()
+        {
+            if (NetworkSystem.Instance.InRoom)
+            {
+                if (PhotonNetwork.IsMasterClient)
+                {
+                    if (ReportTagPatch.invinciblePlayers.Contains(NetworkSystem.Instance.LocalPlayer))
+                        ReportTagPatch.invinciblePlayers.Remove(NetworkSystem.Instance.LocalPlayer);
+                }
+                NoTagOnJoin();
             }
         }
 
@@ -205,10 +205,10 @@ namespace Seralyth.Mods
                         if (Time.time > spamTagDelay)
                         {
                             spamTagDelay = Time.time + 0.1f;
-                            if (InfectedList().Contains(GetPlayerFromVRRig(lockTarget)))
-                                RemoveInfected(GetPlayerFromVRRig(lockTarget));
+                            if (InfectedList().Contains(lockTarget.GetPlayer()))
+                                RemoveInfected(lockTarget.GetPlayer());
                             else
-                                AddInfected(GetPlayerFromVRRig(lockTarget));
+                                AddInfected(lockTarget.GetPlayer());
                         }
                     }
                 }
@@ -260,7 +260,7 @@ namespace Seralyth.Mods
                         if (PhotonNetwork.IsMasterClient)
                         {
                             if (lockTarget != null)
-                                ReportTagPatch.blacklistedPlayers.Remove(GetPlayerFromVRRig(lockTarget));
+                                ReportTagPatch.blacklistedPlayers.Remove(lockTarget.GetPlayer());
 
                             gunLocked = true;
                             lockTarget = gunTarget;
@@ -278,7 +278,7 @@ namespace Seralyth.Mods
                 if (gunLocked)
                 {
                     gunLocked = false;
-                    ReportTagPatch.blacklistedPlayers.Remove(GetPlayerFromVRRig(lockTarget));
+                    ReportTagPatch.blacklistedPlayers.Remove(lockTarget.GetPlayer());
                 }
             }
         }
@@ -298,7 +298,7 @@ namespace Seralyth.Mods
                         if (PhotonNetwork.IsMasterClient)
                         {
                             if (lockTarget != null)
-                                ReportTagPatch.invinciblePlayers.Remove(GetPlayerFromVRRig(lockTarget));
+                                ReportTagPatch.invinciblePlayers.Remove(lockTarget.GetPlayer());
 
                             gunLocked = true;
                             lockTarget = gunTarget;
@@ -316,7 +316,7 @@ namespace Seralyth.Mods
                 if (gunLocked)
                 {
                     gunLocked = false;
-                    ReportTagPatch.invinciblePlayers.Remove(GetPlayerFromVRRig(lockTarget));
+                    ReportTagPatch.invinciblePlayers.Remove(lockTarget.GetPlayer());
                 }
             }
         }
@@ -339,76 +339,26 @@ namespace Seralyth.Mods
 
         public static float tagAuraDistance = 1.666f;
         public static int tagAuraIndex = 1;
-
-        public static void ChangeTagAuraRange(bool positive = true)
-        {
-            string[] names = {
-                "Short",
-                "Normal",
-                "Far",
-                "Maximum"
-            };
-            float[] distances = {
-                0.777f,
-                1.666f,
-                3f,
-                5.5f
-            };
-
-            if (positive)
-                tagAuraIndex++;
-            else
-                tagAuraIndex--;
-
-            tagAuraIndex %= names.Length;
-            if (tagAuraIndex < 0)
-                tagAuraIndex = names.Length - 1;
-
-            tagAuraDistance = distances[tagAuraIndex];
-            Buttons.GetIndex("ctaRange").overlapText = "Change Tag Aura Range <color=grey>[</color><color=green>" + names[tagAuraIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] TagAuraRangeNames = { "Short", "Normal", "Far", "Maximum" };
+        public static readonly float[] TagAuraRangeDistances = { 0.777f, 1.666f, 3f, 5.5f };
+        public static void ApplyTagAuraRange(int index) { tagAuraIndex = index; tagAuraDistance = TagAuraRangeDistances[index]; }
 
         public static int tagRangeIndex;
         private static float tagReachDistance = 0.3f;
-        public static void ChangeTagReachDistance(bool positive = true)
-        {
-            string[] names = {
-                "Unnoticable",
-                "Normal",
-                "Far",
-                "Maximum"
-            };
-
-            float[] distances = {
-                0.3f,
-                0.5f,
-                1f,
-                3f
-            };
-
-            if (positive)
-                tagRangeIndex++;
-            else
-                tagRangeIndex--;
-
-            tagRangeIndex %= names.Length;
-            if (tagRangeIndex < 0)
-                tagRangeIndex = names.Length - 1;
-
-            tagReachDistance = distances[tagRangeIndex];
-            Buttons.GetIndex("ctrRange").overlapText = "Change Tag Reach Distance <color=grey>[</color><color=green>" + names[tagRangeIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] TagReachDistanceNames = { "Unnoticable", "Normal", "Far", "Maximum" };
+        public static readonly float[] TagReachDistances = { 0.3f, 0.5f, 1f, 3f };
+        public static void ApplyTagReachDistance(int index) { tagRangeIndex = index; tagReachDistance = TagReachDistances[index]; }
 
         public static void TagAura()
         {
             Color color = Color.red;
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => VRRig.LocalRig.IsTagged() && !vrrig.IsTagged() && !GTPlayer.Instance.disableMovement && Vector3.Distance(vrrig.headMesh.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < tagAuraDistance))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => VRRig.LocalRig.IsTagged() && !vrrig.IsTagged() && !GTPlayer.Instance.disableMovement && vrrig.Distance(VRRig.LocalRig) < tagAuraDistance))
             {
                 color = Color.green;
                 ReportTag(vrrig);
             }
             if (Buttons.GetIndex("Visualize Tag Aura").enabled)
-                Visuals.VisualizeCylinder(VRRig.LocalRig.bodyTransform.position, Quaternion.identity, new Vector3(tagAuraDistance, 0.01f, tagAuraDistance), Buttons.GetIndex("Prettier Visualize").enabled ? color : backgroundColor.GetCurrentColor(), -20170121181, 0.1f);
+                Visuals.Visualize(PrimitiveType.Cylinder, VRRig.LocalRig.bodyTransform.position, Quaternion.identity, new Vector3(tagAuraDistance, 0.01f, tagAuraDistance), Buttons.GetIndex("Prettier Visualize").enabled ? color : backgroundColor.GetCurrentColor(), -20170121181, 0.1f);
         }
 
         public static void GripTagAura()
@@ -419,7 +369,7 @@ namespace Seralyth.Mods
 
         public static void TagAuraPlayer(VRRig giving)
         {
-            foreach (var vrrig in from vrrig in VRRigCache.ActiveRigs let distance = Vector3.Distance(vrrig.headMesh.transform.position, giving.transform.position) where giving.IsTagged() && !vrrig.IsTagged() && !GTPlayer.Instance.disableMovement && distance < tagAuraDistance && !VRRig.LocalRig.IsLocal() && VRRig.LocalRig.IsTagged() select vrrig)
+            foreach (var vrrig in from vrrig in VRRigExtensions.ActiveRigs let distance = Vector3.Distance(vrrig.headMesh.transform.position, giving.transform.position) where giving.IsTagged() && !vrrig.IsTagged() && !GTPlayer.Instance.disableMovement && distance < tagAuraDistance && !VRRig.LocalRig.IsLocal() && VRRig.LocalRig.IsTagged() select vrrig)
                 TagPlayer(GetPlayerFromVRRig(vrrig));
         }
 
@@ -452,7 +402,7 @@ namespace Seralyth.Mods
 
         public static void TagAuraAll()
         {
-            foreach (VRRig vrrig in VRRigCache.ActiveRigs)
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                 TagAuraPlayer(vrrig);
         }
 
@@ -464,9 +414,11 @@ namespace Seralyth.Mods
             GorillaTagger.Instance.tagRadiusOverride = tagReachDistance;
             GorillaTagger.Instance.tagRadiusOverrideFrame = Time.frameCount + 16;
 
-            if (!Buttons.GetIndex("Visualize Tag Reach").enabled) return;
-            Visuals.VisualizeAura(GorillaTagger.Instance.leftHandTransform.position, tagReachDistance, backgroundColor.GetCurrentColor(), -149286);
-            Visuals.VisualizeAura(GorillaTagger.Instance.rightHandTransform.position, tagReachDistance, backgroundColor.GetCurrentColor(), -149285);
+            if (Buttons.GetIndex("Visualize Tag Reach").enabled)
+            {
+                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.leftHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 0.01f, tagReachDistance), backgroundColor.GetCurrentColor(), -149286, 0.1f);
+                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.rightHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 0.01f, tagReachDistance), backgroundColor.GetCurrentColor(), -149285, 0.1f);
+            }
         }
 
         public static bool ValidateTag(VRRig Rig) =>
@@ -474,6 +426,7 @@ namespace Seralyth.Mods
 
         public static void TagGun()
         {
+            if (!NetworkSystem.Instance.InRoom) return;
             if (instantTag)
             {
                 InstantTagGun();
@@ -564,12 +517,18 @@ namespace Seralyth.Mods
             if (Time.time > reportTagDelay)
             {
                 reportTagDelay = Time.time + 0.1f;
-                GameMode.ReportTag(GetPlayerFromVRRig(rig));
+                GameMode.ReportTag(rig.GetPlayer());
             }
         }
 
         public static void TagPlayer(NetPlayer player)
         {
+            if (!NetworkSystem.Instance.InRoom) return;
+            static void TurnOff()
+            {
+                Buttons.GetIndex("Tag Player").SetEnabled(false);
+                ReloadMenu();
+            }
             if (PhotonNetwork.IsMasterClient)
             {
                 AddInfected(player);
@@ -579,14 +538,14 @@ namespace Seralyth.Mods
             if (!VRRig.LocalRig.IsTagged())
             {
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You must be tagged.");
-                Buttons.GetIndex("Tag Player").enabled = false;
+                TurnOff();
                 return;
             }
 
             if (instantTag)
             {
                 InstantTagPlayer(player);
-                Buttons.GetIndex("Tag Player").enabled = false;
+                TurnOff();
                 return;
             }
 
@@ -631,11 +590,12 @@ namespace Seralyth.Mods
                     ReportTag(targetRig);
             }
             else
-                Buttons.GetIndex("Tag Player").enabled = false;
+                TurnOff();
         }
 
         public static void UntagGun()
         {
+
             if (GetGunInput(false))
             {
                 var GunData = RenderGun();
@@ -674,6 +634,14 @@ namespace Seralyth.Mods
 
         public static void TagAll()
         {
+            if (!NetworkSystem.Instance.InRoom) return;
+
+            static void TurnOff()
+            {
+                Buttons.GetIndex("Tag All").SetEnabled(false);
+                ReloadMenu();
+            }
+
             if (GorillaGameManager.instance.GameType() == GameModeType.HuntDown)
             {
                 HuntTagAll();
@@ -685,7 +653,7 @@ namespace Seralyth.Mods
                 foreach (Player v in PhotonNetwork.PlayerList)
                     AddInfected(v);
 
-                Buttons.GetIndex("Tag All").enabled = false;
+                TurnOff();
                 NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Everyone is tagged!");
             }
             else
@@ -694,21 +662,21 @@ namespace Seralyth.Mods
                 {
                     InstantTagAll();
                     NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Everyone is tagged!");
-                    Buttons.GetIndex("Tag All").enabled = false;
+                    TurnOff();
                     return;
                 }
 
                 if (!VRRig.LocalRig.IsTagged())
                 {
                     NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You must be tagged.");
-                    Buttons.GetIndex("Tag All").enabled = false;
+                    TurnOff();
                 }
                 else
                 {
-                    bool isInfectedPlayers = VRRigCache.ActiveRigs.Any(vrrig => !vrrig.IsTagged());
+                    bool isInfectedPlayers = VRRigExtensions.ActiveRigs.Any(vrrig => !vrrig.IsTagged());
                     if (isInfectedPlayers)
                     {
-                        foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.IsTagged()))
+                        foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged()))
                         {
                             VRRig.LocalRig.enabled = false;
 
@@ -753,7 +721,7 @@ namespace Seralyth.Mods
                     {
                         NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Everyone is tagged!");
                         VRRig.LocalRig.enabled = true;
-                        Buttons.GetIndex("Tag All").enabled = false;
+                        TurnOff();
                     }
                 }
             }
@@ -809,7 +777,7 @@ namespace Seralyth.Mods
 
             Vector3 archiveRigPosition = VRRig.LocalRig.transform.position;
 
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.IsTagged()))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged()))
             {
                 VRRig.LocalRig.transform.position = vrrig.transform.position;
                 SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { PhotonNetwork.MasterClient.ActorNumber } });
@@ -877,7 +845,7 @@ namespace Seralyth.Mods
 
         public static void TagBot()
         {
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 if (!VRRig.LocalRig.IsTagged())
                 {
@@ -896,13 +864,12 @@ namespace Seralyth.Mods
 
         public static void NoTagOnJoin()
         {
-            PhotonNetwork.LocalPlayer.CustomProperties.TryGetValue("didTutorial", out object obj);
-
-            if (obj == null || (obj is bool @bool && @bool))
+            PhotonNetwork.LocalPlayer.CustomProperties.TryGetValue(PlayerConfig.Player_HasDoneTutorial, out object obj);
+            if (obj is bool b && b)
             {
                 PhotonNetwork.LocalPlayer.SetCustomProperties(new Hashtable
                 {
-                    { "didTutorial", false }
+                    { PlayerConfig.Player_HasDoneTutorial, false }
                 });
             }
         }

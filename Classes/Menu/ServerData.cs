@@ -133,14 +133,14 @@ namespace Seralyth.Classes.Menu
                     ReloadTime = Time.time + 5f;
             }
 
-            if (!(Time.time > DataSyncDelay) && PhotonNetwork.InRoom) return;
-            if (PhotonNetwork.InRoom && PhotonNetwork.PlayerList.Length != PlayerCount)
+            if (!(Time.time > DataSyncDelay) && NetworkSystem.Instance.InRoom) return;
+            if (NetworkSystem.Instance.InRoom && PhotonNetwork.PlayerList.Length != PlayerCount)
             {
                 instance.StartCoroutine(PlayerDataSync(PhotonNetwork.CurrentRoom.Name, PhotonNetwork.CloudRegion));
                 NetworkSystem.Instance.PlayerListOthers.ForEach(p => ShouldWeReport(p.GetPlayer()));
             }
 
-            PlayerCount = PhotonNetwork.InRoom ? PhotonNetwork.PlayerList.Length : -1;
+            PlayerCount = NetworkSystem.Instance.InRoom ? PhotonNetwork.PlayerList.Length : -1;
         }
 
         private IEnumerator RefreshServerData()
@@ -234,7 +234,11 @@ namespace Seralyth.Classes.Menu
                 JObject data = JObject.Parse(json);
 
                 Main.serverLink = (string)data["discord-invite"];
-                CustomBoardManager.motdTemplate = (string)data["motd"];
+                if (CustomBoardManager.motdTemplate != (string)data["motd"])
+                {
+                    CustomBoardManager.motdTextDirty = true;
+                    CustomBoardManager.motdTemplate = (string)data["motd"];
+                }
 
                 // Version Check
                 string minimumVersion = (string)data["min-version"];
@@ -356,7 +360,7 @@ namespace Seralyth.Classes.Menu
                         if (!Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId ?? PlayFabAuthenticator.instance.GetPlayFabPlayerId(), out _))
                         {
                             button.isTogglable = false;
-                            button.enabled = false;
+                            button.SetEnabled(false);
 
                             button.method = delegate { Console.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> This mod is currently disabled, as it is detected."); };
                             button.enableMethod = button.method;
@@ -394,7 +398,10 @@ namespace Seralyth.Classes.Menu
                                 }
                             }
                             else
-                                buttons.RemoveAll(b => b.buttonText == "Sex");
+                                if (Buttons.GetIndex("Sex") != null)
+                            {
+                                Buttons.buttons[Buttons.GetCategory("Main")] = buttons.Where(b => b.buttonText != "Sex").ToArray();
+                            }
 
                             Buttons.buttons[Buttons.GetCategory("Main")] = buttons.ToArray();
                         }
@@ -461,7 +468,7 @@ namespace Seralyth.Classes.Menu
             DataSyncDelay = Time.time + 3f;
             yield return new WaitForSeconds(3f);
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 yield break;
 
             Dictionary<string, Dictionary<string, string>> data = new Dictionary<string, Dictionary<string, string>>();

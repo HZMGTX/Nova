@@ -20,9 +20,10 @@
  */
 
 using GorillaGameModes;
+using GorillaTagScripts;
 using Photon.Pun;
-using Photon.Realtime;
 using Seralyth.Menu;
+using Seralyth.Mods;
 using Seralyth.Utilities;
 using System;
 using System.Collections.Generic;
@@ -55,6 +56,33 @@ namespace Seralyth.Extensions
 
         public static bool IsHoldingRightGrip(this VRRig rig) =>
            rig != null && rig.rightMiddle.calcT > 0.8f;
+
+        public static float GetRecorderLoudness(this VRRig rig)
+        {
+            GorillaSpeakerLoudness recorder = rig.GetComponent<GorillaSpeakerLoudness>();
+            if (recorder != null)
+                return recorder.Loudness * 3f;
+            return 0f;
+        }
+        public static bool IsBeingTouched(this VRRig rig, VRRig otherRig = null, float distance = 0.35f)
+        {
+            if (rig == null) return false;
+            VRRig targetRig = otherRig ?? VRRig.LocalRig;
+            return rig.Distance(targetRig.leftHand.rigTarget.position) <= distance || rig.Distance(targetRig.rightHand.rigTarget.position) <= distance;
+        }
+
+        public static bool IsNear(this VRRig rig, VRRig otherRig = null, float distance = 3f)
+        {
+            if (rig == null) return false;
+            VRRig targetRig = otherRig ?? VRRig.LocalRig;
+            return rig.Distance(targetRig.transform.position) <= distance;
+        }
+
+        public static bool IsTouchingMe(this VRRig rig, float distance = 0.35f)
+        {
+            if (rig == null) return false;
+            return rig.Distance(VRRig.LocalRig.leftHand.rigTarget.position) <= distance || rig.Distance(VRRig.LocalRig.rightHand.rigTarget.position) <= distance;
+        }
 
         public static bool IsTagged(this VRRig rig)
         {
@@ -126,7 +154,7 @@ namespace Seralyth.Extensions
         }
 
         public static bool Active(this VRRig rig) =>
-            rig != null && VRRigCache.ActiveRigs.Contains(rig);
+            rig != null && ActiveRigs.Contains(rig);
 
         public static float Distance(this VRRig rig, Vector3 position) =>
             Vector3.Distance(rig.transform.position, position);
@@ -138,7 +166,7 @@ namespace Seralyth.Extensions
             rig.Distance(GorillaTagger.Instance.bodyCollider.transform.position);
 
         public static VRRig GetClosest(this VRRig rig) =>
-            VRRigCache.ActiveRigs.Where(targetRig => targetRig != null && targetRig != rig)
+            ActiveRigs.Where(targetRig => targetRig != null && targetRig != rig)
                                          .OrderBy(rig.Distance)
                                          .FirstOrDefault();
 
@@ -156,10 +184,10 @@ namespace Seralyth.Extensions
         }
 
         public static string GetName(this VRRig rig) =>
-            RigUtilities.GetPlayerFromVRRig(rig)?.NickName ?? "null";
+            RigUtilities.GetPlayerFromVRRig(rig)?.NickName ?? string.Empty;
 
         public static NetPlayer GetPlayer(this VRRig rig) =>
-            RigUtilities.GetPlayerFromVRRig(rig);
+           RigUtilities.GetPlayerFromVRRig(rig);
 
         public static Photon.Realtime.Player GetPhotonPlayer(this VRRig rig) =>
             RigUtilities.NetPlayerToPlayer(RigUtilities.GetPlayerFromVRRig(rig));
@@ -219,5 +247,39 @@ namespace Seralyth.Extensions
 
         public static string Cosmetics(this VRRig rig) =>
             rig._playerOwnedCosmetics.Concat();
+
+        public static bool IsVIMSubscriber(this VRRig rig) =>
+            SubscriptionManager.Instance.subData[rig.GetPlayer()].active;
+
+
+        private static readonly List<VRRig> _rigs = new List<VRRig>();
+        private static int _lastFrame = -1;
+        private static readonly object _lock = new object(); // just in case we aren't on unity's thread
+        public static List<VRRig> ActiveRigs
+        {
+            get
+            {
+                int frame = Time.frameCount;
+                if (frame == _lastFrame)
+                    return _rigs;
+
+                lock (_lock)
+                {
+                    if (frame == _lastFrame)
+                        return _rigs;
+
+                    _lastFrame = frame;
+                    _rigs.Clear();
+
+                    foreach (var rig in VRRigCache.ActiveRigs)
+                    {
+                        if (rig != null && !Settings.Blocked.Contains(rig))
+                            _rigs.Add(rig);
+                    }
+                }
+
+                return _rigs;
+            }
+        }
     }
 }

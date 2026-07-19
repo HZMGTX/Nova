@@ -1,5 +1,5 @@
 /*
- * Seralyth Menu  Patches/Menu/GameModePatch.cs
+ * Seralyth Menu  Patches/Menu/CallLimiterPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
@@ -20,18 +20,16 @@
  */
 
 using HarmonyLib;
+using Seralyth.Extensions;
 
 namespace Seralyth.Patches.Menu
 {
-    [HarmonyPatch(typeof(GorillaGameManager), nameof(GorillaGameManager.ValidGameMode))]
-    public class GameModePatch
+    [HarmonyPatch(typeof(CallLimiter), nameof(CallLimiter.Reset))]
+    public class CallLimiterPatch
     {
-        public static bool enabled;
-
-        public static void Postfix(GorillaGameManager __instance, ref bool __result)
+        static void Postfix(CallLimiter __instance)
         {
-            if (enabled)
-                __result = true;
+            __instance.Remove();
         }
     }
 }

@@ -27,6 +27,7 @@ using Seralyth.Classes.Menu;
 using Seralyth.Extensions;
 using Seralyth.Managers;
 using Seralyth.Menu;
+using Seralyth.Patches.Menu;
 using Seralyth.Utilities;
 using System;
 using System.Collections;
@@ -48,6 +49,7 @@ using static Seralyth.Utilities.AssetUtilities;
 using static Seralyth.Utilities.RigUtilities;
 using Console = Seralyth.Classes.Menu.Console;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace Seralyth.Mods
 {
@@ -194,99 +196,6 @@ namespace Seralyth.Mods
         public static void StopCurrentPrompt() =>
             prompts.RemoveAt(0);
 
-        public static void MergePreferences_iisStupidMenu()
-        {
-            string directoryToUse = "iisStupidMenu";
-            string preferences = "iiMenu_Preferences.txt";
-
-            if (!Directory.Exists(directoryToUse))
-                return;
-
-            string source = Path.Combine(directoryToUse, "Sounds");
-            string destination = Path.Combine(PluginInfo.BaseDirectory, "Sounds");
-
-            if (Directory.Exists(source))
-            {
-                foreach (string dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-                {
-                    string newDir = dir.Replace(source, destination);
-                    Directory.CreateDirectory(newDir);
-                }
-
-                foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-                {
-                    string newFile = file.Replace(source, destination);
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(newFile)!);
-                    File.Copy(file, newFile);
-                }
-            }
-
-            source = Path.Combine(directoryToUse, preferences);
-            destination = Path.Combine(PluginInfo.BaseDirectory, "Seralyth_Preferences.txt");
-
-            if (File.Exists(source))
-            {
-                string[] lines = File.ReadAllLines(source);
-
-                if (lines.Length >= 5)
-                {
-                    string[] settings = lines[2].Split(new[] { ";;" }, StringSplitOptions.None);
-
-                    int pcbgIndex = 13;
-                    const int maxPcbg = 6;
-                    const int maxPageType = 6;
-                    const int maxThemeType = 65;
-
-                    if (pcbgIndex < settings.Length && int.TryParse(settings[pcbgIndex], out int pcbgVal))
-                        settings[pcbgIndex] = Math.Clamp(pcbgVal + 1, 0, maxPcbg).ToString();
-
-                    lines[2] = string.Join(";;", settings);
-
-                    if (int.TryParse(lines[3], out int pageType))
-                        lines[3] = Math.Clamp(pageType - 1, 0, maxPageType).ToString();
-
-                    if (int.TryParse(lines[4], out int theme))
-                        lines[4] = Math.Clamp(theme - 1, 0, maxThemeType).ToString();
-                }
-
-                File.WriteAllLines(destination, lines);
-            }
-
-            LoadPreferences();
-            Sound.LoadSoundboard(false);
-            NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Successfully completed merge. Have fun using Seralyth Menu!");
-        }
-
-        public static void UpdateSoundPreferences()
-        {
-            string fileText = File.ReadAllText($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt").Replace("\r", "");
-            string[] textData = fileText.Split('\n');
-            string[] data = textData[2].Split(";;");
-
-            if (!int.TryParse(data[16], out _) || !int.TryParse(data[25], out _))
-                return;
-
-            static string helper(string value, string[] keys, string defaultKey)
-            {
-                if (keys.Contains(value))
-                    return value;
-
-                int index = int.Parse(value);
-                index = Mathf.Clamp(index - 1, 0, keys.Length - 1);
-                return keys[index];
-            }
-
-            SoundManager.DefaultSounds["Button"] = helper(data[16], SoundManager.Sounds["Buttons"].Keys.ToArray(), "Default");
-            SoundManager.DefaultSounds["Notification"] = helper(data[25], SoundManager.Sounds["Notifications"].Keys.ToArray(), "None");
-
-            data[16] = SoundManager.DefaultSounds["Button"];
-            data[25] = SoundManager.DefaultSounds["Notification"];
-            textData[2] = string.Join(";;", data);
-
-            File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt", string.Join("\n", textData));
-        }
-
         public static GameObject TutorialObject;
         public static LineRenderer TutorialSelector;
         public static void ShowTutorial()
@@ -429,7 +338,7 @@ namespace Seralyth.Mods
             string blue = ", <color=blue>" + MathF.Floor(PlayerPrefs.GetFloat("blueValue") * 255f) + "</color>";
             Buttons.GetIndex("DebugColor").overlapText = "Color: " + red + green + blue;
 
-            string master = PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient ? "<color=red> [Master]</color>" : "";
+            string master = NetworkSystem.Instance.InRoom && PhotonNetwork.IsMasterClient ? "<color=red> [Master]</color>" : "";
             Buttons.GetIndex("DebugName").overlapText = PhotonNetwork.LocalPlayer.NickName + master;
 
             Buttons.GetIndex("DebugId").overlapText = "<color=green>ID: </color>" + (hideId ? "Hidden" : PhotonNetwork.LocalPlayer.UserId);
@@ -437,8 +346,8 @@ namespace Seralyth.Mods
             Buttons.GetIndex("DebugFps").overlapText = "<b>" + lastDeltaTime + "</b> FPS <b>" + PhotonNetwork.GetPing() + "</b> Ping";
             Buttons.GetIndex("DebugRoomA").overlapText = "<color=blue>" + NetworkSystem.Instance.regionNames[NetworkSystem.Instance.currentRegionIndex].ToUpper() + "</color> " + PhotonNetwork.PlayerList.Length + " Players";
 
-            string priv = PhotonNetwork.InRoom ? NetworkSystem.Instance.SessionIsPrivate ? "Private" : "Public" : "";
-            Buttons.GetIndex("DebugRoomB").overlapText = "<color=blue>" + priv + "</color> " + (PhotonNetwork.InRoom ? PhotonNetwork.CurrentRoom.Name : "Not in room");
+            string priv = NetworkSystem.Instance.InRoom ? NetworkSystem.Instance.SessionIsPrivate ? "Private" : "Public" : "";
+            Buttons.GetIndex("DebugRoomB").overlapText = "<color=blue>" + priv + "</color> " + (NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.Name : "Not in room");
         }
         public static void HideDebug()
         {
@@ -467,7 +376,7 @@ namespace Seralyth.Mods
                 }
             };
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 buttons.Add(new ButtonInfo { buttonText = "Not in a Room", label = true, legal = true });
             else
             {
@@ -522,6 +431,16 @@ namespace Seralyth.Mods
                     legal = true
                 },
                 new ButtonInfo {
+                    buttonText = "Block Player",
+                    overlapText = $"Block {targetName}",
+                    enableMethod = () => BlockPlayer(playerRig),
+                    method = HandleBlockedPlayers,
+                    disableMethod = () => UnblockPlayer(playerRig),
+                    isTogglable = true,
+                    toolTip = $"Blocks {targetName}.",
+                    legal = true
+                },
+                new ButtonInfo {
                     buttonText = "Teleport to Player",
                     overlapText = $"Teleport to {targetName}",
                     method =() => Movement.TeleportToPlayer(player),
@@ -559,7 +478,7 @@ namespace Seralyth.Mods
                 new ButtonInfo {
                     buttonText = "Snowball Fling Player",
                     overlapText = $"Snowball Fling {targetName}",
-                    method =() => Overpowered.FlingPlayer(player),
+                    method =() => Projectiles.FlingPlayer(player.VRRig()),
                     toolTip = $"Flings {targetName} with snowballs."
                 },
                 new ButtonInfo {
@@ -577,7 +496,7 @@ namespace Seralyth.Mods
                 new ButtonInfo {
                     buttonText = "Lag Player",
                     overlapText = $"Lag {targetName}",
-                    method =() => Overpowered.LagTarget(player),
+                    method =() => Overpowered.LagPlayer(player),
                     toolTip = $"Lags {targetName}."
                 },
                 new ButtonInfo {
@@ -745,20 +664,89 @@ namespace Seralyth.Mods
             Buttons.CurrentCategoryName = "Temporary Category";
         }
 
+        private static RenderTexture spectateRenderTexture;
+        private static GameObject spectateCameraObject;
+
         public static void SpectatePlayer(VRRig rig)
         {
-            GameObject cameraObject = new GameObject("Seralyth_SpectateCamera");
-            RenderTexture renderTexture = new RenderTexture(512, 512, 16);
-            cameraObject.AddComponent<Camera>().targetTexture = renderTexture;
-            cameraObject.transform.SetParent(rig.headMesh.transform, false);
-            cameraObject.transform.localPosition = new Vector3(0f, 0.25f, 0.25f);
+            CleanupSpectateCamera();
+
+            spectateCameraObject = new GameObject("Seralyth_SpectateCamera");
+            spectateRenderTexture = new RenderTexture(512, 512, 16);
+            spectateCameraObject.AddComponent<Camera>().targetTexture = spectateRenderTexture;
+            spectateCameraObject.transform.SetParent(rig.headMesh.transform, false);
+            spectateCameraObject.transform.localPosition = new Vector3(0f, 0.25f, 0.25f);
+
+            if (promptMaterial != null)
+                Object.Destroy(promptMaterial);
+
             promptMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"))
             {
-                mainTexture = renderTexture
+                mainTexture = spectateRenderTexture
             };
-            PromptSingle("<https://.mat>", () => Object.Destroy(cameraObject), "Done");
+
+            PromptSingle("<https://.mat>", CleanupSpectateCamera, "Done");
         }
 
+        private static void CleanupSpectateCamera()
+        {
+            if (spectateCameraObject != null)
+            {
+                Object.Destroy(spectateCameraObject);
+                spectateCameraObject = null;
+            }
+
+            if (spectateRenderTexture != null)
+            {
+                spectateRenderTexture.Release();
+                Object.Destroy(spectateRenderTexture);
+                spectateRenderTexture = null;
+            }
+        }
+
+        public static HashSet<VRRig> Blocked = new HashSet<VRRig>();
+        public static void BlockPlayer(VRRig rig)
+        {
+            Blocked.Add(rig);
+            rig.DeactivateAllRenderers();
+            rig.voiceAudio.volume = 0f;
+        }
+        public static void UnblockPlayer(VRRig rig)
+        {
+            Blocked.Remove(rig);
+            rig.ReactivateAllRenderers();
+            rig.voiceAudio.volume = 1f;
+        }
+
+        public static void HandleBlockedPlayers()
+        {
+            foreach (VRRig rig in Blocked)
+                rig.BreakHandLinks();
+            SerializePatch.OverrideSerialization = () =>
+            {
+                if (Blocked.Count == 0)
+                    return true;
+
+                int[] blockedArs = Blocked.Select(rig => rig.Creator.ActorNumber).ToArray();
+                int[] normalArs = VRRigExtensions.ActiveRigs
+                    .Where(rig => !Blocked.Contains(rig))
+                    .Select(rig => rig.Creator.ActorNumber)
+                    .ToArray();
+
+                MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
+
+                Vector3 positionArchive = VRRig.LocalRig.transform.position;
+                SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = normalArs });
+
+                VRRig.LocalRig.transform.position = new Vector3(Random.Range(-99999f, 99999f), 99999f, Random.Range(-99999f, 99999f));
+                SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = blockedArs });
+
+                RPCProtection();
+                VRRig.LocalRig.transform.position = positionArchive;
+
+                return false;
+            };
+        }
         public static void CategorySettings()
         {
             List<ButtonInfo> buttons = new List<ButtonInfo> { new ButtonInfo { buttonText = "Exit Menu Settings", method = () => { Buttons.CurrentCategoryName = "Settings"; Buttons.buttons[Buttons.GetCategory("Temporary Category")] = Array.Empty<ButtonInfo>(); }, isTogglable = false, toolTip = "Returns you back to the settings menu.", legal = true } };
@@ -1045,2188 +1033,2215 @@ exit 0";
         }
 
         public static int langInd;
-        public static void ChangeMenuLanguage(bool positive = true)
+        public static readonly string[] LanguageNames = {
+            "English", "Español", "Français", "Deutsch", "日本語",
+            "Italiano", "Português", "Nederlands", "Русский", "Polski"
+        };
+
+        public static readonly string[] LanguageCodes = {
+            "en", "es", "fr", "de", "ja", "it", "pt", "nl", "ru", "pl"
+        };
+
+        public static void ApplyMenuLanguage(int index)
         {
-            string[] languageNames = {
-                "English",
-                "Español",
-                "Français",
-                "Deutsch",
-                "日本語",
-                "Italiano",
-                "Português",
-                "Nederlands",
-                "Русский",
-                "Polski"
-            };
-
-            string[] codenames = {
-                "en",
-                "es",
-                "fr",
-                "de",
-                "ja",
-                "it",
-                "pt",
-                "nl",
-                "ru",
-                "pl"
-            };
-
-            if (positive)
-                langInd++;
-            else
-                langInd--;
-
-            langInd %= languageNames.Length;
-            if (langInd < 0)
-                langInd = languageNames.Length - 1;
-
+            langInd = index;
             TranslationManager.translateCache.Clear();
-            TranslationManager.language = codenames[langInd];
-
-            Buttons.GetIndex("Change Menu Language").overlapText = "Change Menu Language <color=grey>[</color><color=green>" + languageNames[langInd] + "</color><color=grey>]</color>";
-
-            translate = langInd != 0;
+            TranslationManager.language = LanguageCodes[index];
+            translate = index != 0;
         }
 
-        public static void ChangeMenuButton(bool positive = true)
+        public static readonly string[] MenuButtonNames = { "Primary", "Secondary", "Grip", "Trigger", "Joystick" };
+
+        public static void ApplyMenuButton(int index) => menuButtonIndex = index;
+
+        public class ThemeDefinition
         {
-            string[] buttonNames = {
-                "Primary",
-                "Secondary",
-                "Grip",
-                "Trigger",
-                "Joystick"
-            };
-
-            if (positive)
-                menuButtonIndex++;
-            else
-                menuButtonIndex--;
-
-            menuButtonIndex %= buttonNames.Length;
-            if (menuButtonIndex < 0)
-                menuButtonIndex = buttonNames.Length - 1;
-
-            Buttons.GetIndex("Change Menu Button").overlapText = "Change Menu Button <color=grey>[</color><color=green>" + buttonNames[menuButtonIndex] + "</color><color=grey>]</color>";
+            public string Name;
+            public Func<ExtGradient> Background;
+            public Func<ExtGradient> MenuBackground;
+            public Func<ExtGradient[]> ButtonColors;
+            public Func<ExtGradient[]> TextColors;
         }
 
-        // I know there's better ways to do this. Trust me.
-        public static void ChangeMenuTheme(bool increment = true)
+        public static readonly List<ThemeDefinition> Themes = new List<ThemeDefinition>
         {
-            if (increment)
-                themeType++;
-            else
-                themeType--;
-
-            const int themeCount = 65;
-
-            if (themeType > themeCount)
-                themeType = 1;
-
-            if (themeType < 1)
-                themeType = themeCount;
-
-            if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                return;
-
-            switch (themeType)
+            new ThemeDefinition
             {
-                case 1: // Seralyth
-                    backgroundColor = new ExtGradient
+                Name = "Seralyth",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 128))
+                },
+                MenuBackground = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(22, 22, 22, 128))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 128))
-                    };
-                    menuBackgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 255))
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(22, 22, 22, 128))
-                    };
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(88, 6, 186, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(88, 6, 186, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 2: // Blue Magenta
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSimpleGradient(Color.blue, Color.magenta)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.blue)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 3: // Dark Mode
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Blue Magenta",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.blue, Color.magenta)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(20, 20, 20, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.blue)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 4: // Strobe
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSimpleGradient(Color.white, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSimpleGradient(Color.black, Color.white)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Dark Mode",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 5: // Kman
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(20, 20, 20, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Strobe",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.white, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(Color.black, Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Bloodlust",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(110, 0, 0, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(110, 0, 0, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(110, 0, 0, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(110, 0, 0, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(110, 0, 0, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 6: // Rainbow
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rainbow",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black),
+                    rainbow = true
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.black),
                         rainbow = true
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black),
-                            rainbow = true
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 7: // Player Material
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Player Material",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black),
+                    copyRigColor = true
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.black),
                         copyRigColor = true
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black),
-                            copyRigColor = true
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 8: // Lava
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(255, 111, 0, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(255, 111, 0, 255), Color.black)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 9: // Rock
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, Color.red)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(Color.red, Color.black)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 10: // Ice
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(0, 174, 255, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(0, 174, 255, 255), Color.black)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 11: // Water
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 136, 255, 255), new Color32(0, 174, 255, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(0, 100, 188, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(0, 174, 255, 255), new Color32(0, 136, 255, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 12: // Minty
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 255, 246, 255), new Color32(0, 255, 144, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(0, 255, 144, 255), new Color32(0, 255, 246, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 13: // Pink
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(255, 130, 255, 255), Color.white)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 130, 255, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 14: // Purple
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(122, 35, 159, 255), new Color32(60, 26, 89, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(60, 26, 89, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(122, 35, 159, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 15: // Magenta Cyan
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.cyan)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.cyan)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 16: // Red Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.red, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 17: // Orange Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(255, 128, 0, 255), Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 18: // Yellow Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.yellow, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.yellow)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.yellow)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.yellow)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 19: // Green Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.green, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 20: // Blue Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.blue, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.blue)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.blue)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.blue)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 21: // Purple Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(119, 0, 255, 255), Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 22: // Magenta Fade
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.magenta)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.magenta)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.magenta)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 23: // Banana
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(255, 255, 130, 255), Color.white)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 130, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 24: // Pride
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.red, Color.green)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 25: // Trans
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(245, 169, 184, 255), new Color32(91, 206, 250, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(245, 169, 184, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(245, 169, 184, 255))
-                        }
-                    };
-                    break;
-                case 26: // MLM or Gay
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(7, 141, 112, 255), new Color32(61, 26, 220, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(7, 141, 112, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(7, 141, 112, 255))
-                        }
-                    };
-                    break;
-                case 27: // Steal (old)
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(75, 75, 75, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 28: // Silence
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(80, 0, 80, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    break;
-                case 29: // Transparent
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(Color.black),
-                        transparent = true
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white),
-                            transparent = true
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green),
-                            transparent = true
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    break;
-                case 30: // King
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(100, 60, 170, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(150, 100, 240, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(150, 100, 240, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.cyan)
-                        }
-                    };
-                    break;
-                case 31: // Scoreboard
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(0, 59, 4, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(192, 190, 171, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 32: // Scoreboard (banned)
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(225, 73, 43, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(192, 190, 171, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 33: // Rift
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(40, 40, 40, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(167, 66, 191, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 34: // Blurple Dark
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(26, 26, 61, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(26, 26, 61, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(43, 17, 84, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 35: // ShibaGT Gold
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, Color.gray)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.yellow)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.magenta)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 36: // ShibaGT Genesis
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 37: // wyvern
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(199, 115, 173, 255), new Color32(165, 233, 185, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(99, 58, 86, 255), new Color32(83, 116, 92, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(99, 58, 86, 255), new Color32(83, 116, 92, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    break;
-                case 38: // Steal (new)
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(27, 27, 27, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(66, 66, 66, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 39: // USA Menu (lol)
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(100, 25, 125, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 40: // Watch
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(27, 27, 27, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.green)
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 41: // AZ Menu
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(100, 0, 0, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(100, 0, 0, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 42: // ImGUI
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(21, 22, 23, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(32, 50, 77, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(60, 127, 206, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 43: // Clean Dark
-                    backgroundColor = new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
-                    {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(10, 10, 10, 255))
-                        }
-                    };
-                    textColors = new[]
-                    {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 44: // Discord Light Mode (lmfao)
-                    backgroundColor = new ExtGradient
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.white)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(245, 245, 245, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 45: // The Hub
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Lava",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(255, 111, 0, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.black)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(255, 163, 26, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSimpleGradient(new Color32(255, 111, 0, 255), Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 46: // EPILEPTIC
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rock",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, Color.red)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(Color.red, Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Ice",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(0, 174, 255, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 174, 255, 255), Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Water",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(0, 136, 255, 255), new Color32(0, 174, 255, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(0, 100, 188, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 174, 255, 255), new Color32(0, 136, 255, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Minty",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(0, 255, 246, 255), new Color32(0, 255, 144, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 255, 144, 255), new Color32(0, 255, 246, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Pink",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(255, 130, 255, 255), Color.white)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 130, 255, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Purple",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(122, 35, 159, 255), new Color32(60, 26, 89, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(60, 26, 89, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(122, 35, 159, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Magenta Cyan",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.cyan)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.cyan)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Red Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.red, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Orange Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(255, 128, 0, 255), Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 128, 0, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Yellow Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.yellow, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.yellow)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.yellow)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.yellow)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Green Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.green, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Blue Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.blue, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.blue)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.blue)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.blue)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Purple Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(119, 0, 255, 255), Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(119, 0, 255, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Magenta Fade",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.magenta, Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.magenta)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.magenta)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.magenta)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Banana",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(255, 255, 130, 255), Color.white)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 130, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Pride",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.red, Color.green)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Trans",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(245, 169, 184, 255), new Color32(91, 206, 250, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(245, 169, 184, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(91, 206, 250, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(245, 169, 184, 255))
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "MLM Pride",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(7, 141, 112, 255), new Color32(61, 26, 220, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(7, 141, 112, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(61, 26, 220, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(7, 141, 112, 255))
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Steel",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(75, 75, 75, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Silence",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(80, 0, 80, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Transparent",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black),
+                    transparent = true
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white),
+                        transparent = true
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green),
+                        transparent = true
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "King",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(100, 60, 170, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(150, 100, 240, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(150, 100, 240, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.cyan)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Scoreboard",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(0, 59, 4, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(192, 190, 171, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Red Scoreboard",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(225, 73, 43, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(192, 190, 171, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rift",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(40, 40, 40, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(167, 66, 191, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Discord Blurple Dark",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(26, 26, 61, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(26, 26, 61, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(43, 17, 84, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "ShibaGT Gold",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, Color.gray)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.yellow)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.magenta)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "ShibaGT Genesis",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "wyvern",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(199, 115, 173, 255), new Color32(165, 233, 185, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(99, 58, 86, 255), new Color32(83, 116, 92, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(99, 58, 86, 255), new Color32(83, 116, 92, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Steal",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(27, 27, 27, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(50, 50, 50, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(66, 66, 66, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "USA Menu",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(100, 25, 125, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Watch",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(27, 27, 27, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.red)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.green)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "AZ Menu",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, new Color32(100, 0, 0, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(100, 0, 0, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "ImGUI",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(21, 22, 23, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(32, 50, 77, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(60, 127, 206, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Dark",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(10, 10, 10, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Light",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.white)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(245, 245, 245, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Blaze",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(255, 163, 26, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "EPILEPTIC",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.black),
+                    epileptic = true
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.black),
                         epileptic = true
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black),
-                            epileptic = true
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 47: // Discord Blurple
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(111, 143, 255, 255), new Color32(163, 184, 255, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Discord Blurple",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(111, 143, 255, 255), new Color32(163, 184, 255, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(96, 125, 219, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(147, 167, 226, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(96, 125, 219, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
-                        }
-                    };
-                    break;
-                case 48: // VS Zero
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(147, 167, 226, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(33, 33, 101, 255))
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "VS Zero",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(19, 22, 27, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(new Color32(19, 22, 27, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(19, 22, 27, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(16, 18, 22, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(16, 18, 22, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
-                        }
-                    };
-                    break;
-                case 49: // Weed theme
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(0, 136, 16, 255), new Color32(0, 127, 14, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(0, 158, 15, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(0, 112, 11, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(82, 96, 122, 255))
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Weed",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(new Color32(0, 136, 16, 255), new Color32(0, 127, 14, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 50: // Pastel Rainbow
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(0, 158, 15, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(0, 112, 11, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Pastel Rainbow",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.white),
+                    pastelRainbow = true
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.white),
                         pastelRainbow = true
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white),
-                            pastelRainbow = true
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    break;
-                case 51: // Rift Light
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rift Light",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(25, 25, 25, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(40, 40, 40, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(165, 137, 255, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(40, 40, 40, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 52: // Rose (Solace)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(165, 137, 255, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(176, 12, 64, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(140, 10, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(250, 2, 81, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(144, 144, 144, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 53: // Tenacity (Solace)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rose",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(176, 12, 64, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(124, 25, 194, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(140, 10, 51, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(88, 9, 145, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(136, 9, 227, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(250, 2, 81, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 54: // e621 (by iiDk)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(1, 73, 149, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(1, 46, 87, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(0, 37, 74, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Ultraviolet",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(124, 25, 194, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(252, 179, 40, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 55: // Catppuccin Mocha
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(88, 9, 145, 255))
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(30, 30, 46, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(136, 9, 227, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(88, 91, 112, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(49, 50, 68, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(205, 214, 244, 255))
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(186, 194, 222, 255))
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(166, 173, 200, 255))
-                        }
-                    };
-                    break;
-                case 56: // Rexon
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(45, 25, 75, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Cobalt Gold",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(1, 73, 149, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(40, 15, 60, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(100, 30, 140, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(1, 46, 87, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 57: // Tenacity (Minecraft)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(0, 37, 74, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(252, 179, 40, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(231, 133, 209, 255), new Color32(56, 155, 193, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 58: // Mint Blue (Opal v2)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Catppuccin Mocha",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(30, 30, 46, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(88, 91, 112, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(40, 94, 93, 255), new Color32(66, 158, 157, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(49, 50, 68, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 59: // Pink Blood (Opal v2)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(205, 214, 244, 255))
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(186, 194, 222, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(255, 166, 201, 255), new Color32(228, 0, 70, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(166, 173, 200, 255))
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Rexon",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(45, 25, 75, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 60: // Purple Fire (Opal v2)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(new Color32(40, 15, 60, 255))
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(100, 30, 140, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(177, 162, 202, 255), new Color32(104, 71, 141, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 61: // Deep Ocean (Opal v2)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
-                    };
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Tenacity",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSimpleGradient(new Color32(60, 82, 145, 255), new Color32(0, 20, 64, 255))
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 62: // Bad Apple (thanks random person in vc for idea)
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSimpleGradient(new Color32(231, 133, 209, 255), new Color32(56, 155, 193, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        colors = ExtGradient.GetSimpleGradient(Color.black, Color.white)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            transparent = true
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            transparent = true
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 63: // coolkidd
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Mint Blue",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(40, 94, 93, 255), new Color32(66, 158, 157, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Pink Blood",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(255, 166, 201, 255), new Color32(228, 0, 70, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Purple Fire",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(177, 162, 202, 255), new Color32(104, 71, 141, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Deep Ocean",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(new Color32(32, 32, 32, 255))
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(new Color32(45, 46, 51, 255))
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSimpleGradient(new Color32(60, 82, 145, 255), new Color32(0, 20, 64, 255))
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Bad Apple",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSimpleGradient(Color.black, Color.white)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        transparent = true
+                    },
+                    new ExtGradient
+                    {
+                        transparent = true
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "coolkidd",
+                Background = () => new ExtGradient
+                {
+                    colors = ExtGradient.GetSolidGradient(Color.red)
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
                     {
                         colors = ExtGradient.GetSolidGradient(Color.red)
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.red)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 64: // Old ShibaGT RGB
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Old ShibaGT RGB",
+                Background = () => new ExtGradient
+                {
+                    colors = new[]
+                    {
+                        new GradientColorKey(Color.red, 0f),
+                        new GradientColorKey(Color.green, 0.333f),
+                        new GradientColorKey(Color.blue, 0.666f),
+                        new GradientColorKey(Color.red, 1f),
+                    }
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
                         colors = new[]
                         {
@@ -3235,43 +3250,46 @@ exit 0";
                             new GradientColorKey(Color.blue, 0.666f),
                             new GradientColorKey(Color.red, 1f),
                         }
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = new[]
-                            {
-                                new GradientColorKey(Color.red, 0f),
-                                new GradientColorKey(Color.green, 0.333f),
-                                new GradientColorKey(Color.blue, 0.666f),
-                                new GradientColorKey(Color.red, 1f),
-                            }
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-                case 65: // Old-ish ShibaGT RGB
-                    backgroundColor = new ExtGradient
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+            new ThemeDefinition
+            {
+                Name = "Old-ish ShibaGT RGB",
+                Background = () => new ExtGradient
+                {
+                    colors = new[]
+                    {
+                        new GradientColorKey(Color.yellow, 0f),
+                        new GradientColorKey(Color.red, 0.2f),
+                        new GradientColorKey(Color.magenta, 0.4f),
+                        new GradientColorKey(Color.blue, 0.6f),
+                        new GradientColorKey(Color.green, 0.8f),
+                        new GradientColorKey(Color.yellow, 1f)
+                    }
+                },
+                ButtonColors = () => new[]
+                {
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.black)
+                    },
+                    new ExtGradient
                     {
                         colors = new[]
                         {
@@ -3282,689 +3300,56 @@ exit 0";
                             new GradientColorKey(Color.green, 0.8f),
                             new GradientColorKey(Color.yellow, 1f)
                         }
-                    };
-                    menuBackgroundColor = backgroundColor;
-                    buttonColors = new[]
+                    }
+                },
+                TextColors = () => new[]
+                {
+                    new ExtGradient
                     {
-                        new ExtGradient // Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.black)
-                        },
-                        new ExtGradient // Pressed
-                        {
-                            colors = new[]
-                            {
-                                new GradientColorKey(Color.yellow, 0f),
-                                new GradientColorKey(Color.red, 0.2f),
-                                new GradientColorKey(Color.magenta, 0.4f),
-                                new GradientColorKey(Color.blue, 0.6f),
-                                new GradientColorKey(Color.green, 0.8f),
-                                new GradientColorKey(Color.yellow, 1f)
-                            }
-                        }
-                    };
-                    textColors = new[]
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
                     {
-                        new ExtGradient // Title
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Released
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        },
-                        new ExtGradient // Button Clicked
-                        {
-                            colors = ExtGradient.GetSolidGradient(Color.white)
-                        }
-                    };
-                    break;
-            }
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    },
+                    new ExtGradient
+                    {
+                        colors = ExtGradient.GetSolidGradient(Color.white)
+                    }
+                }
+            },
+        };
+
+        public static int ThemeCount => Themes.Count;
+
+        public static void ApplyMenuTheme(int themeType)
+        {
+            Main.themeType = themeType;
+            if (Buttons.GetIndex("Custom Menu Theme").enabled)
+                return;
+            if (themeType > Themes.Count)
+                return;
+
+            ThemeDefinition theme = Themes[themeType];
+            backgroundColor = theme.Background();
+            menuBackgroundColor = theme.MenuBackground != null ? theme.MenuBackground() : backgroundColor;
+            buttonColors = theme.ButtonColors();
+            textColors = theme.TextColors();
         }
 
         private static int menuScaleIndex = 10;
-        public static void ChangeMenuScale(bool positive = true)
-        {
-            if (positive)
-                menuScaleIndex++;
-            else
-                menuScaleIndex--;
-
-            if (menuScaleIndex > 30)
-                menuScaleIndex = 2;
-            if (menuScaleIndex < 2)
-                menuScaleIndex = 30;
-
-            menuScale = menuScaleIndex / 10f;
-
-            Buttons.GetIndex("Change Menu Scale").overlapText = "Change Menu Scale <color=grey>[</color><color=green>" + menuScale + "</color><color=grey>]</color>";
-        }
+        public static void ApplyMenuScale(int index) { menuScaleIndex = index; menuScale = index / 10f; }
 
         private static int notificationScaleIndex = 6;
-        public static void ChangeNotificationScale(bool positive = true)
-        {
-            if (positive)
-                notificationScaleIndex++;
-            else
-                notificationScaleIndex--;
-
-            if (notificationScaleIndex > 20)
-                notificationScaleIndex = 1;
-            if (notificationScaleIndex < 1)
-                notificationScaleIndex = 20;
-
-            notificationScale = notificationScaleIndex * 5;
-
-            Buttons.GetIndex("Change Notification Scale").overlapText = "Change Notification Scale <color=grey>[</color><color=green>" + notificationScaleIndex + "</color><color=grey>]</color>";
-        }
+        public static void ApplyNotificationScale(int index) { notificationScaleIndex = index; notificationScale = index * 5; }
 
         private static int arraylistScaleIndex = 4;
-        public static void ChangeArraylistScale(bool positive = true)
-        {
-            if (positive)
-                arraylistScaleIndex++;
-            else
-                arraylistScaleIndex--;
-
-            if (arraylistScaleIndex > 20)
-                arraylistScaleIndex = 1;
-            if (arraylistScaleIndex < 1)
-                arraylistScaleIndex = 20;
-
-            arraylistScale = arraylistScaleIndex * 5;
-
-            Buttons.GetIndex("Change Arraylist Scale").overlapText = "Change Arraylist Scale <color=grey>[</color><color=green>" + arraylistScaleIndex + "</color><color=grey>]</color>";
-        }
+        public static void ApplyArraylistScale(int index) { arraylistScaleIndex = index; arraylistScale = index * 5; }
 
         private static int overlayScaleIndex = 6;
-        public static void ChangeOverlayScale(bool positive = true)
-        {
-            if (positive)
-                overlayScaleIndex++;
-            else
-                overlayScaleIndex--;
-
-            if (overlayScaleIndex > 20)
-                overlayScaleIndex = 1;
-            if (overlayScaleIndex < 1)
-                overlayScaleIndex = 20;
-
-            overlayScale = overlayScaleIndex * 5;
-
-            Buttons.GetIndex("Change Overlay Scale").overlapText = "Change Overlay Scale <color=grey>[</color><color=green>" + overlayScaleIndex + "</color><color=grey>]</color>";
-        }
-
-        private static int modifyWhatId;
-        public static void CMTRed(bool increase = true)
-        {
-            switch (modifyWhatId)
-            {
-                case 0:
-                    {
-                        int r = (int)Math.Round(backgroundColor.GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(0, new Color(r / 10f, backgroundColor.GetColor(0).g, backgroundColor.GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 1:
-                    {
-                        int r = (int)Math.Round(backgroundColor.GetColor(1).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(1, new Color(r / 10f, backgroundColor.GetColor(1).g, backgroundColor.GetColor(1).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 2:
-                    {
-                        int r = (int)Math.Round(buttonColors[0].GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(0, new Color(r / 10f, buttonColors[0].GetColor(0).g, buttonColors[0].GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 3:
-                    {
-                        int r = (int)Math.Round(buttonColors[0].GetColor(1).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(1, new Color(r / 10f, buttonColors[0].GetColor(1).g, buttonColors[0].GetColor(1).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 4:
-                    {
-                        int r = (int)Math.Round(buttonColors[1].GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(0, new Color(r / 10f, buttonColors[1].GetColor(0).g, buttonColors[1].GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 5:
-                    {
-                        int r = (int)Math.Round(buttonColors[1].GetColor(1).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(1, new Color(r / 10f, buttonColors[1].GetColor(1).g, buttonColors[1].GetColor(1).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 6:
-                    {
-                        int r = (int)Math.Round(textColors[0].GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[0].SetColors(new Color(r / 10f, textColors[0].GetColor(0).g, textColors[0].GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 7:
-                    {
-                        int r = (int)Math.Round(textColors[1].GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        textColors[1].SetColors(new Color(r / 10f, textColors[1].GetColor(0).g, textColors[1].GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 8:
-                    {
-                        int r = (int)Math.Round(textColors[2].GetColor(0).r * 10f);
-
-                        if (increase)
-                            r++;
-                        else
-                            r--;
-
-                        r %= 11;
-                        if (r < 0)
-                            r = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[2].SetColors(new Color(r / 10f, textColors[2].GetColor(0).g, textColors[2].GetColor(0).b));
-
-                        Buttons.GetIndex("Red").overlapText = "Red <color=grey>[</color><color=green>" + r + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[2].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-            }
-            WriteCustomTheme();
-        }
-
-        public static void CMTGreen(bool increase = true)
-        {
-            switch (modifyWhatId)
-            {
-                case 0:
-                    {
-                        int g = (int)Math.Round(backgroundColor.GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(0, new Color(backgroundColor.GetColor(0).r, g / 10f, backgroundColor.GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 1:
-                    {
-                        int g = (int)Math.Round(backgroundColor.GetColor(1).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(1, new Color(backgroundColor.GetColor(1).r, g / 10f, backgroundColor.GetColor(1).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 2:
-                    {
-                        int g = (int)Math.Round(buttonColors[0].GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(0, new Color(buttonColors[0].GetColor(0).r, g / 10f, buttonColors[0].GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 3:
-                    {
-                        int g = (int)Math.Round(buttonColors[0].GetColor(1).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(1, new Color(buttonColors[0].GetColor(1).r, g / 10f, buttonColors[0].GetColor(1).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 4:
-                    {
-                        int g = (int)Math.Round(buttonColors[1].GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(0, new Color(buttonColors[1].GetColor(0).r, g / 10f, buttonColors[1].GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 5:
-                    {
-                        int g = (int)Math.Round(buttonColors[1].GetColor(1).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(1, new Color(buttonColors[1].GetColor(1).r, g / 10f, buttonColors[1].GetColor(1).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 6:
-                    {
-                        int g = (int)Math.Round(textColors[0].GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[0].SetColors(new Color(textColors[0].GetColor(0).r, g / 10f, textColors[0].GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 7:
-                    {
-                        int g = (int)Math.Round(textColors[1].GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[1].SetColors(new Color(textColors[1].GetColor(0).r, g / 10f, textColors[1].GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 8:
-                    {
-                        int g = (int)Math.Round(textColors[2].GetColor(0).g * 10f);
-
-                        if (increase)
-                            g++;
-                        else
-                            g--;
-
-                        g %= 11;
-                        if (g < 0)
-                            g = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[2].SetColors(new Color(textColors[2].GetColor(0).r, g / 10f, textColors[2].GetColor(0).b));
-
-                        Buttons.GetIndex("Green").overlapText = "Green <color=grey>[</color><color=green>" + g + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[2].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-            }
-            WriteCustomTheme();
-        }
-        public static void CMTBlue(bool increase = true)
-        {
-            switch (modifyWhatId)
-            {
-                case 0:
-                    {
-                        int b = (int)Math.Round(backgroundColor.GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(0, new Color(backgroundColor.GetColor(0).r, backgroundColor.GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 1:
-                    {
-                        int b = (int)Math.Round(backgroundColor.GetColor(1).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            backgroundColor.SetColor(1, new Color(backgroundColor.GetColor(1).r, backgroundColor.GetColor(1).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 2:
-                    {
-                        int b = (int)Math.Round(buttonColors[0].GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(0, new Color(buttonColors[0].GetColor(0).r, buttonColors[0].GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 3:
-                    {
-                        int b = (int)Math.Round(buttonColors[0].GetColor(1).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[0].SetColor(1, new Color(buttonColors[0].GetColor(1).r, buttonColors[0].GetColor(1).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 4:
-                    {
-                        int b = (int)Math.Round(buttonColors[1].GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(0, new Color(buttonColors[1].GetColor(0).r, buttonColors[1].GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 5:
-                    {
-                        int b = (int)Math.Round(buttonColors[1].GetColor(1).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            buttonColors[1].SetColor(1, new Color(buttonColors[1].GetColor(1).r, buttonColors[1].GetColor(1).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(1)) + ">Preview</color>";
-                        break;
-                    }
-                case 6:
-                    {
-                        int b = (int)Math.Round(textColors[0].GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[0].SetColors(new Color(textColors[0].GetColor(0).r, textColors[0].GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[0].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 7:
-                    {
-                        int b = (int)Math.Round(textColors[1].GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[1].SetColors(new Color(textColors[1].GetColor(0).r, textColors[1].GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[1].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-                case 8:
-                    {
-                        int b = (int)Math.Round(textColors[2].GetColor(0).b * 10f);
-
-                        if (increase)
-                            b++;
-                        else
-                            b--;
-
-                        b %= 11;
-                        if (b < 0)
-                            b = 10;
-
-                        if (Buttons.GetIndex("Custom Menu Theme").enabled)
-                            textColors[2].SetColors(new Color(textColors[2].GetColor(0).r, textColors[2].GetColor(0).g, b / 10f));
-
-                        Buttons.GetIndex("Blue").overlapText = "Blue <color=grey>[</color><color=green>" + b + "</color><color=grey>]</color>";
-                        Buttons.GetIndex("PreviewLabel").overlapText = "<color=#" + ColorToHex(textColors[2].GetColor(0)) + ">Preview</color>";
-                        break;
-                    }
-            }
-            WriteCustomTheme();
-        }
+        public static void ApplyOverlayScale(int index) { overlayScaleIndex = index; overlayScale = index * 5; }
 
         private static int previousPage;
-        public static void CustomMenuTheme()
-        {
-            if (!File.Exists($"{PluginInfo.BaseDirectory}/Seralyth_CustomThemeColor.txt"))
-                WriteCustomTheme();
-
-            ReadCustomTheme();
-        }
 
         public static void ChangeCustomMenuTheme()
         {
@@ -3996,32 +3381,184 @@ exit 0";
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
+
+        private static List<ButtonInfo> CreateColorButtons(Func<Color> getColor, Action<Color> setColor, string tooltipTarget)
+        {
+            ButtonInfo previewButton = new ButtonInfo
+            {
+                buttonText = "PreviewLabel",
+                overlapText = "<color=#" + ColorToHex(getColor()) + ">Preview</color>",
+                label = true
+            };
+
+            void RefreshPreview()
+            {
+                previewButton.overlapText = "<color=#" + ColorToHex(getColor()) + ">Preview</color>";
+            }
+
+            void ApplyChannel(int channel, int v)
+            {
+                if (!Buttons.GetIndex("Custom Menu Theme").enabled)
+                    return;
+
+                Color c = getColor();
+                Color updated = channel switch
+                {
+                    0 => new Color(v / 10f, c.g, c.b),
+                    1 => new Color(c.r, v / 10f, c.b),
+                    _ => new Color(c.r, c.g, v / 10f),
+                };
+                setColor(updated);
+                WriteCustomTheme();
+            }
+
+            ButtonInfo redButton = ButtonHelper.CreateNumeric(
+                "Red", 0, 10,
+                (int)Math.Round(getColor().r * 10f),
+                v => ApplyChannel(0, v),
+                v => v.ToString(),
+                $"Change the red of {tooltipTarget}.",
+                onCycle: _ => RefreshPreview());
+
+            ButtonInfo greenButton = ButtonHelper.CreateNumeric(
+                "Green", 0, 10,
+                (int)Math.Round(getColor().g * 10f),
+                v => ApplyChannel(1, v),
+                v => v.ToString(),
+                $"Change the green of {tooltipTarget}.",
+                onCycle: _ => RefreshPreview());
+
+            ButtonInfo blueButton = ButtonHelper.CreateNumeric(
+                "Blue", 0, 10,
+                (int)Math.Round(getColor().b * 10f),
+                v => ApplyChannel(2, v),
+                v => v.ToString(),
+                $"Change the blue of {tooltipTarget}.",
+                onCycle: _ => RefreshPreview());
+
+            return new List<ButtonInfo> { redButton, greenButton, blueButton, previewButton };
+        }
         public static void CMTBackgroundFirst()
         {
-            modifyWhatId = 0;
-
             List<ButtonInfo> buttons = new List<ButtonInfo> {
                 new ButtonInfo { buttonText = "Exit First Color", method = () => CMTBackground(), isTogglable = false, toolTip = "Returns you back to the background menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the first color of the background." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the first color of the background." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the first color of the background." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(0)) + ">Preview</color>", label = true },
             };
+            buttons.AddRange(CreateColorButtons(
+                () => backgroundColor.GetColor(0),
+                c => backgroundColor.SetColor(0, c),
+                "the first color of the background"));
 
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
+
         public static void CMTBackgroundSecond()
         {
-            modifyWhatId = 1;
-
             List<ButtonInfo> buttons = new List<ButtonInfo> {
                 new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTBackground(), isTogglable = false, toolTip = "Returns you back to the background menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(1).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the second color of the background." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(1).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the second color of the background." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(backgroundColor.GetColor(1).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the second color of the background." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(backgroundColor.GetColor(1)) + ">Preview</color>", label = true },
             };
+            buttons.AddRange(CreateColorButtons(
+                () => backgroundColor.GetColor(1),
+                c => backgroundColor.SetColor(1, c),
+                "the second color of the background"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTButtonEnabledFirst()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit First Color", method = () => CMTButtonEnabled(), isTogglable = false, toolTip = "Returns you back to the enabled button menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => buttonColors[1].GetColor(0),
+                c => buttonColors[1].SetColor(0, c),
+                "the first color of the enabled button color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTButtonEnabledSecond()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTButtonEnabled(), isTogglable = false, toolTip = "Returns you back to the enabled button menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => buttonColors[1].GetColor(1),
+                c => buttonColors[1].SetColor(1, c),
+                "the second color of the enabled button color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTButtonDisabledFirst()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit First Color", method = () => CMTButtonDisabled(), isTogglable = false, toolTip = "Returns you back to the disabled button menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => buttonColors[0].GetColor(0),
+                c => buttonColors[0].SetColor(0, c),
+                "the first color of the disabled button color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTButtonDisabledSecond()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit Second Color", method = CMTButtonDisabled, isTogglable = false, toolTip = "Returns you back to the disabled button menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => buttonColors[0].GetColor(1),
+                c => buttonColors[0].SetColor(1, c),
+                "the second color of the disabled button color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTTextTitle()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit Title", method = CMTText, isTogglable = false, toolTip = "Returns you back to the text menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => textColors[0].GetColor(0),
+                c => textColors[0].SetColors(c),
+                "the title color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTTextEnabled()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTText(), isTogglable = false, toolTip = "Returns you back to the text menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => textColors[2].GetColor(0),
+                c => textColors[2].SetColors(c),
+                "the enabled text color"));
+
+            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
+            Buttons.CurrentCategoryName = "Temporary Category";
+        }
+
+        public static void CMTTextDisabled()
+        {
+            List<ButtonInfo> buttons = new List<ButtonInfo> {
+                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTText(), isTogglable = false, toolTip = "Returns you back to the text menu." },
+            };
+            buttons.AddRange(CreateColorButtons(
+                () => textColors[1].GetColor(0),
+                c => textColors[1].SetColors(c),
+                "the disabled text color"));
 
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
@@ -4038,6 +3575,7 @@ exit 0";
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
+
         public static void CMTButtonEnabled()
         {
             List<ButtonInfo> buttons = new List<ButtonInfo> {
@@ -4049,71 +3587,13 @@ exit 0";
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
+
         public static void CMTButtonDisabled()
         {
             List<ButtonInfo> buttons = new List<ButtonInfo> {
                 new ButtonInfo { buttonText = "Exit Enabled", method = () => CMTButton(), isTogglable = false, toolTip = "Returns you back to the customize menu." },
                 new ButtonInfo { buttonText = "First Color", method = () => CMTButtonDisabledFirst(), isTogglable = false, toolTip = "Change the color of the first color of the disabled button color." },
                 new ButtonInfo { buttonText = "Second Color", method = () => CMTButtonDisabledSecond(), isTogglable = false, toolTip = "Change the color of the second color of the disabled button color." },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTButtonEnabledFirst()
-        {
-            modifyWhatId = 4;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit First Color", method = () => CMTButtonEnabled(), isTogglable = false, toolTip = "Returns you back to the enabled button menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(0)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTButtonEnabledSecond()
-        {
-            modifyWhatId = 5;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTButtonEnabled(), isTogglable = false, toolTip = "Returns you back to the enabled button menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(1).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(1).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[1].GetColor(1).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the first color of the enabled button color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(buttonColors[1].GetColor(1)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTButtonDisabledFirst()
-        {
-            modifyWhatId = 2;
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit First Color", method = () => CMTButtonDisabled(), isTogglable = false, toolTip = "Returns you back to the disabled button menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(0)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTButtonDisabledSecond()
-        {
-            modifyWhatId = 3;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit Second Color", method = CMTButtonDisabled, isTogglable = false, toolTip = "Returns you back to the disabled button menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(1).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(1).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(buttonColors[0].GetColor(1).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the first color of the disabled button color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(buttonColors[0].GetColor(1)) + ">Preview</color>", label = true },
             };
 
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
@@ -4132,51 +3612,6 @@ exit 0";
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
-        public static void CMTTextTitle()
-        {
-            modifyWhatId = 6;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit Title", method = CMTText, isTogglable = false, toolTip = "Returns you back to the text menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(textColors[0].GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the title color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(textColors[0].GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the title color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(textColors[0].GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the title color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(textColors[0].GetColor(0)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTTextEnabled()
-        {
-            modifyWhatId = 8;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTText(), isTogglable = false, toolTip = "Returns you back to the text menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(textColors[2].GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the enabled text color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(textColors[2].GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the enabled text color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(textColors[2].GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the enabled text color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(textColors[2].GetColor(0)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
-        public static void CMTTextDisabled()
-        {
-            modifyWhatId = 7;
-
-            List<ButtonInfo> buttons = new List<ButtonInfo> {
-                new ButtonInfo { buttonText = "Exit Second Color", method = () => CMTText(), isTogglable = false, toolTip = "Returns you back to the text menu." },
-                new ButtonInfo { buttonText = "Red", overlapText = "Red <color=grey>[</color><color=green>" + (int)Math.Round(textColors[1].GetColor(0).r * 10f) + "</color><color=grey>]</color>", method =() => CMTRed(), enableMethod =() => CMTRed(), disableMethod =() => CMTRed(false), incremental = true, isTogglable = false, toolTip = "Change the red of the disabled text color." },
-                new ButtonInfo { buttonText = "Green", overlapText = "Green <color=grey>[</color><color=green>" + (int)Math.Round(textColors[1].GetColor(0).g * 10f) + "</color><color=grey>]</color>", method =() => CMTGreen(), enableMethod =() => CMTGreen(), disableMethod =() => CMTGreen(false), incremental = true, isTogglable = false, toolTip = "Change the green of the disabled text color." },
-                new ButtonInfo { buttonText = "Blue", overlapText = "Blue <color=grey>[</color><color=green>" + (int)Math.Round(textColors[1].GetColor(0).b * 10f) + "</color><color=grey>]</color>", method =() => CMTBlue(), enableMethod =() => CMTBlue(), disableMethod =() => CMTBlue(false), incremental = true, isTogglable = false, toolTip = "Change the blue of the disabled text color." },
-                new ButtonInfo { buttonText = "PreviewLabel", overlapText = "<color=#" + ColorToHex(textColors[1].GetColor(0)) + ">Preview</color>", label = true },
-            };
-
-            Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
-            Buttons.CurrentCategoryName = "Temporary Category";
-        }
 
         public static void ExitCustomMenuTheme()
         {
@@ -4184,72 +3619,62 @@ exit 0";
             Buttons.CurrentCategoryName = "Menu Settings";
         }
 
+        public static void ApplyTheme(Preferences.CustomThemeData theme)
+        {
+            backgroundColor.SetColor(0, theme.backgroundFirst.ToColor32());
+            backgroundColor.SetColor(1, theme.backgroundSecond.ToColor32());
+
+            buttonColors[0].SetColor(0, theme.buttonDisabledFirst.ToColor32());
+            buttonColors[0].SetColor(1, theme.buttonDisabledSecond.ToColor32());
+            buttonColors[1].SetColor(0, theme.buttonEnabledFirst.ToColor32());
+            buttonColors[1].SetColor(1, theme.buttonEnabledSecond.ToColor32());
+
+            textColors[0].SetColors(theme.textTitle.ToColor32());
+            textColors[1].SetColors(theme.textDisabled.ToColor32());
+            textColors[2].SetColors(theme.textEnabled.ToColor32());
+        }
+
         public static void ReadCustomTheme()
         {
-            string[] linesplit = File.ReadAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomThemeColor.txt").Split("\n");
-
-            string[] a = linesplit[0].Split(",");
-            backgroundColor.SetColor(0, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-            a = linesplit[1].Split(",");
-            backgroundColor.SetColor(1, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-
-            a = linesplit[2].Split(",");
-            buttonColors[0].SetColor(0, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-            a = linesplit[3].Split(",");
-            buttonColors[0].SetColor(1, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-
-            a = linesplit[4].Split(",");
-            buttonColors[1].SetColor(0, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-            a = linesplit[5].Split(",");
-            buttonColors[1].SetColor(1, new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-
-            a = linesplit[6].Split(",");
-            textColors[0].SetColors(new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-            a = linesplit[7].Split(",");
-            textColors[1].SetColors(new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
-            a = linesplit[8].Split(",");
-            textColors[2].SetColors(new Color32(byte.Parse(a[0]), byte.Parse(a[1]), byte.Parse(a[2]), 255));
+            var theme = Preferences.GetCustomTheme();
+            if (theme != null)
+                ApplyTheme(theme);
         }
 
-        public static void ImportCustomTheme(string theme)
+        public static void ImportCustomTheme(Preferences.CustomThemeData theme)
         {
-            File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomThemeColor.txt", theme);
-            ReadCustomTheme();
+            ApplyTheme(theme);
+            Preferences.SaveCustomTheme(theme);
         }
 
-        public static string ExportCustomTheme()
+        public static Preferences.CustomThemeData ExportCustomTheme() => new Preferences.CustomThemeData
         {
-            Color[] clrs = {
-                backgroundColor.GetColor(0),
-                backgroundColor.GetColor(1),
-                buttonColors[0].GetColor(0),
-                buttonColors[0].GetColor(1),
-                buttonColors[1].GetColor(0),
-                buttonColors[1].GetColor(1),
-                textColors[0].GetColor(0),
-                textColors[1].GetColor(0),
-                textColors[2].GetColor(0)
-            };
-
-            string output = "";
-            foreach (Color clr in clrs)
-            {
-                if (output != "")
-                    output += "\n";
-
-                output += Math.Round(Mathf.Round(clr.r * 10) / 10 * 255f) + "," + Math.Round(Mathf.Round(clr.g * 10) / 10 * 255f) + "," + Math.Round(Mathf.Round(clr.b * 10) / 10 * 255f);
-            }
-
-            return output;
-        }
+            backgroundFirst = new Preferences.RgbColor(backgroundColor.GetColor(0)),
+            backgroundSecond = new Preferences.RgbColor(backgroundColor.GetColor(1)),
+            buttonDisabledFirst = new Preferences.RgbColor(buttonColors[0].GetColor(0)),
+            buttonDisabledSecond = new Preferences.RgbColor(buttonColors[0].GetColor(1)),
+            buttonEnabledFirst = new Preferences.RgbColor(buttonColors[1].GetColor(0)),
+            buttonEnabledSecond = new Preferences.RgbColor(buttonColors[1].GetColor(1)),
+            textTitle = new Preferences.RgbColor(textColors[0].GetColor(0)),
+            textDisabled = new Preferences.RgbColor(textColors[1].GetColor(0)),
+            textEnabled = new Preferences.RgbColor(textColors[2].GetColor(0)),
+        };
 
         public static void WriteCustomTheme() =>
-            File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomThemeColor.txt", ExportCustomTheme());
+            Preferences.SaveCustomTheme(ExportCustomTheme());
+
+        public static void CustomMenuTheme()
+        {
+            if (Preferences.GetCustomTheme() == null)
+                WriteCustomTheme();
+
+            ReadCustomTheme();
+        }
 
         public static void FixTheme()
         {
             themeType--;
-            ChangeMenuTheme();
+            Buttons.GetIndex("Change Menu Theme").cycleValue(true);
         }
 
         public static void CustomMenuBackground()
@@ -4331,81 +3756,18 @@ exit 0";
         public static void DisableCustomFont()
         {
             fontCycle--;
-            ChangeFontType();
+            Buttons.GetIndex("Change Font Type").cycleValue(true);
         }
 
-        public static void ChangePageType(bool positive = true)
+        public static void ApplyPageType(int index) { pageButtonType = index; buttonOffset = index == 2 ? 2 : 0; }
+        public static void ApplyPageSize(int index) => _pageSize = index;
+        public static void ApplyCharacterDistance(int index) => characterDistance = index;
+        public static void ApplyArrowType(int index) => arrowType = index;
+
+        public static void ApplyFontType(int index)
         {
-            if (positive)
-                pageButtonType++;
-            else
-                pageButtonType--;
-
-            if (pageButtonType > 6)
-                pageButtonType = 1;
-
-            if (pageButtonType < 1)
-                pageButtonType = 6;
-
-            buttonOffset = pageButtonType == 2 ? 2 : 0;
-        }
-
-        public static void ChangePageSize(bool positive = true)
-        {
-            if (positive)
-                _pageSize++;
-            else
-                _pageSize--;
-
-            if (_pageSize > 16)
-                _pageSize = 4;
-
-            if (_pageSize < 4)
-                _pageSize = 16;
-
-            Buttons.GetIndex("Change Page Size").overlapText = $"Change Page Size <color=grey>[</color><color=green>{_pageSize}</color><color=grey>]</color>";
-        }
-
-        public static void ChangeCharacterDistance(bool positive = true)
-        {
-            if (positive)
-                characterDistance++;
-            else
-                characterDistance--;
-
-            if (characterDistance > 15)
-                characterDistance = 0;
-
-            if (characterDistance < 0)
-                characterDistance = 15;
-
-            Buttons.GetIndex("Change Character Distance").overlapText = $"Change Character Distance <color=grey>[</color><color=green>{characterDistance + 1}</color><color=grey>]</color>";
-        }
-
-        public static void ChangeArrowType(bool positive = true)
-        {
-            if (positive)
-                arrowType++;
-            else
-                arrowType--;
-
-            arrowType %= arrowTypes.Length;
-            if (arrowType < 0)
-                arrowType = arrowTypes.Length - 1;
-        }
-
-        public static void ChangeFontType(bool positive = true)
-        {
-            if (positive)
-                fontCycle++;
-            else
-                fontCycle--;
-
-            fontCycle %= 15;
-            if (fontCycle < 0)
-                fontCycle = 14;
-
-            switch (fontCycle)
+            fontCycle = index;
+            switch (index)
             {
                 case 0:
                     activeFont = AgencyFB;
@@ -4460,7 +3822,7 @@ exit 0";
         {
             if (Time.time > fontTime)
             {
-                ChangeFontType();
+                Buttons.GetIndex("Change Font Type").cycleValue(true);
                 fontTime = Time.time + 0.4f;
 
                 ReloadMenu();
@@ -4468,18 +3830,10 @@ exit 0";
         }
 
         public static int fontStyleType = 2;
-        public static void ChangeFontStyleType(bool positive = true)
+        public static void ApplyFontStyleType(int index)
         {
-            if (positive)
-                fontStyleType++;
-            else
-                fontStyleType--;
-
-            fontStyleType %= 4;
-            if (fontStyleType < 0)
-                fontStyleType = 3;
-
-            activeFontStyle = fontStyleType switch
+            fontStyleType = index;
+            activeFontStyle = index switch
             {
                 0 => FontStyles.Normal,
                 1 => FontStyles.Bold,
@@ -4489,107 +3843,39 @@ exit 0";
             };
         }
 
+
+        public static readonly string[] InputColorNames = {
+            "Red", "Orange", "Yellow", "Green", "Blue", "Cyan",
+            "Purple", "Pink", "White", "Grey", "Black", "Rose"
+        };
+        public static readonly string[] RealInputColors = {
+            "red", "#ff8000", "yellow", "green", "blue", "#00FFFF",
+            "purple", "#FF00FF", "white", "grey", "black", "#ff005d"
+        };
         public static int inputTextColorInt = 3;
-        public static void ChangeInputTextColor(bool positive = true)
+        public static void ApplyInputTextColor(int index) { inputTextColorInt = index; inputTextColor = RealInputColors[index]; }
+        public static void ApplyPCUI(int index) => pcbg = index;
+        public static void ApplyJoystickMenuPosition(int index) => joystickMenuPosition = index;
+        public static void ApplyNotificationTime(int index) => notificationDecayTime = index * 1000;
+
+        public static void ApplyNotificationSound(string soundName)
         {
-            string[] textColors = {
-                "Red",
-                "Orange",
-                "Yellow",
-                "Green",
-                "Blue",
-                "Cyan",
-                "Purple",
-                "Pink",
-                "White",
-                "Grey",
-                "Black",
-                "Rose"
-            };
-            string[] realinputcolor = {
-                "red",
-                "#ff8000",
-                "yellow",
-                "green",
-                "blue",
-                "#00FFFF",
-                "purple",
-                "#FF00FF",
-                "white",
-                "grey",
-                "black",
-                "#ff005d"
-            };
-
-            if (positive)
-                inputTextColorInt++;
-            else
-                inputTextColorInt--;
-
-            inputTextColorInt %= realinputcolor.Length;
-            if (inputTextColorInt < 0)
-                inputTextColorInt = realinputcolor.Length - 1;
-
-            inputTextColor = realinputcolor[inputTextColorInt];
-            Buttons.GetIndex("Change Input Text Color").overlapText = $"Change Input Text Color <color=grey>[</color><color=green>{textColors[inputTextColorInt]}</color><color=grey>]</color>";
+            SoundManager.DefaultSounds["Notification"] = soundName;
+            Buttons.GetIndex("Change Notification Sound").overlapText =
+                $"Change Notification Sound <color=grey>[</color><color=green>{soundName}</color><color=grey>]</color>";
         }
-
-        public static void ChangePCUI(bool positive = true)
-        {
-            if (positive)
-                pcbg++;
-            else
-                pcbg--;
-
-            pcbg %= 6;
-            if (pcbg < 0)
-                pcbg = 5;
-        }
-
-        public static void ChangeJoystickMenuPosition(bool positive = true)
-        {
-            if (positive)
-                joystickMenuPosition++;
-            else
-                joystickMenuPosition--;
-
-            joystickMenuPosition %= joystickMenuPositions.Length;
-            if (joystickMenuPosition < 0)
-                joystickMenuPosition = joystickMenuPositions.Length - 1;
-        }
-
-        public static void ChangeNotificationTime(bool positive = true)
-        {
-            if (positive)
-                notificationDecayTime += 1000;
-            else
-                notificationDecayTime -= 1000;
-
-            notificationDecayTime %= 6000;
-            if (notificationDecayTime < 0)
-                notificationDecayTime = 5000;
-
-            Buttons.GetIndex("Change Notification Time").overlapText = "Change Notification Time <color=grey>[</color><color=green>" + notificationDecayTime / 1000 + "</color><color=grey>]</color>";
-        }
-
         public static void ChangeNotificationSound(bool positive = true, bool fromMenu = false)
         {
             var notificationKeys = SoundManager.Sounds["Notifications"].Keys.ToArray();
-
             string current = SoundManager.DefaultSounds["Notification"];
 
             int index = Array.IndexOf(notificationKeys, current);
             if (index < 0) index = 0;
-
-            index = positive ? index + 1 : index - 1;
-
-            if (index >= notificationKeys.Length) index = 0;
-            if (index < 0) index = notificationKeys.Length - 1;
+            index = ButtonHelper.Wrap(index, 0, notificationKeys.Length - 1, positive);
 
             string newSound = notificationKeys[index];
-            SoundManager.DefaultSounds["Notification"] = newSound;
-
-            Buttons.GetIndex("Change Notification Sound").overlapText = $"Change Notification Sound <color=grey>[</color><color=green>{newSound}</color><color=grey>]</color>";
+            ApplyNotificationSound(newSound);
+            Buttons.GetIndex("Change Notification Sound").value = newSound;
 
             if (!fromMenu) return;
 
@@ -4599,53 +3885,17 @@ exit 0";
             SoundManager.Play(SoundManager.DefaultSounds["Notification"]);
         }
 
-        public static void ChangeNarrationVoice(bool positive = true)
+        public static readonly string[] NarratorNames = {
+            "Default", "Kimberly", "Brian", "Matthew", "Joey", "Justin", "Cristiano",
+            "Giorgio", "Ewa", "TikTok", "Grandma", "Trickster", "Elf", "Ghostface",
+            "Zombie", "Narrator", "Pirate", "Song", "TikTok Joey", "Gingerbread Man",
+            "Chris", "Thanksgiving", "Santa", "Google US", "Google UK", "Dog",
+            "Jerkface", "Robot", "Vlad", "Obama"/*, "Mommy ASMR"*/
+        };
+        public static void ApplyNarrationVoice(int index)
         {
-            string[] narratorNames = {
-                "Default",
-                "Kimberly",
-                "Brian",
-                "Matthew",
-                "Joey",
-                "Justin",
-                "Cristiano",
-                "Giorgio",
-                "Ewa",
-                "TikTok",
-                "Grandma",
-                "Trickster",
-                "Elf",
-                "Ghostface",
-                "Zombie",
-                "Narrator",
-                "Pirate",
-                "Song",
-                "TikTok Joey",
-                "Gingerbread Man",
-                "Chris",
-                "Thanksgiving",
-                "Santa",
-                "Google US",
-                "Google UK",
-                "Dog",
-                "Jerkface",
-                "Robot",
-                "Vlad",
-                "Obama"/*,
-                "Mommy ASMR"*/
-            };
-
-            if (positive)
-                narratorIndex++;
-            else
-                narratorIndex--;
-
-            narratorIndex %= narratorNames.Length;
-            if (narratorIndex < 0)
-                narratorIndex = narratorNames.Length - 1;
-
-            Buttons.GetIndex("Change Narration Voice").overlapText = "Change Narration Voice <color=grey>[</color><color=green>" + narratorNames[narratorIndex] + "</color><color=grey>]</color>";
-            narratorName = narratorNames[narratorIndex];
+            narratorIndex = index;
+            narratorName = NarratorNames[index];
 
             if (krec != null && krec.IsRunning && Time.time > dRestartTime)
             {
@@ -4654,119 +3904,40 @@ exit 0";
             }
         }
 
+
         public static void KickToSpecificRoom()
         {
             if (Time.time < timeMenuStarted + 5f)
-            {
-                Buttons.GetIndex("Kick to Specific Room").enabled = false;
                 return;
-            }
 
             PromptText("What would you like the room code to be?", () => Overpowered.specificRoom = keyboardInput.ToUpper(), () => Toggle("Kick to Specific Room"), "Done", "Cancel");
         }
-        public static void ChangePointerPosition(bool positive = true)
+        public static readonly Vector3[] PointerPositions = {
+            new Vector3(0f, -0.1f, 0f),
+            new Vector3(0f, -0.1f, -0.15f),
+            new Vector3(0f, 0.1f, -0.05f),
+            new Vector3(0f, 0.0666f, 0.1f)
+        };
+        public static void ApplyPointerPosition(int index)
         {
-            Vector3[] pointerPos = {
-                new Vector3(0f, -0.1f, 0f),
-                new Vector3(0f, -0.1f, -0.15f),
-                new Vector3(0f, 0.1f, -0.05f),
-                new Vector3(0f, 0.0666f, 0.1f)
-            };
-
-            if (positive)
-                pointerIndex++;
-            else
-                pointerIndex--;
-
-            pointerIndex %= pointerPos.Length;
-            if (pointerIndex < 0)
-                pointerIndex = pointerPos.Length - 1;
-
-            pointerOffset = pointerPos[pointerIndex];
+            pointerIndex = index;
+            pointerOffset = PointerPositions[index];
             try { reference.transform.localPosition = pointerOffset; } catch { }
         }
 
-        // Credits to Scintilla for the idea
-        public static void ChangeGunVariation(bool positive = true)
-        {
-            string[] VariationNames = {
-                "Default",
-                "Lightning",
-                "Wavy",
-                "Blocky",
-                "Zigzag",
-                "Spring",
-                "Bouncy",
-                "Audio",
-                "Bezier",
-                "Rope"
-            };
 
-            if (positive)
-                gunVariation++;
-            else
-                gunVariation--;
+        public static readonly string[] GunVariationNames = {
+            "Default", "Lightning", "Wavy", "Blocky", "Zigzag", "Spring", "Bouncy", "Audio", "Bezier", "Rope"
+        };
+        public static void ApplyGunVariation(int index) => gunVariation = index;
 
-            gunVariation %= VariationNames.Length;
-            if (gunVariation < 0)
-                gunVariation = VariationNames.Length - 1;
-
-            Buttons.GetIndex("Change Gun Variation").overlapText = "Change Gun Variation <color=grey>[</color><color=green>" + VariationNames[gunVariation] + "</color><color=grey>]</color>";
-        }
-
-        public static void ChangeGunDirection(bool positive = true)
-        {
-            string[] DirectionNames = {
-                "Default",
-                "Legacy",
-                "Laser",
-                "Finger",
-                "Face"
-            };
-
-            if (positive)
-                GunDirection++;
-            else
-                GunDirection--;
-
-            GunDirection %= DirectionNames.Length;
-            if (GunDirection < 0)
-                GunDirection = DirectionNames.Length - 1;
-
-            Buttons.GetIndex("Change Gun Direction").overlapText = "Change Gun Direction <color=grey>[</color><color=green>" + DirectionNames[GunDirection] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] GunDirectionNames = { "Default", "Legacy", "Laser", "Finger", "Face" };
+        public static void ApplyGunDirection(int index) => GunDirection = index;
 
         private static int gunLineQualityIndex = 2;
-        public static void ChangeGunLineQuality(bool positive = true)
-        {
-            string[] Names = {
-                "Potato",
-                "Low",
-                "Normal",
-                "High",
-                "Extreme"
-            };
-
-            int[] Qualities = {
-                10,
-                25,
-                50,
-                100,
-                250
-            };
-
-            if (positive)
-                gunLineQualityIndex++;
-            else
-                gunLineQualityIndex--;
-
-            gunLineQualityIndex %= Names.Length;
-            if (gunLineQualityIndex < 0)
-                gunLineQualityIndex = Names.Length - 1;
-
-            GunLineQuality = Qualities[gunLineQualityIndex];
-            Buttons.GetIndex("Change Gun Line Quality").overlapText = "Change Gun Line Quality <color=grey>[</color><color=green>" + Names[gunLineQualityIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] GunQualityNames = { "Potato", "Low", "Normal", "High", "Extreme" };
+        public static readonly int[] GunQualityValues = { 10, 25, 50, 100, 250 };
+        public static void ApplyGunLineQuality(int index) { gunLineQualityIndex = index; GunLineQuality = GunQualityValues[index]; }
 
         public static void FreezePlayerInMenu()
         {
@@ -4825,7 +3996,7 @@ exit 0";
         {
             annoyingMode = false;
             themeType--;
-            ChangeMenuTheme();
+            Buttons.GetIndex("Change Menu Theme").cycleValue(true);
         }
 
         public static void DisablePageButtons()
@@ -4836,7 +4007,8 @@ exit 0";
             }
             else
             {
-                Buttons.GetIndex("Disable Page Buttons").enabled = false;
+                Buttons.GetIndex("Disable Page Buttons").SetEnabled(false);
+                ReloadMenu();
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>DISABLE</color><color=grey>]</color> Disable Page Buttons can only be used when using Joystick Menu.");
             }
         }
@@ -4862,6 +4034,7 @@ exit 0";
                         File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomMenuName.txt", "Your Text Here");
                     customMenuName = File.ReadAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomMenuName.txt");
                 }
+                Apply();
             }
         }
 
@@ -4876,7 +4049,6 @@ exit 0";
                 DictationRestart();
         }
 
-        // Thanks to kingofnetflix for inspiration and support with voice recognition
         private static KeywordRecognizer mainPhrases;
         private static KeywordRecognizer modPhrases;
         private static string[] keyWords = { "jarvis", "seralyth", "seralith", "sarolith", "siri", "google", "alexa", "dummy", "computer", "stinky", "silly", "stupid", "console", "go go gadget", "monika", "wikipedia", "gideon", "a i", "ai", "a.i", "chat gpt", "chatgpt", "grok", "grock", "groq", "garmin" };
@@ -5024,7 +4196,6 @@ exit 0";
             PhraseRecognitionSystem.Shutdown();
         }
 
-        // Thanks to kingofnetflix for inspiration and support with voice recognition
         public static DictationRecognizer drec;
         public static KeywordRecognizer krec;
         public static bool debugDictation;
@@ -5033,21 +4204,19 @@ exit 0";
 
         public static IEnumerator DictationOn()
         {
-
-
             ButtonInfo mod = Buttons.GetIndex("AI Assistant");
 
             if (Application.platform == RuntimePlatform.WindowsPlayer && Environment.OSVersion.Version.Major < 10)
-                PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.enabled = false);
+                PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.SetEnabled(false));
             else if (Application.platform != RuntimePlatform.WindowsPlayer)
-                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.enabled = false);
+                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.SetEnabled(false));
 
 
             ButtonInfo vc = Buttons.GetIndex("Voice Commands");
             if (vc.enabled)
-                Prompt("You currently have Voice Commands enabled. Would you like to disable it?", () => vc.enabled = false, () => mod.enabled = false);
+                Prompt("You currently have Voice Commands enabled. These mods may overlap eachother. Would you like to disable it?", () => vc.SetEnabled(false), () => mod.SetEnabled(false));
             else if (PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
-                PromptSingle("You can not use AI Assistant while you have another voice-related mod on.", () => mod.enabled = false, "Ok");
+                PromptSingle("You can not use AI Assistant while you have another voice-related mod on.", () => mod.SetEnabled(false), "Ok");
 
             if (!File.Exists($"{PluginInfo.BaseDirectory}/Seralyth_Keywords.txt"))
                 File.WriteAllLines($"{PluginInfo.BaseDirectory}/Seralyth_Keywords.txt", keyWords);
@@ -5148,7 +4317,7 @@ exit 0";
                     DictationOff();
 
                     NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Online Speech Recognition is not enabled on this device. Either open the menu to enable it, or check your internet connection.", 3000);
-                    Prompt("Online Speech Recognition is not enabled on your device. Would you like to open the Settings page to enable it?", () => { Process.Start("ms-settings:privacy-speech"); PromptSingle("Once you enable Online Speech Recognition, turn this mod back on!", () => mod.enabled = false, "Ok"); }, () => PromptSingle("You will not be able to use this mod until you enable Online Speech Recognition.", () => mod.enabled = false, "Ok"));
+                    Prompt("Online Speech Recognition is not enabled on your device. Would you like to open the Settings page to enable it?", () => { Process.Start("ms-settings:privacy-speech"); PromptSingle("Once you enable Online Speech Recognition, turn this mod back on!", () => mod.SetEnabled(false), "Ok"); }, () => PromptSingle("You will not be able to use this mod until you enable Online Speech Recognition.", () => mod.SetEnabled(false), "Ok"));
                 }
             };
 
@@ -5850,7 +5019,7 @@ exit 0";
                         if (lastTarget != null && lastTarget != rigTarget)
                         {
                             lastTarget.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                            if (lastTarget.mainSkin.material.name.Contains("gorilla_body"))
+                            if (lastTarget.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                                 lastTarget.mainSkin.material.color = lastTarget.playerColor;
 
                             lastTarget = null;
@@ -5890,7 +5059,7 @@ exit 0";
                         if (lastTarget != null)
                         {
                             lastTarget.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                            if (lastTarget.mainSkin.material.name.Contains("gorilla_body"))
+                            if (lastTarget.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                                 lastTarget.mainSkin.material.color = lastTarget.playerColor;
 
                             lastTarget = null;
@@ -5908,7 +5077,7 @@ exit 0";
                     if (lastTarget != null)
                     {
                         lastTarget.mainSkin.material.shader = Shader.Find("GorillaTag/UberShader");
-                        if (lastTarget.mainSkin.material.name.Contains("gorilla_body"))
+                        if (lastTarget.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
                             lastTarget.mainSkin.material.color = lastTarget.playerColor;
 
                         lastTarget = null;
@@ -6036,7 +5205,7 @@ exit 0";
                 Movement.flySpeedCycle.ToString(),
                 Movement.longarmCycle.ToString(),
                 Movement.speedboostCycle.ToString(),
-                Projectiles.projMode.ToString(),
+                Projectiles.ProjectileMode.ToString(),
                 Movement.timerPowerIndex.ToString(),
                 Projectiles.shootCycle.ToString(),
                 pointerIndex.ToString(),
@@ -6068,7 +5237,7 @@ exit 0";
                 Projectiles.green.ToString(),
                 Projectiles.blue.ToString(),
                 Safety.rankIndex.ToString(),
-                Overpowered.snowballScale.ToString(),
+                Projectiles.SnowballSize.ToString(),
                 Overpowered.lagIndex.ToString(),
                 Fun.blockDebounceIndex.ToString(),
                 Fun.nameCycleIndex.ToString(),
@@ -6081,7 +5250,7 @@ exit 0";
                 ((int)MathF.Ceiling(playTime)).ToString(),
                 PhotonNetwork.LocalPlayer?.UserId ?? "null",
                 _pageSize.ToString(),
-                Overpowered.snowballMultiplicationFactor.ToString(),
+                Projectiles.snowballMultiplicationFactor.ToString(),
                 menuButtonIndex.ToString(),
                 Safety.targetElo.ToString(),
                 Safety.targetBadge.ToString(),
@@ -6094,7 +5263,7 @@ exit 0";
                 Fun.targetFOV.ToString(),
                 Projectiles.targetProjectileIndex.ToString(),
                 Movement.fakeLagDelayIndex.ToString(),
-                Projectiles.snowballIndex.ToString(),
+                "0",//Projectiles.snowballIndex.ToString(),
                 characterDistance.ToString(),
                 Overpowered.lagTypeIndex.ToString(),
                 Overpowered.masterVisualizationType.ToString(),
@@ -6155,10 +5324,32 @@ exit 0";
             return finaltext;
         }
 
+
+        [Obsolete("Replaced by Preferences.Save()")]
         public static void SavePreferences() =>
-            File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt", SavePreferencesToText());
+            Preferences.Save();
 
         public static int loadingPreferencesFrame;
+
+        private static void Restore(string buttonName, object newValue)
+        {
+            ButtonInfo button = Buttons.GetIndex(buttonName);
+            if (button == null) return;
+
+            try
+            {
+                button.value = newValue;
+                button.onValueChanged?.Invoke();
+            }
+            catch (Exception e)
+            {
+                LogManager.Log($"Failed to restore button '{buttonName}' to {newValue}. Just gonna leave it at the default ({e.Message})");
+            }
+        }
+
+        private static void RestoreCycle(string buttonName, int newValue) => Restore(buttonName, newValue);
+        private static void RestoreNamedCycle(string buttonName, string newValue) => Restore(buttonName, newValue);
+
         public static void LoadPreferencesFromText(string text)
         {
             loadingPreferencesFrame = Time.frameCount;
@@ -6178,231 +5369,231 @@ exit 0";
             try
             {
                 string[] data = textData[2].Split(";;");
-                Movement.platformMode = int.Parse(data[0]) - 1;
-                Movement.ChangePlatformType();
+                Movement.platformMode = int.Parse(data[0]);
+                RestoreCycle("Change Platform Type", Movement.platformMode);
 
-                Movement.platformShape = int.Parse(data[1]) - 1;
-                Movement.ChangePlatformShape();
+                Movement.platformShape = int.Parse(data[1]);
+                RestoreCycle("Change Platform Shape", Movement.platformShape);
 
-                Movement.flySpeedCycle = int.Parse(data[2]) - 1;
-                Movement.ChangeFlySpeed();
+                Movement.flySpeedCycle = int.Parse(data[2]);
+                RestoreCycle("Change Fly Speed", Movement.flySpeedCycle);
 
-                Movement.longarmCycle = int.Parse(data[3]) - 1;
-                Movement.ChangeArmLength();
+                Movement.longarmCycle = int.Parse(data[3]);
+                RestoreCycle("Change Arm Length", Movement.longarmCycle);
 
-                Movement.speedboostCycle = int.Parse(data[4]) - 1;
-                Movement.ChangeSpeedBoostAmount();
+                Movement.speedboostCycle = int.Parse(data[4]);
+                RestoreCycle("Change Speed Boost Amount", Movement.speedboostCycle);
 
-                Projectiles.projMode = int.Parse(data[5]) - 1;
-                Projectiles.ChangeProjectile();
+                Projectiles.ProjectileMode = int.Parse(data[5]);
+                RestoreCycle("Change Projectile", Projectiles.ProjectileMode);
 
-                Movement.timerPowerIndex = int.Parse(data[6]) - 1;
-                Movement.ChangeTimerSpeed();
+                Movement.timerPowerIndex = int.Parse(data[6]);
+                RestoreCycle("Change Timer Speed", Movement.timerPowerIndex);
 
-                Projectiles.shootCycle = int.Parse(data[7]) - 1;
-                Projectiles.ChangeShootSpeed();
+                Projectiles.shootCycle = int.Parse(data[7]);
+                RestoreCycle("Change Shoot Speed", Projectiles.shootCycle);
 
-                pointerIndex = int.Parse(data[8]) - 1;
-                ChangePointerPosition();
+                pointerIndex = int.Parse(data[8]);
+                RestoreCycle("Change Pointer Position", pointerIndex);
 
-                Advantages.tagAuraIndex = int.Parse(data[9]) - 1;
-                Advantages.ChangeTagAuraRange();
+                Advantages.tagAuraIndex = int.Parse(data[9]);
+                RestoreCycle("ctaRange", Advantages.tagAuraIndex);
 
-                notificationDecayTime = int.Parse(data[10]) - 1000;
-                ChangeNotificationTime();
+                notificationDecayTime = int.Parse(data[10]);
+                RestoreCycle("Change Notification Time", notificationDecayTime / 1000);
 
-                fontStyleType = int.Parse(data[11]) - 1;
-                ChangeFontStyleType();
+                fontStyleType = int.Parse(data[11]);
+                RestoreCycle("Change Font Style Type", fontStyleType);
 
-                arrowType = int.Parse(data[12]) - 1;
-                ChangeArrowType();
+                arrowType = int.Parse(data[12]);
+                RestoreCycle("Change Arrow Type", arrowType);
 
-                pcbg = int.Parse(data[13]) - 1;
-                ChangePCUI();
+                pcbg = int.Parse(data[13]);
+                RestoreCycle("Change PC Menu Background", pcbg);
 
-                Important.reconnectDelay = int.Parse(data[14]) - 1;
-                ChangeReconnectTime();
+                Important.reconnectDelay = int.Parse(data[14]);
+                RestoreCycle("Change Reconnect Time", Important.reconnectDelay);
 
-                Safety.fpsSpoofValue = string.IsNullOrWhiteSpace(data[15]) ? 85 : int.Parse(data[15]) - 5;
-                Safety.ChangeFPSSpoofValue();
+                Safety.fpsSpoofValue = string.IsNullOrWhiteSpace(data[15]) ? 85 : int.Parse(data[15]);
+                RestoreCycle("Change FPS Spoof Value", Safety.fpsSpoofValue);
 
                 SoundManager.DefaultSounds["Button"] = data[16];
-                Buttons.GetIndex("Change Button Sound").overlapText = $"Change Button Sound <color=grey>[</color><color=green>{SoundManager.DefaultSounds["Button"]}</color><color=grey>]</color>";
+                RestoreNamedCycle("Change Button Sound", data[16]);
 
-                buttonClickVolume = int.Parse(data[17]) - 1;
-                ChangeButtonVolume();
+                buttonClickVolume = int.Parse(data[17]);
+                RestoreCycle("Change Button Volume", buttonClickVolume);
 
-                Safety.antiReportRangeIndex = int.Parse(data[18]) - 1;
-                Safety.ChangeAntiReportRange();
+                Safety.antiReportRangeIndex = int.Parse(data[18]);
+                RestoreCycle("Change Anti Report Distance", Safety.antiReportRangeIndex);
 
-                Advantages.tagRangeIndex = int.Parse(data[19]) - 1;
-                Advantages.ChangeTagReachDistance();
+                Advantages.tagRangeIndex = int.Parse(data[19]);
+                RestoreCycle("ctrRange", Advantages.tagRangeIndex);
 
-                Sound.BindMode = int.Parse(data[20]) - 1;
-                Sound.SoundBindings();
+                Sound.BindMode = int.Parse(data[20]);
+                RestoreCycle("Sound Bindings", Sound.BindMode);
 
-                Movement.driveInt = int.Parse(data[21]) - 1;
-                Movement.ChangeDriveSpeed();
+                Movement.driveInt = int.Parse(data[21]);
+                RestoreCycle("cdSpeed", Movement.driveInt);
 
-                langInd = int.Parse(data[22]) - 1;
-                ChangeMenuLanguage();
+                langInd = int.Parse(data[22]);
+                RestoreCycle("Change Menu Language", langInd);
 
-                inputTextColorInt = int.Parse(data[23]) - 1;
-                ChangeInputTextColor();
+                inputTextColorInt = int.Parse(data[23]);
+                RestoreCycle("Change Input Text Color", inputTextColorInt);
 
-                Movement.pullPowerInt = int.Parse(data[24]) - 1;
-                Movement.ChangePullModPower();
+                Movement.pullPowerInt = int.Parse(data[24]);
+                RestoreCycle("Change Pull Mod Power", Movement.pullPowerInt);
 
                 SoundManager.DefaultSounds["Notification"] = data[25];
-                Buttons.GetIndex("Change Notification Sound").overlapText = $"Change Notification Sound <color=grey>[</color><color=green>{SoundManager.DefaultSounds["Notification"]}</color><color=grey>]</color>";
+                RestoreNamedCycle("Change Notification Sound", data[25]);
 
-                Visuals.PerformanceModeStepIndex = int.Parse(data[26]) - 1;
-                Visuals.ChangePerformanceModeVisualStep();
+                Visuals.PerformanceModeStepIndex = int.Parse(data[26]);
+                RestoreCycle("Change Performance Visuals Step", Visuals.PerformanceModeStepIndex);
 
-                gunVariation = int.Parse(data[27]) - 1;
-                ChangeGunVariation();
+                gunVariation = int.Parse(data[27]);
+                RestoreCycle("Change Gun Variation", gunVariation);
 
-                GunDirection = int.Parse(data[28]) - 1;
-                ChangeGunDirection();
+                GunDirection = int.Parse(data[28]);
+                RestoreCycle("Change Gun Direction", GunDirection);
 
-                narratorIndex = int.Parse(data[29]) - 1;
-                ChangeNarrationVoice();
+                narratorIndex = int.Parse(data[29]);
+                RestoreCycle("Change Narration Voice", narratorIndex);
 
-                Movement.predInt = int.Parse(data[30]) - 1;
-                Movement.ChangePredictionAmount();
+                Movement.predInt = int.Parse(data[30]);
+                RestoreCycle("Change Prediction Amount", Movement.predInt);
 
-                gunLineQualityIndex = int.Parse(data[31]) - 1;
-                ChangeGunLineQuality();
+                gunLineQualityIndex = int.Parse(data[31]);
+                RestoreCycle("Change Gun Line Quality", gunLineQualityIndex);
 
-                Projectiles.projDebounceIndex = int.Parse(data[32]) - 1;
-                Projectiles.ChangeProjectileDelay();
+                Projectiles.projDebounceIndex = int.Parse(data[32]);
+                RestoreCycle("Change Projectile Delay", Projectiles.projDebounceIndex);
 
-                Projectiles.red = int.Parse(data[33]) - 1;
-                Projectiles.IncreaseRed();
+                Projectiles.red = int.Parse(data[33]);
+                RestoreCycle("RedProj", Projectiles.red);
 
-                Projectiles.green = int.Parse(data[34]) - 1;
-                Projectiles.IncreaseGreen();
+                Projectiles.green = int.Parse(data[34]);
+                RestoreCycle("GreenProj", Projectiles.green);
 
-                Projectiles.blue = int.Parse(data[35]) - 1;
-                Projectiles.IncreaseBlue();
+                Projectiles.blue = int.Parse(data[35]);
+                RestoreCycle("BlueProj", Projectiles.blue);
 
-                Safety.rankIndex = int.Parse(data[36]) - 1;
-                Safety.ChangeRankedTier();
+                Safety.rankIndex = int.Parse(data[36]);
+                RestoreCycle("Change Ranked Tier", Safety.rankIndex);
 
-                Overpowered.snowballScale = int.Parse(data[37]) - 1;
-                Overpowered.ChangeSnowballScale();
+                Projectiles.SnowballSize = int.Parse(data[37]);
+                RestoreCycle("Change Snowball Size", Projectiles.SnowballSize);
 
-                Overpowered.lagIndex = int.Parse(data[38]) - 1;
-                Overpowered.ChangeLagPower();
+                Overpowered.lagIndex = int.Parse(data[38]);
+                RestoreCycle("Change Lag Power", Overpowered.lagIndex);
 
-                Fun.blockDebounceIndex = int.Parse(data[39]) - 1;
-                Fun.ChangeBlockDelay();
+                Fun.blockDebounceIndex = int.Parse(data[39]);
+                RestoreCycle("Change Block Delay", Fun.blockDebounceIndex);
 
-                Fun.cycleSpeedIndex = int.Parse(data[40]) - 1;
-                Fun.ChangeCycleDelay();
+                Fun.nameCycleIndex = int.Parse(data[40]);
+                RestoreCycle("Change Cycle Delay", Fun.nameCycleIndex);
 
-                menuScaleIndex = int.Parse(data[41]) - 1;
-                ChangeMenuScale();
+                menuScaleIndex = int.Parse(data[41]);
+                RestoreCycle("Change Menu Scale", menuScaleIndex);
 
-                Sound.soundId = int.Parse(data[42]) - 1;
-                Sound.IncreaseSoundID();
+                Sound.soundId = int.Parse(data[42]);
+                RestoreCycle("Custom Sound ID", Sound.soundId);
 
-                Fun.targetQuestScore = int.Parse(data[43]) - 1;
-                Fun.ChangeCustomQuestScore();
+                Fun.targetQuestScore = int.Parse(data[43]);
+                RestoreCycle("Change Custom Quest Score", Fun.targetQuestScore);
 
-                notificationScaleIndex = int.Parse(data[44]) - 1;
-                ChangeNotificationScale();
+                notificationScaleIndex = int.Parse(data[44]);
+                RestoreCycle("Change Notification Scale", notificationScaleIndex);
 
-                overlayScaleIndex = int.Parse(data[45]) - 1;
-                ChangeOverlayScale();
+                overlayScaleIndex = int.Parse(data[45]);
+                RestoreCycle("Change Overlay Scale", overlayScaleIndex);
 
-                arraylistScaleIndex = int.Parse(data[46]) - 1;
-                ChangeArraylistScale();
+                arraylistScaleIndex = int.Parse(data[46]);
+                RestoreCycle("Change Arraylist Scale", arraylistScaleIndex);
 
                 playTime = int.Parse(data[47]);
 
                 Important.oldId = data[48];
 
-                _pageSize = int.Parse(data[49]) - 1;
-                ChangePageSize();
+                _pageSize = int.Parse(data[49]);
+                RestoreCycle("Change Page Size", _pageSize);
 
-                Overpowered.snowballMultiplicationFactor = int.Parse(data[50]) - 1;
-                Overpowered.ChangeSnowballMultiplicationFactor();
+                Projectiles.snowballMultiplicationFactor = int.Parse(data[50]);
+                RestoreCycle("Change Snowball Multiplication Factor", Projectiles.snowballMultiplicationFactor);
 
-                menuButtonIndex = int.Parse(data[51]) - 1;
-                ChangeMenuButton();
+                menuButtonIndex = int.Parse(data[51]);
+                RestoreCycle("Change Menu Button", menuButtonIndex);
 
-                Safety.targetElo = int.Parse(data[52]) - 100;
-                Safety.ChangeELOValue();
+                Safety.targetElo = int.Parse(data[52]);
+                RestoreCycle("Change ELO Value", Safety.targetElo);
 
-                Safety.targetBadge = int.Parse(data[53]) - 1;
-                Safety.ChangeBadgeTier();
+                Safety.targetBadge = int.Parse(data[53]);
+                RestoreCycle("Change Badge Tier", Safety.targetBadge);
 
-                Movement.playspaceAbuseIndex = int.Parse(data[54]) - 1;
-                Movement.ChangePlayspaceAbuseSpeed();
+                Movement.playspaceAbuseIndex = int.Parse(data[54]);
+                RestoreCycle("Change Playspace Abuse Speed", Movement.playspaceAbuseIndex);
 
-                Movement.wallWalkStrengthIndex = int.Parse(data[55]) - 1;
-                Movement.ChangeWallWalkStrength();
+                Movement.wallWalkStrengthIndex = int.Parse(data[55]);
+                RestoreCycle("Change Wall Walk Strength", Movement.wallWalkStrengthIndex);
 
-                Fun.headSpinIndex = int.Parse(data[56]) - 1;
-                Fun.ChangeHeadSpinSpeed();
+                Fun.headSpinIndex = int.Parse(data[56]);
+                RestoreCycle("Change Head Spin Speed", Fun.headSpinIndex);
 
-                Movement.macroPlaybackRangeIndex = int.Parse(data[57]) - 1;
-                Movement.ChangeMacroPlaybackRange();
+                Movement.macroPlaybackRangeIndex = int.Parse(data[57]);
+                RestoreCycle("Change Macro Playback Range", Movement.macroPlaybackRangeIndex);
 
-                joystickMenuPosition = int.Parse(data[58]) - 1;
-                ChangeJoystickMenuPosition();
+                joystickMenuPosition = int.Parse(data[58]);
+                RestoreCycle("Change Joystick Menu Position", joystickMenuPosition);
 
-                Movement.multiplicationAmount = int.Parse(data[59]) - 1;
-                Movement.MultiplicationAmount();
+                Movement.multiplicationAmount = int.Parse(data[59]);
+                RestoreCycle("Knockback Multiplication Amount", Movement.multiplicationAmount);
 
-                Fun.targetFOV = int.Parse(data[60]) - 5;
-                Fun.ChangeTargetFOV();
+                Fun.targetFOV = int.Parse(data[60]);
+                RestoreCycle("Change Target FOV", Fun.targetFOV);
 
-                Projectiles.targetProjectileIndex = int.Parse(data[61]) - 1;
-                Projectiles.ChangeProjectileIndex();
+                Projectiles.targetProjectileIndex = int.Parse(data[61]);
+                RestoreCycle("Change Projectile Index", Projectiles.targetProjectileIndex);
 
-                Movement.fakeLagDelayIndex = int.Parse(data[62]) - 1;
-                Movement.ChangeFakeLagStrength();
+                Movement.fakeLagDelayIndex = int.Parse(data[62]);
+                RestoreCycle("Change Fake Lag Strength", Movement.fakeLagDelayIndex);
 
-                Projectiles.snowballIndex = int.Parse(data[63]) - 1;
-                Projectiles.ChangeGrowingProjectile();
+                //Projectiles.snowballIndex = int.Parse(data[63]);
+                //Projectiles.ChangeGrowingProjectile();
 
-                characterDistance = int.Parse(data[64]) - 1;
-                ChangeCharacterDistance();
+                characterDistance = int.Parse(data[64]);
+                RestoreCycle("Change Character Distance", characterDistance);
 
-                Overpowered.lagTypeIndex = int.Parse(data[65]) - 1;
-                Overpowered.ChangeLagType();
+                Overpowered.lagTypeIndex = int.Parse(data[65]);
+                RestoreCycle("Change Lag Type", Overpowered.lagTypeIndex);
 
-                Overpowered.masterVisualizationType = int.Parse(data[66]) - 1;
-                Overpowered.MasterVisualizationType();
+                Overpowered.masterVisualizationType = int.Parse(data[66]);
+                RestoreCycle("Master Visualization Type", Overpowered.masterVisualizationType);
 
-                Movement.targetHz = int.Parse(data[67]) - 500;
-                Movement.ChangeTinnitusHz();
+                Movement.targetHz = int.Parse(data[67]);
+                RestoreCycle("Change Tinnitus Hertz", Movement.targetHz);
 
-                Safety.pingSpoofValue = int.Parse(data[68]) - 100;
-                Safety.ChangePingSpoofValue();
+                Safety.pingSpoofValue = int.Parse(data[68]);
+                RestoreCycle("Change Ping Spoof Value", Safety.pingSpoofValue);
 
-                Fun.soundboardVolumeIndex = float.Parse(data[69]) - 1;
-                Fun.ChangeSoundboardVolume();
+                Fun.soundboardVolumeIndex = float.Parse(data[69]);
+                RestoreCycle("Change Soundboard Volume", (int)Fun.soundboardVolumeIndex);
 
-                Fun.soundboardSpeedIndex = float.Parse(data[70]) - 1;
-                Fun.ChangeSoundboardSpeed();
+                Fun.soundboardSpeedIndex = float.Parse(data[70]);
+                RestoreCycle("Change Soundboard Speed", (int)Fun.soundboardSpeedIndex);
 
-                SoundManager.DefaultSoundpack = data[71];
-                Buttons.GetIndex("Change Menu Soundpack").overlapText = $"Change Menu Soundpack <color=grey>[</color><color=green>{SoundManager.DefaultSoundpack}</color><color=grey>]</color>";
+                ButtonInfo soundpack = Buttons.GetIndex("Change Menu Soundpack");
+                RestoreNamedCycle("Change Menu Soundpack", data[71]);
 
                 Sound.disableLocalSoundboard = bool.Parse(data[72]);
             }
-            catch { LogManager.Log("Save file out of date"); }
+            catch (Exception e) { LogManager.Log("Save file out of date: " + e); }
 
 
-            pageButtonType = int.Parse(textData[3]) - 1;
-            Toggle("Change Page Type");
-            themeType = int.Parse(textData[4]) - 1;
-            Toggle("Change Menu Theme");
-            fontCycle = int.Parse(textData[5]) - 1;
-            Toggle("Change Font Type");
+            pageButtonType = int.Parse(textData[3]);
+            RestoreCycle("Change Page Type", pageButtonType);
+            themeType = int.Parse(textData[4]);
+            RestoreCycle("Change Menu Theme", themeType - 1);
+            fontCycle = int.Parse(textData[5]);
+            RestoreCycle("Change Font Type", fontCycle);
 
             try
             {
@@ -6468,22 +5659,7 @@ exit 0";
             hasLoadedPreferences = true;
         }
 
-        public static void LoadPreferences()
-        {
-            try
-            {
-                if (!File.Exists($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt"))
-                {
-                    hasLoadedPreferences = true;
-                    return;
-                }
-
-                UpdateSoundPreferences();
-                string text = File.ReadAllText($"{PluginInfo.BaseDirectory}/Seralyth_Preferences.txt");
-                LoadPreferencesFromText(text);
-            }
-            catch (Exception e) { LogManager.Log("Error loading preferences: " + e.Message); }
-        }
+        public static void LoadPreferences() => Preferences.Load();
 
         public static void Panic()
         {
@@ -6561,37 +5737,25 @@ exit 0";
             }
         }
 
-        public static void ChangeReconnectTime(bool positive = true)
+        public static void ApplyReconnectTime(int index) => Important.reconnectDelay = index;
+
+        public static void ApplyButtonSound(string soundName)
         {
-            if (positive)
-                Important.reconnectDelay++;
-            else
-                Important.reconnectDelay--;
-
-            if (Important.reconnectDelay > 5)
-                Important.reconnectDelay = 1;
-            if (Important.reconnectDelay < 1)
-                Important.reconnectDelay = 5;
-
-            Buttons.GetIndex("Change Reconnect Time").overlapText = "Change Reconnect Time <color=grey>[</color><color=green>" + Important.reconnectDelay + "</color><color=grey>]</color>";
+            SoundManager.DefaultSounds["Button"] = soundName;
+            Buttons.GetIndex("Change Button Sound").overlapText =
+                $"Change Button Sound <color=grey>[</color><color=green>{soundName}</color><color=grey>]</color>";
         }
-
         public static void ChangeButtonSound(bool positive = true, bool fromMenu = false)
         {
             var buttonKeys = SoundManager.Sounds["Buttons"].Keys.ToArray();
 
             int index = Array.IndexOf(buttonKeys, SoundManager.DefaultSounds["Button"]);
             if (index < 0) index = 0;
-
-            index = positive ? index + 1 : index - 1;
-
-            if (index >= buttonKeys.Length) index = 0;
-            if (index < 0) index = buttonKeys.Length - 1;
+            index = ButtonHelper.Wrap(index, 0, buttonKeys.Length - 1, positive);
 
             string newSound = buttonKeys[index];
-            SoundManager.DefaultSounds["Button"] = newSound;
-
-            Buttons.GetIndex("Change Button Sound").overlapText = $"Change Button Sound <color=grey>[</color><color=green>{newSound}</color><color=grey>]</color>";
+            ApplyButtonSound(newSound);
+            Buttons.GetIndex("Change Button Sound").value = newSound;
 
             if (!fromMenu) return;
             if (VRRig.LocalRig == null) return;
@@ -6601,50 +5765,14 @@ exit 0";
             SoundManager.Play(SoundManager.DefaultSounds["Button"]);
         }
 
-        public static void ChangeButtonVolume(bool positive = true, bool fromMenu = false)
+        public static void ApplyButtonVolume(int index) => buttonClickVolume = index;
+        public static void PreviewButtonVolume(bool positive)
         {
-            if (positive)
-                buttonClickVolume++;
-            else
-                buttonClickVolume--;
-
-            buttonClickVolume %= 11;
-            if (buttonClickVolume < 0)
-                buttonClickVolume = 10;
-
-            Buttons.GetIndex("Change Button Volume").overlapText = "Change Button Volume <color=grey>[</color><color=green>" + buttonClickVolume + "</color><color=grey>]</color>";
-
-            if (fromMenu)
-            {
-                VRRig.LocalRig.leftHandPlayer.Stop();
-                VRRig.LocalRig.rightHandPlayer.Stop();
-                SoundManager.Play(SoundManager.DefaultSounds["Button"]);
-            }
-        }
-
-        public static void ChangeMenuSoundpack(bool positive = true, bool fromMenu = false)
-        {
-            var packKeys = SoundManager.Soundpacks.Keys.ToArray();
-
-            int index = Array.IndexOf(packKeys, SoundManager.DefaultSoundpack);
-            if (index < 0) index = 0;
-
-            index = positive ? index + 1 : index - 1;
-
-            if (index >= packKeys.Length) index = 0;
-            if (index < 0) index = packKeys.Length - 1;
-
-            string newPack = packKeys[index];
-            SoundManager.DefaultSoundpack = newPack;
-
-            Buttons.GetIndex("Change Menu Soundpack").overlapText = $"Change Menu Soundpack <color=grey>[</color><color=green>{newPack}</color><color=grey>]</color>";
-
-            if (!fromMenu) return;
             if (VRRig.LocalRig == null) return;
-            if (VRRig.LocalRig.leftHandPlayer != null) VRRig.LocalRig.leftHandPlayer.Stop();
-            if (VRRig.LocalRig.rightHandPlayer != null) VRRig.LocalRig.rightHandPlayer.Stop();
-
-            SoundManager.Play("Default");
+            VRRig.LocalRig.leftHandPlayer.Stop();
+            VRRig.LocalRig.rightHandPlayer.Stop();
+            SoundManager.Play(SoundManager.DefaultSounds["Button"]);
         }
+        public static void ApplyMenuSoundpack(string packName) => SoundManager.DefaultSoundpack = packName;
     }
 }

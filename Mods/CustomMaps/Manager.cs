@@ -44,8 +44,8 @@ namespace Seralyth.Mods.CustomMaps
         {
             currentMapId = overwriteId;
 
-            int category = Buttons.GetCategory("Custom Maps");
-            List<ButtonInfo> buttons = new List<ButtonInfo> { new ButtonInfo { buttonText = "Exit Custom Maps", method = () => Buttons.CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page." } };
+            int category = Buttons.GetCategory("Custom Map Mods");
+            List<ButtonInfo> buttons = new List<ButtonInfo> { new ButtonInfo { buttonText = "Exit Custom Map Mods", method = () => Buttons.CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page." } };
 
             if (overwriteId != null)
             {

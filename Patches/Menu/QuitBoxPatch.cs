@@ -34,7 +34,7 @@ namespace Seralyth.Patches.Menu
         {
             if (teleportToStump)
             {
-                Movement.TeleportToMap(Movement.mapData[0][1], Movement.mapData[0][2]);
+                Movement.TeleportToMap(GTZone.forest);
                 return false;
             }
 

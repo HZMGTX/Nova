@@ -135,8 +135,10 @@ namespace Seralyth.Managers
             {
                 if (!value && _customBoardFonts)
                 {
-                    foreach (TextMeshPro txt in instance.textMeshPro.Where(text => text.isActiveAndEnabled))
+                    foreach (TextMeshPro txt in instance.textMeshPro)
                     {
+                        if (!txt.isActiveAndEnabled) continue;
+
                         txt.SafeSetFont(instance.archiveGorillaTagFont);
                         txt.SafeSetFontStyle(FontStyles.Normal);
 
@@ -171,6 +173,7 @@ namespace Seralyth.Managers
         public const int StumpLeaderboardIndex = 3;
         public const int ForestLeaderboardIndex = 6;
 
+        public static bool motdTextDirty = true;
         public static string motdTemplate = "You are using build {0}. This menu was created by Seralyth Software. " +
         "This menu is completely free and open sourced, if you paid for this menu you have been scammed. " +
         "There are a total of <b>{1}</b> mods on this menu. " +
@@ -185,9 +188,18 @@ namespace Seralyth.Managers
 
         private TMP_FontAsset archiveGorillaTagFont;
 
+        private string cachedMotdHeading;
+        private string cachedMotdBody;
         private bool hasFoundAllBoards;
         public void ReloadBoards() =>
             hasFoundAllBoards = false;
+
+        private void RebuildMotdText()
+        {
+            cachedMotdHeading = FollowMenuSettings($"Thanks for using {(doCustomName ? customMenuName : menuName)}!");
+            cachedMotdBody = FollowMenuSettings(string.Format(motdTemplate, PluginInfo.Version, fullModAmount, PluginInfo.BetaBuild ? "Beta" : "Release", PluginInfo.BuildTimestamp));
+            motdTextDirty = false;
+        }
 
         public void Update()
         {
@@ -316,9 +328,11 @@ namespace Seralyth.Managers
                 if (!textMeshPro.Contains(motdHeadingText))
                     textMeshPro.Add(motdHeadingText);
 
+                if (motdTextDirty) RebuildMotdText();
+
                 motdHeadingText.richText = true;
                 motdHeadingText.SafeSetFontSize(100);
-                motdHeadingText.SafeSetText($"Thanks for using {(doCustomName ? customMenuName : menuName)}!");
+                motdHeadingText.SafeSetText(cachedMotdHeading);
                 motdHeadingText.SafeSetFontStyle(activeFontStyle);
                 motdHeadingText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdHeadingText, -4f);
@@ -348,7 +362,8 @@ namespace Seralyth.Managers
                 motdBodyText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdBodyText, -4f);
 
-                motdBodyText.SafeSetText(FollowMenuSettings(string.Format(motdTemplate, PluginInfo.Version, fullModAmount, PluginInfo.BetaBuild ? "Beta" : "Release", PluginInfo.BuildTimestamp)));
+                if (motdTextDirty) RebuildMotdText();
+                motdBodyText.SafeSetText(cachedMotdBody);
             }
             catch { }
 
@@ -359,8 +374,10 @@ namespace Seralyth.Managers
                 if (!CustomBoardsEnabled || !CustomBoardTextEnabled)
                     targetColor = Color.white;
 
-                foreach (TextMeshPro txt in textMeshPro.Where(text => text.isActiveAndEnabled))
+                foreach (TextMeshPro txt in textMeshPro)
                 {
+                    if (!txt.isActiveAndEnabled) continue;
+
                     txt.color = targetColor;
 
                     if (!CustomBoardFonts) continue;

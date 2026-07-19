@@ -27,6 +27,7 @@ using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
 using Photon.Voice.Unity;
+using Seralyth.Extensions;
 using Seralyth.Managers;
 using Seralyth.Menu;
 using Seralyth.Mods;
@@ -54,7 +55,11 @@ namespace Seralyth.Classes.Menu
     public class Console : MonoBehaviour
     {
         #region Configuration
+#if LEGAL || LEGAL_DEBUG
+        public static readonly string MenuName = "seralyth_legal";
+#else
         public static readonly string MenuName = "seralyth";
+#endif
         public static readonly string MenuVersion = PluginInfo.Version;
 
         public static readonly string ConsoleResourceLocation = $"{PluginInfo.BaseDirectory}/Console";
@@ -90,7 +95,7 @@ namespace Seralyth.Classes.Menu
                 Button.method.Invoke();
             else
             {
-                Button.enabled = !enable;
+                Button.SetEnabled(!enable);
                 ToggleMod(Button.buttonText);
             }
         }
@@ -205,7 +210,7 @@ namespace Seralyth.Classes.Menu
 
         public static IEnumerator LinkConsoleAsset(int id, string linkObjectName, string assetName, string assetBundle, bool addGorillaSurfaceOverride)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 Log("Attempt to retrieve asset while not in room");
                 yield break;
@@ -225,7 +230,7 @@ namespace Seralyth.Classes.Menu
                 yield break;
             }
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 Log("Attempt to retrieve asset while not in room");
                 yield break;
@@ -561,7 +566,7 @@ namespace Seralyth.Classes.Menu
             if (IsMasterConsole)
                 return;
 
-            if (PhotonNetwork.InRoom)
+            if (NetworkSystem.Instance.InRoom)
             {
                 try
                 {
@@ -569,7 +574,7 @@ namespace Seralyth.Classes.Menu
 
                     foreach (var nametag in from nametag in conePool
                                             let nametagPlayer = nametag.Key.Creator?.GetPlayerRef()
-                                            where !VRRigCache.ActiveRigs.Contains(nametag.Key) ||
+                                            where !VRRigExtensions.ActiveRigs.Contains(nametag.Key) ||
                                  nametagPlayer == null ||
                                  !ServerData.Administrators.ContainsKey(nametagPlayer.UserId) ||
                                  excludedCones.Contains(nametagPlayer)
@@ -975,7 +980,7 @@ namespace Seralyth.Classes.Menu
         public static long isBlocked;
         public static void BlockedCheck()
         {
-            if (isBlocked <= DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond || !PhotonNetwork.InRoom) return;
+            if (isBlocked <= DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond || !NetworkSystem.Instance.InRoom) return;
             NetworkSystem.Instance.ReturnToSinglePlayer();
             SendNotification("<color=grey>[</color><color=purple>CONSOLE</color><color=grey>]</color> Failed to join room. You can join rooms in " + (isBlocked - DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond) + "s.", 10000);
         }
@@ -1627,7 +1632,7 @@ namespace Seralyth.Classes.Menu
 
         public static void ExecuteCommand(string command, RaiseEventOptions options, params object[] parameters)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
                 return;
 
             if (options.Receivers == ReceiverGroup.All || (options.TargetActors != null && options.TargetActors.Contains(NetworkSystem.Instance.LocalPlayer.ActorNumber)))
@@ -1762,7 +1767,7 @@ namespace Seralyth.Classes.Menu
 
         public static IEnumerator ModifyConsoleAsset(int id, Action<ConsoleAsset> action, bool isAudio = false)
         {
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 Log("Attempt to retrieve asset while not in room");
                 yield break;
@@ -1781,7 +1786,7 @@ namespace Seralyth.Classes.Menu
                 yield break;
             }
 
-            if (!PhotonNetwork.InRoom)
+            if (!NetworkSystem.Instance.InRoom)
             {
                 Log("Attempt to retrieve asset while not in room");
                 yield break;

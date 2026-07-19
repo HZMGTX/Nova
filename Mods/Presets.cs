@@ -50,9 +50,9 @@ namespace Seralyth.Mods
             pageButtonType = 1;
             fontCycle = -1;
 
-            Settings.ChangeMenuTheme();
-            Settings.ChangePageType();
-            Settings.ChangeFontType();
+            Seralyth.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -144,9 +144,9 @@ namespace Seralyth.Mods
             pageButtonType = 1;
             fontCycle = 0;
 
-            Settings.ChangeMenuTheme();
-            Settings.ChangePageType();
-            Settings.ChangeFontType();
+            Seralyth.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -172,9 +172,9 @@ namespace Seralyth.Mods
             pageButtonType = 1;
             fontCycle = 0;
 
-            Settings.ChangeMenuTheme();
-            Settings.ChangePageType();
-            Settings.ChangeFontType();
+            Seralyth.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Seralyth.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -194,7 +194,7 @@ namespace Seralyth.Mods
             };
 
             pageButtonType = 2;
-            Settings.ChangePageType();
+            Seralyth.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
 
             foreach (string mod in presetMods)
                 Toggle(mod);

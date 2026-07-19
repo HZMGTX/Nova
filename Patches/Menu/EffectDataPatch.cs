@@ -49,7 +49,7 @@ namespace Seralyth.Patches.Menu
                         effectContext.speed = overrideVolume;
                         effectContext.soundVolume = overrideVolume;
 
-                        if (PhotonNetwork.InRoom)
+                        if (NetworkSystem.Instance.InRoom)
                         {
                             if (tapMultiplier > 1)
                             {

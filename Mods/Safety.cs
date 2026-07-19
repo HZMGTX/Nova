@@ -20,7 +20,6 @@
  */
 
 using ExitGames.Client.Photon;
-using ExitGames.Client.Photon.StructWrapping;
 using GorillaLocomotion;
 using GorillaNetworking;
 using GorillaTagScripts;
@@ -200,32 +199,9 @@ namespace Seralyth.Mods
 
         public static int antiReportRangeIndex;
         public static float threshold = 0.35f;
-
-        public static void ChangeAntiReportRange(bool positive = true)
-        {
-            string[] rangeNames = {
-                "Default", // The report button
-                "Large", // The report button within the range of 3 people
-                "Massive" // The entire fucking board
-            };
-            float[] distances = {
-                0.35f,
-                0.7f,
-                1.5f
-            };
-
-            if (positive)
-                antiReportRangeIndex++;
-            else
-                antiReportRangeIndex--;
-
-            antiReportRangeIndex %= rangeNames.Length;
-            if (antiReportRangeIndex < 0)
-                antiReportRangeIndex = rangeNames.Length - 1;
-
-            threshold = distances[antiReportRangeIndex];
-            Buttons.GetIndex("Change Anti Report Distance").overlapText = "Change Anti Report Distance <color=grey>[</color><color=green>" + rangeNames[antiReportRangeIndex] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] AntiReportRangeNames = { "Default", "Large", "Massive" };
+        public static readonly float[] AntiReportRangeDistances = { 0.35f, 0.7f, 1.5f };
+        public static void ApplyAntiReportRange(int index) { antiReportRangeIndex = index; threshold = AntiReportRangeDistances[index]; }
 
         public static bool smartAntiReport;
         public static int buttonClickTime;
@@ -271,10 +247,10 @@ namespace Seralyth.Mods
                 if (line.linePlayer != NetworkSystem.Instance.LocalPlayer) continue;
                 Transform report = line.reportButton.gameObject.transform;
 
-                Visuals.VisualizeAura(report.position, threshold, Color.red);
+                Visuals.Visualize(PrimitiveType.Sphere, report.position, Quaternion.identity, new Vector3(threshold, threshold, threshold), Color.red, -1, 0.1f);
 
                 if (antiMute)
-                    Visuals.VisualizeAura(line.muteButton.gameObject.transform.position, threshold, Color.red);
+                    Visuals.Visualize(PrimitiveType.Sphere, line.muteButton.gameObject.transform.position, Quaternion.identity, new Vector3(threshold, threshold, threshold), Color.red, -1, 0.1f);
             }
         }
 
@@ -314,7 +290,7 @@ namespace Seralyth.Mods
                 if (line.linePlayer != NetworkSystem.Instance.LocalPlayer) continue;
                 Transform report = line.reportButton.gameObject.transform;
 
-                foreach (var vrrig in from vrrig in VRRigCache.ActiveRigs where !vrrig.isLocal where OverlappingButton(vrrig, report.position) || (antiMute && OverlappingButton(vrrig, line.muteButton.gameObject.transform.position)) where !smartAntiReport || SmartAntiReport(line.linePlayer) select vrrig)
+                foreach (var vrrig in from vrrig in VRRigExtensions.ActiveRigs where !vrrig.isLocal where OverlappingButton(vrrig, report.position) || (antiMute && OverlappingButton(vrrig, line.muteButton.gameObject.transform.position)) where !smartAntiReport || SmartAntiReport(line.linePlayer) select vrrig)
                     onReport?.Invoke(vrrig, report.transform.position);
             }
         }
@@ -447,7 +423,7 @@ namespace Seralyth.Mods
 
         public static void AntiModerator()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && vrrig.Cosmetics().Contains("LBAAK") || vrrig.Cosmetics().Contains("LBAAD") || vrrig.Cosmetics().Contains("LMAPY")))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && vrrig.Cosmetics().Contains("LBAAK") || vrrig.Cosmetics().Contains("LBAAD") || vrrig.Cosmetics().Contains("LMAPY")))
             {
                 try
                 {
@@ -491,7 +467,7 @@ namespace Seralyth.Mods
 
         public static void AntiContentCreator()
         {
-            foreach (var vrrig in VRRigCache.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && Visuals.specialCosmetics.Keys.Any(x => vrrig.Cosmetics().Contains(x))))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && Visuals.specialCosmetics.Keys.Any(x => vrrig.Cosmetics().Contains(x))))
             {
                 try
                 {
@@ -539,7 +515,7 @@ namespace Seralyth.Mods
             VRRig specialRig = null;
             string specialCosmetic = null;
 
-            foreach (VRRig rig in VRRigCache.ActiveRigs.Where(rig => !rig.IsLocal()))
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
             {
                 foreach (var cosmetic in Visuals.specialCosmetics.Where(cosmetic => rig.Cosmetics().Contains(cosmetic.Key)))
                 {
@@ -617,7 +593,7 @@ namespace Seralyth.Mods
 
             Hashtable toRemove = new Hashtable();
 
-            foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals("didTutorial") select key)
+            foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
                 toRemove[key] = null;
 
             if (toRemove.Count > 0)
@@ -717,10 +693,10 @@ namespace Seralyth.Mods
         private static bool previouslyInLobby;
         public static void ChangeIdentityOnDisconnect(Action identityType)
         {
-            if (!PhotonNetwork.InRoom && previouslyInLobby)
+            if (!NetworkSystem.Instance.InRoom && previouslyInLobby)
                 identityType?.Invoke();
 
-            previouslyInLobby = PhotonNetwork.InRoom;
+            previouslyInLobby = NetworkSystem.Instance.InRoom;
         }
 
         private static readonly List<VRRig> nameSpoofRigs = new List<VRRig>();
@@ -729,7 +705,7 @@ namespace Seralyth.Mods
             List<VRRig> toRemove = new List<VRRig>();
             foreach (VRRig rig in nameSpoofRigs)
             {
-                if (!VRRigCache.ActiveRigs.Contains(rig))
+                if (!VRRigExtensions.ActiveRigs.Contains(rig))
                     toRemove.Add(rig);
             }
 
@@ -739,7 +715,7 @@ namespace Seralyth.Mods
             toRemove.Clear();
 
             string archiveNickname = PhotonNetwork.NickName;
-            foreach (VRRig rig in VRRigCache.ActiveRigs)
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
                 if (rig.isLocal) continue;
                 if (!nameSpoofRigs.Contains(rig))
@@ -749,7 +725,7 @@ namespace Seralyth.Mods
                     string fName = prefix + names[Random.Range(0, names.Length)] + suffix;
                     ChangeName(fName.EnforceLength(12), true);
 
-                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", GetPlayerFromVRRig(rig), Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", rig.GetPlayer(), Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
                     nameSpoofRigs.Add(rig);
                 }
             }
@@ -764,7 +740,7 @@ namespace Seralyth.Mods
             List<VRRig> toRemove = new List<VRRig>();
             foreach (VRRig rig in colorSpoofRigs)
             {
-                if (!VRRigCache.ActiveRigs.Contains(rig))
+                if (!VRRigExtensions.ActiveRigs.Contains(rig))
                     toRemove.Add(rig);
             }
 
@@ -773,9 +749,9 @@ namespace Seralyth.Mods
 
             toRemove.Clear();
 
-            foreach (var rig in VRRigCache.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => !colorSpoofRigs.Contains(rig)))
+            foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal).Where(rig => !colorSpoofRigs.Contains(rig)))
             {
-                GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", GetPlayerFromVRRig(rig), Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
+                GorillaTagger.Instance.myVRRig.SendRPC("RPC_InitializeNoobMaterial", rig.GetPlayer(), Random.Range(0f, 1f), Random.Range(0f, 1f), Random.Range(0f, 1f));
                 colorSpoofRigs.Add(rig);
             }
         }
@@ -797,35 +773,11 @@ namespace Seralyth.Mods
             };
         }
 
-        public static void ChangeFPSSpoofValue(bool positive = true)
-        {
-            if (positive)
-                fpsSpoofValue += 5;
-            else
-                fpsSpoofValue -= 5;
+        // value is an index of 5fps steps (1..28), not the raw fps, since CycleSetting only steps by 1.
+        public static void ApplyFPSSpoofValue(int index) => fpsSpoofValue = index * 5;
 
-            if (fpsSpoofValue > 140)
-                fpsSpoofValue = 5;
-            if (fpsSpoofValue < 5)
-                fpsSpoofValue = 140;
-
-            Buttons.GetIndex("Change FPS Spoof Value").overlapText = "Change FPS Spoof Value <color=grey>[</color><color=green>" + fpsSpoofValue + "</color><color=grey>]</color>";
-        }
-
-        public static void ChangePingSpoofValue(bool positive = true)
-        {
-            if (positive)
-                pingSpoofValue += 100;
-            else
-                pingSpoofValue -= 100;
-
-            if (pingSpoofValue > 10000)
-                pingSpoofValue = 100;
-            if (pingSpoofValue < 100)
-                pingSpoofValue = 10000;
-
-            Buttons.GetIndex("Change Ping Spoof Value").overlapText = "Change Ping Spoof Value <color=grey>[</color><color=green>" + pingSpoofValue + "</color><color=grey>]</color>";
-        }
+        // value is an index of 100ms steps (1..100), not the raw ping, since CycleSetting only steps by 1.
+        public static void ApplyPingSpoofValue(int index) => pingSpoofValue = index * 100;
 
         public static readonly string[] namePrefix = {
             "EPIC", "EPIK", "REAL", "NOT", "SILLY", "LITTLE", "BIG", "MAYBE", "MONKE", "SUB2", "OG", "FUN", "FR", "NOT", "NOTA"
@@ -847,61 +799,14 @@ namespace Seralyth.Mods
 
         public static string targetRank = "High";
         public static int rankIndex = 2;
-
-        public static void ChangeRankedTier(bool positive = true)
+        public static void ApplyRankedTier(int index)
         {
-            if (positive)
-                rankIndex++;
-            else
-                rankIndex--;
-
-            rankIndex %= 3;
-            if (rankIndex < 0)
-                rankIndex = 2;
-
-            targetRank = ((RankedProgressionManager.ERankedMatchmakingTier)rankIndex).ToString();
-            Buttons.GetIndex("Change Ranked Tier").overlapText = "Change Matchmaking Tier <color=grey>[</color><color=green>" + targetRank + "</color><color=grey>]</color>";
+            rankIndex = index;
+            targetRank = ((RankedProgressionManager.ERankedMatchmakingTier)index).ToString();
         }
 
-        public static void ChangeELOValue(bool positive = true)
-        {
-            if (positive)
-                targetElo += 100;
-            else
-                targetElo -= 100;
-
-            if (targetElo > 4000)
-                targetElo = 0;
-            if (targetElo < 0)
-                targetElo = 4000;
-
-            Buttons.GetIndex("Change ELO Value").overlapText = "Change ELO Value <color=grey>[</color><color=green>" + targetElo + "</color><color=grey>]</color>";
-        }
-
-        public static void ChangeBadgeTier(bool positive = true)
-        {
-            string[] badgeNames = {
-                "Wood",
-                "Rock",
-                "Bronze",
-                "Silver",
-                "Gold",
-                "Platinum",
-                "Crystal",
-                "Banana"
-            };
-
-            if (positive)
-                targetBadge++;
-            else
-                targetBadge--;
-
-            targetBadge %= 8;
-            if (targetBadge < 0)
-                targetBadge = 7;
-
-            Buttons.GetIndex("Change Badge Tier").overlapText = "Change Badge Tier <color=grey>[</color><color=green>" + badgeNames[targetBadge] + "</color><color=grey>]</color>";
-        }
+        public static readonly string[] BadgeNames = { "Wood", "Rock", "Bronze", "Silver", "Gold", "Platinum", "Crystal", "Banana" };
+        public static void ApplyBadgeTier(int index) => targetBadge = index;
 
         public static void SpoofRank(bool enabled, string tier = null)
         {
@@ -925,7 +830,11 @@ namespace Seralyth.Mods
         public static void SpoofPlatform(bool enabled)
         {
             spoofingPlatform = enabled;
-            VRRig.LocalRig.GetNetView().SendRPC("RPC_UpdateRankedInfo", RpcTarget.Others, 0, enabled ? 1 : 0, enabled ? 0 : 1);
+            try
+            {
+                VRRig.LocalRig.GetNetView().SendRPC("RPC_UpdateRankedInfo", RpcTarget.Others, 0, enabled ? 1 : 0, enabled ? 0 : 1);
+            }
+            catch { }
         }
 
         public static int targetElo = 4000;
