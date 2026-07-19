@@ -5465,9 +5465,6 @@ exit 0";
                 gunLineQualityIndex = int.Parse(data[31]);
                 RestoreCycle("Change Gun Line Quality", gunLineQualityIndex);
 
-                Projectiles.projDebounceIndex = int.Parse(data[32]);
-                RestoreCycle("Change Projectile Delay", Projectiles.projDebounceIndex);
-
                 Projectiles.red = int.Parse(data[33]);
                 RestoreCycle("RedProj", Projectiles.red);
 
