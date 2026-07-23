@@ -784,7 +784,7 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Control Rig Rotation", enableMethod =() => TorsoPatch.VRRigLateUpdate += Movement.VRRigLateUpdate_Control, disableMethod =() => TorsoPatch.VRRigLateUpdate -= Movement.VRRigLateUpdate_Control, toolTip = "Control your rig rotation with your joysticks or arrow keys. Click either joystick or enter to reset rotation."},
 
                 new ButtonInfo { buttonText = "Control Body Rotation", postMethod = Movement.ControlBodyRotation, toolTip = "Control your body rotation with your joysticks or arrow keys. Click either joystick or enter to reset rotation."},
-                new ButtonInfo { buttonText = "Backflip <color=grey>[</color><color=green>A</color><color=grey>]</color>", enableMethod =() => TorsoPatch.VRRigLateUpdate += Movement.Backflip, disableMethod =() => { TorsoPatch.VRRigLateUpdate -= Movement.Backflip; Movement.UnflipCharacter(); }, toolTip = "Makes you backflip when you click your A button."},
+                new ButtonInfo { buttonText = "Flip <color=grey>[</color><color=green>A</color><color=grey>]</color> <color=grey>[</color><color=green>B</color><color=grey>]</color>", enableMethod =() => TorsoPatch.VRRigLateUpdate += Movement.Flip, disableMethod =() => { TorsoPatch.VRRigLateUpdate -= Movement.Flip; Movement.UnflipCharacter(); }, toolTip = "Makes you flip back when you click your A button, flip forwards when you click your B button."},
                 new ButtonInfo { buttonText = "Spider Crawl", postMethod = Movement.SpiderCrawl, toolTip = "Makes you look like a spider."},
                 new ButtonInfo { buttonText = "Upwards Body", postMethod = Movement.UpwardsBody, toolTip = "Makes your body point upwards."},
 

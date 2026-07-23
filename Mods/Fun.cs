@@ -5941,12 +5941,21 @@ Piece Name: {gunTarget.name}";
             NameCycle(new[] { RandomString(8) });
 
         public static string[] names = { };
-        public static void EnableCustomNameCycle()
+        public static void EnableCustomNameCycle() // Thanks to xynz_ for some fixes
         {
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Seralyth_CustomNameCycle.txt"))
-                names = File.ReadAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomNameCycle.txt").Split('\n');
+            var path = $"{PluginInfo.BaseDirectory}/Seralyth_CustomNameCycle.txt";
+            if (File.Exists(path))
+            {
+                names = File.ReadAllText(path)
+                    .Split('\n')
+                    .Select(n => n.Trim())
+                    .Where(n => !string.IsNullOrEmpty(n))
+                    .ToArray();
+            }
             else
-                File.WriteAllText($"{PluginInfo.BaseDirectory}/Seralyth_CustomNameCycle.txt", "YOUR\nTEXT\nHERE");
+            {
+                File.WriteAllText(path, "YOUR\nTEXT\nHERE");
+            }
         }
 
         public static string name;

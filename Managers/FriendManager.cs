@@ -617,17 +617,18 @@ namespace Seralyth.Managers
                             }
                         case "sendSnowball":
                             {
-                                Vector3 position = (Vector3)args[1];
-                                Vector3 velocity = (Vector3)args[2];
+                                string snowballName = (string)args[1];
+                                Vector3 position = (Vector3)args[2];
+                                Vector3 velocity = (Vector3)args[3];
 
-                                float r = (float?)args[3] ?? 255f;
-                                float g = (float?)args[4] ?? 255f;
-                                float b = (float?)args[5] ?? 255f;
+                                float r = (byte?)args[4] ?? 255;
+                                float g = (byte?)args[5] ?? 255;
+                                float b = (byte?)args[6] ?? 255;
 
-                                float scale = Mathf.Clamp((float)args[6], 1f, 10f);
-                                int index = (int)args[7];
-
+                                float scale = Mathf.Clamp((float)args[7], 1f, 6f);
+                                int index = (int)args[8];
                                 Projectiles.LaunchLocalGrowingSnowball(
+                                    snowballName,
                                     position,
                                     velocity,
                                     scale,

@@ -247,7 +247,7 @@ namespace Seralyth.Mods
                 if (line.linePlayer != NetworkSystem.Instance.LocalPlayer) continue;
                 Transform report = line.reportButton.gameObject.transform;
 
-                Visuals.Visualize(PrimitiveType.Sphere, report.position, Quaternion.identity, new Vector3(threshold, threshold, threshold), Color.red, -1, 0.1f);
+                Visuals.Visualize(PrimitiveType.Sphere, report.position, Quaternion.identity, new Vector3(threshold, threshold, threshold), Color.red, alpha: 0.1f);
 
                 if (antiMute)
                     Visuals.Visualize(PrimitiveType.Sphere, line.muteButton.gameObject.transform.position, Quaternion.identity, new Vector3(threshold, threshold, threshold), Color.red, -1, 0.1f);

@@ -2092,8 +2092,8 @@ namespace Seralyth.Mods
         {
             Visuals.Visualize(PrimitiveType.Cube, position.position, Quaternion.LookRotation(position.velocity), new Vector3(0.1f, 0.1f, 0.25f), color, -39228393 + indexIdOffset, alpha);
             Visuals.Visualize(PrimitiveType.Cube, position.position + position.velocity.normalized * 0.125f, Quaternion.LookRotation(position.velocity), new Vector3(0.15f, 0.15f, 0.05f), color, -48492012 + indexIdOffset, alpha);
-            Visuals.Visualize(PrimitiveType.Sphere, position.leftHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -39228393 + indexIdOffset, alpha);
-            Visuals.Visualize(PrimitiveType.Sphere, position.rightHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -39228393 + indexIdOffset, alpha);
+            Visuals.Visualize(PrimitiveType.Sphere, position.leftHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -58692092 + indexIdOffset, alpha);
+            Visuals.Visualize(PrimitiveType.Sphere, position.rightHand.position, Quaternion.identity, new Vector3(0.15f, 0.15f, 0.15f), color, -65843922 + indexIdOffset, alpha);
         }
 
         public static bool frameStepper;
@@ -2661,15 +2661,13 @@ namespace Seralyth.Mods
             playspace.enabled = false;
         }
 
-        static List<MeshCollider> colliders = new List<MeshCollider>();
+        static readonly HashSet<MeshCollider> colliders = new HashSet<MeshCollider>();
+        static float colliderRefresh;
+
         public static void UpdateClipColliders(bool enabled)
         {
-            if (!colliders.Any())
-                foreach (MeshCollider v in Resources.FindObjectsOfTypeAll<MeshCollider>())
-                    if (v.enabled)
-                        colliders.Add(v);
-
-            colliders.ForEach(collider => collider.enabled = enabled);
+            foreach (MeshCollider v in Resources.FindObjectsOfTypeAll<MeshCollider>())
+                v.enabled = enabled;
         }
 
         public static void Noclip()
@@ -3560,16 +3558,16 @@ namespace Seralyth.Mods
         static Vector3 flipAxis;
         const float flipDuration = 1f;
 
-        public static void Backflip()
+        public static void Flip()
         {
             bool silentFlip = Buttons.GetIndex("Silent Flip").enabled;
-            if (!flipping && rightPrimary && VRRig.LocalRig.enabled)
+            if (!flipping && (rightPrimary || rightSecondary) && VRRig.LocalRig.enabled)
             {
                 if (GTPlayer.Instance.playerRigidBody)
                 {
                     flipping = true;
                     flipStart = Time.time;
-                    flipAxis = VRRig.LocalRig.transform.right;
+                    flipAxis = rightPrimary ? VRRig.LocalRig.transform.right : -VRRig.LocalRig.transform.right;
                     flipFrom = GTPlayer.Instance?.playerRigidBody?.rotation ?? Quaternion.identity;
                 }
             }

@@ -134,7 +134,7 @@ namespace Seralyth.Classes.Menu
             {
                 foreach (ButtonInfo b in buttonList)
                 {
-                    if (b.detected || b.excludeFromSave)
+                    if (b.detected || b.excludeFromSave || b.label)
                         continue;
 
                     var state = ToSavedState(b);
@@ -309,12 +309,19 @@ namespace Seralyth.Classes.Menu
 
         private static void Apply(PreferencesData data)
         {
+            if (data == null)
+            {
+                LogManager.Log("preferences not found!");
+                return;
+            }
+
             var stale = new List<string>();
             RunWithoutSaving(() =>
             {
-                Settings.Panic();
+                try { Settings.Panic(); }
+                catch (Exception e) { LogManager.Log("error resetting menu: " + e.Message); }
 
-                foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons)
+                foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons ?? new Dictionary<string, SavedButtonState>())
                 {
                     ButtonInfo b = Buttons.GetIndex(kv.Key);
                     if (b == null)
@@ -329,7 +336,7 @@ namespace Seralyth.Classes.Menu
                         if (!string.IsNullOrEmpty(kv.Value.rebindKey))
                             b.rebindKey = kv.Value.rebindKey;
 
-                        if (kv.Value.enabled == true && b.isTogglable && !b.enabled)
+                        if (kv.Value.enabled == true && b.isTogglable && !b.enabled && !b.label)
                             Toggle(b.buttonText);
 
                         if (b.isSetting && kv.Value.value != null)
@@ -347,72 +354,111 @@ namespace Seralyth.Classes.Menu
                 foreach (var key in stale)
                     data.buttons.Remove(key);
 
+                try
+                {
+                    favorites.Clear();
+                    favorites.AddRange(data.favorites ?? new List<string>());
 
-                favorites.Clear();
-                favorites.AddRange(data.favorites ?? new List<string>());
+                    quickActions.Clear();
+                    quickActions.AddRange(data.quickActions ?? new List<string>());
 
-                quickActions.Clear();
-                quickActions.AddRange(data.quickActions ?? new List<string>());
+                    skipButtons.Clear();
+                    skipButtons.AddRange(data.skipButtons ?? new List<string>());
+                }
+                catch (Exception e) { LogManager.Log("Error restoring favorites/quickActions/skipButtons: " + e.Message); }
 
-                skipButtons.Clear();
-                skipButtons.AddRange(data.skipButtons ?? new List<string>());
+                try
+                {
+                    ModBindings.Clear();
+                    foreach (var kv in data.modBindings ?? new Dictionary<string, List<string>>())
+                        ModBindings[kv.Key] = kv.Value;
+                }
+                catch (Exception e) { LogManager.Log("Error restoring mod bindings: " + e.Message); }
 
-                ModBindings.Clear();
-                foreach (var kv in data.modBindings ?? new Dictionary<string, List<string>>())
-                    ModBindings[kv.Key] = kv.Value;
+                try
+                {
+                    RestoreSound("Change Button Sound", "Button", data.sounds);
+                    RestoreSound("Change Notification Sound", "Notification", data.sounds);
 
-                RestoreSound("Change Button Sound", "Button", data.sounds);
-                RestoreSound("Change Notification Sound", "Notification", data.sounds);
+                    if (data.disableLocalSoundboard.HasValue)
+                        Sound.disableLocalSoundboard = data.disableLocalSoundboard.Value;
 
-                if (data.disableLocalSoundboard.HasValue)
-                    Sound.disableLocalSoundboard = data.disableLocalSoundboard.Value;
+                    ButtonInfo disableLocalBtn = Buttons.GetIndex("Disable Local Soundboard");
+                    if (disableLocalBtn != null)
+                        disableLocalBtn.enabled = Sound.disableLocalSoundboard;
+                }
+                catch (Exception e) { LogManager.Log("Error restoring sound settings: " + e.Message); }
 
-                if (!string.IsNullOrEmpty(data.oldId))
-                    Important.oldId = data.oldId;
+                try
+                {
+                    if (!string.IsNullOrEmpty(data.oldId))
+                        Important.oldId = data.oldId;
+                }
+                catch (Exception e) { LogManager.Log("Error restoring oldId: " + e.Message); }
 
-                ButtonInfo disableLocalBtn = Buttons.GetIndex("Disable Local Soundboard");
-                if (disableLocalBtn != null)
-                    disableLocalBtn.enabled = Sound.disableLocalSoundboard;
+                try
+                {
+                    if (data.misc != null)
+                    {
+                        if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
+                        if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
+                        if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
+                        if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
+                        if (data.misc.TryGetValue("playTime", out object pt)) playTime = SafeInt(pt, (int)playTime);
 
-                if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = Convert.ToInt32(pbt);
-                if (data.misc.TryGetValue("themeType", out object tt)) themeType = Convert.ToInt32(tt);
-                if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = Convert.ToInt32(fc);
-                if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = Convert.ToInt32(ps);
-                if (data.misc.TryGetValue("playTime", out object pt)) playTime = Convert.ToInt32(pt);
+                        if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
+                            Important.oldId = uidStr;
+                    }
+                }
+                catch (Exception e) { LogManager.Log("Error restoring misc settings: " + e.Message); }
 
-                if (data.customTheme != null)
-                    Settings.ApplyTheme(data.customTheme);
-
-                if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
-                    Important.oldId = uidStr;
+                try
+                {
+                    if (data.customTheme != null)
+                        Settings.ApplyTheme(data.customTheme);
+                }
+                catch (Exception e) { LogManager.Log("Error applying custom theme: " + e.Message); }
             });
 
-            var liveSnapshot = BuildFullSnapshot();
-            var merged = new PreferencesData
+            try
             {
-                buttons = new Dictionary<string, SavedButtonState>(liveSnapshot.buttons)
-            };
-
-            if (data.buttons != null)
-            {
-                foreach (var kv in data.buttons)
+                var liveSnapshot = BuildFullSnapshot();
+                var merged = new PreferencesData
                 {
-                    if (Buttons.GetIndex(kv.Key) != null && !merged.buttons.ContainsKey(kv.Key))
-                        merged.buttons[kv.Key] = kv.Value;
+                    buttons = new Dictionary<string, SavedButtonState>(liveSnapshot.buttons)
+                };
+
+                if (data.buttons != null)
+                {
+                    foreach (var kv in data.buttons)
+                    {
+                        if (Buttons.GetIndex(kv.Key) != null && !merged.buttons.ContainsKey(kv.Key))
+                            merged.buttons[kv.Key] = kv.Value;
+                    }
                 }
+
+                merged.favorites = liveSnapshot.favorites;
+                merged.quickActions = liveSnapshot.quickActions;
+                merged.skipButtons = liveSnapshot.skipButtons;
+                merged.modBindings = liveSnapshot.modBindings;
+                merged.sounds = liveSnapshot.sounds;
+                merged.disableLocalSoundboard = liveSnapshot.disableLocalSoundboard;
+                merged.customTheme = liveSnapshot.customTheme;
+                merged.oldId = liveSnapshot.oldId;
+                merged.misc = liveSnapshot.misc;
+
+                _cache = merged;
             }
+            catch (Exception e)
+            {
+                LogManager.Log("Error applying preferences: " + e.Message);
+            }
+        }
 
-            merged.favorites = liveSnapshot.favorites;
-            merged.quickActions = liveSnapshot.quickActions;
-            merged.skipButtons = liveSnapshot.skipButtons;
-            merged.modBindings = liveSnapshot.modBindings;
-            merged.sounds = liveSnapshot.sounds;
-            merged.disableLocalSoundboard = liveSnapshot.disableLocalSoundboard;
-            merged.customTheme = liveSnapshot.customTheme;
-            merged.oldId = liveSnapshot.oldId;
-            merged.misc = liveSnapshot.misc;
-
-            _cache = merged;
+        private static int SafeInt(object value, int fallback)
+        {
+            try { return Convert.ToInt32(value); }
+            catch { return fallback; }
         }
 
         private static void RestoreSound(string buttonName, string soundKey, Dictionary<string, string> sounds)

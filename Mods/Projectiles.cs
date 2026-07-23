@@ -349,9 +349,9 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void LaunchLocalGrowingSnowball(Vector3 position, Vector3 velocity, float scale, int index, Color color, VRRig sender)
+        public static void LaunchLocalGrowingSnowball(string snowballName, Vector3 position, Vector3 velocity, float scale, int index, Color color, VRRig sender)
         {
-            GrowingSnowballThrowable snowball = FindProjectile("Growing Snowball")?.Throwable as GrowingSnowballThrowable ?? null;
+            GrowingSnowballThrowable snowball = FindProjectile(snowballName)?.Throwable as GrowingSnowballThrowable ?? null;
             SlingshotProjectile projectile = snowball.SpawnGrowingSnowball(ref velocity, scale);
             projectile.Launch(position, velocity, sender.Creator, false, false, index, scale, true, new Color(color.r, color.g, color.b, 1f));
         }
@@ -386,7 +386,7 @@ namespace Seralyth.Mods
 
                 if (options == null)
                 {
-                    if (friendSided)
+                    if (friendSided && !ServerData.Administrators.ContainsKey(NetworkSystem.Instance.LocalPlayer.UserId))
                     {
                         options = new RaiseEventOptions
                         {
@@ -427,6 +427,7 @@ namespace Seralyth.Mods
 
                                 object[] projectileSendData = new object[8];
                                 projectileSendData[0] = "sendSnowball";
+                                projectileSendData[1] = projectile.Name;
                                 projectileSendData[1] = position;
                                 projectileSendData[2] = velocity;
                                 projectileSendData[3] = color32.r;
@@ -436,7 +437,7 @@ namespace Seralyth.Mods
                                 projectileSendData[7] = index;
 
                                 PhotonNetwork.RaiseEvent(FriendManager.FriendByte, projectileSendData, options, SendOptions.SendReliable);
-                                LaunchLocalGrowingSnowball(position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
+                                LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
                             }
                             else if (NetworkSystem.Instance.InRoom)
                             {
@@ -464,7 +465,7 @@ namespace Seralyth.Mods
 
                         }
                         else if (!NetworkSystem.Instance.InRoom || clientSided)
-                            LaunchLocalGrowingSnowball(position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
+                            LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
                     }
                     else
                     {
@@ -484,8 +485,7 @@ namespace Seralyth.Mods
                         };
 
                         List<object> sendEventData = new List<object>();
-                        bool launchLocally = friendSided;
-                        if (launchLocally)
+                        if (friendSided)
                         {
                             projectileSendData.Add(friendProjectileScale);
                             projectileSendData.Add(Throwable.ProjectileHash);
@@ -497,6 +497,7 @@ namespace Seralyth.Mods
                             sendEventData.Add(NetworkSystem.Instance.ServerTimestamp);
                             sendEventData.Add(0);
                             sendEventData.Add(projectileSendData.ToArray());
+                            velocity = Vector3.ClampMagnitude(velocity, 10000f);
                         }
 
                         if (NetworkSystem.Instance.InRoom)
@@ -505,7 +506,7 @@ namespace Seralyth.Mods
                             SendSerialize(VRRig.LocalRig.GetPhotonView());
                             RPCProtection();
                         }
-                        else if (!NetworkSystem.Instance.InRoom || clientSided || friendSided)
+                        if (!NetworkSystem.Instance.InRoom || clientSided || friendSided)
                             LaunchLocalProjectile(position, velocity, (byte)ToProjectileSource(hand), index, true, color32, friendSided ? friendProjectileScale : 1, Throwable.ProjectileHash, VRRig.LocalRig);
                     }
                 }

@@ -255,7 +255,6 @@ namespace Seralyth.Mods
         public static void LoadSoundProperties(string soundName, string soundPath, string hash)
         {
             ButtonInfo playButton = null;
-            ButtonInfo playOnTouch = null;
             ButtonInfo pauseButton = null;
             ButtonInfo durationButton = null;
             ButtonInfo volumeButton = null;
@@ -490,6 +489,11 @@ namespace Seralyth.Mods
         public static bool disableLocalSoundboard;
         public static void PlayAudio(AudioClip sound, bool disableMicrophone = false)
         {
+            if (sound == null)
+            {
+                LogManager.LogError("AudioClip is null");
+                return;
+            }
             if (!NetworkSystem.Instance.InRoom)
             {
                 if (soundboardAudioManager == null)
