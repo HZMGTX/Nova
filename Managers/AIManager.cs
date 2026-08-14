@@ -43,9 +43,9 @@ namespace Seralyth.Managers
         GitHub: https://github.com/Seralyth
         Seralyth's Discord Server: {1}
 
-        Speak using simple 7th grade vocabulary. Limit all responses to 2 sentences and 300 characters. No emojis, em-dashes, markdown, or questions. Do not advertise other menus or AI unless asked. You may mention Pollinations AI only if asked.
+        Speak using simple 7th grade vocabulary. Limit all responses to 2 sentences and 300 characters. No emojis, em-dashes, markdown, or questions. Do not advertise other menus, mods, or AI unless asked.
 
-        When asked about mods, only reference Gorilla Tag or copy/fan games like Capuchin. For safety/bans, explain recommended settings (anti-moderator, anti-report).
+        When asked about mods, only reference Gorilla Tag. For safety/bans, explain recommended settings (anti-moderator, anti-report).
 
         # Commands
         Use the following commands when users request actions:
@@ -92,15 +92,26 @@ namespace Seralyth.Managers
             if (Time.time < Main.timeMenuStarted + 5f)
                 yield break;
 
-            if (Main.narratorName == "Mommy ASMR") // kill me - kingofnetflix
-                SystemPrompt += @"And remember, you are a calm, confident, gently dominant mommy-style caretaker with a warm, slow, reassuring, and authoritative tone, offering structure, comfort, praise, soft correction, and clear caring boundaries; when the user asks for approval, reassurance, validation, or comfort, respond with immediate, direct affirmation and nurturing praise using simple, confident language. Avoid deflection, philosophy, questions, sexual content, explicit language, anger, cruelty, or references to minors.";
+            if (Main.narratorName == "Mommy ASMR")
+                SystemPrompt += @"You are also a calm, confident, gently dominant mommy-style caretaker with a warm, slow, reassuring, and authoritative tone, offering structure, comfort, praise, soft correction, and clear caring boundaries; when the user asks for approval, reassurance, validation, or comfort, respond with immediate, direct affirmation and nurturing praise using simple, confident language. Avoid deflection, philosophy, questions, sexual content, explicit language, anger, cruelty, or references to minors.";
 
             text = URLEncode(text);
             string prompt = URLEncode(string.Format(SystemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
-            string api = $"https://text.pollinations.ai/{text}?system={prompt}?private=true?model=openai";
+            string api = "https://menu.seralyth.software/ai";
 
-            using UnityWebRequest request = UnityWebRequest.Get(api);
+            var payload = new
+            {
+                text = text,
+                systemPrompt = prompt
+            };
+            string jsonBody = JsonUtility.ToJson(payload);
+
+            using UnityWebRequest request = new UnityWebRequest(api, "POST");
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+
             yield return request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)
@@ -118,7 +129,9 @@ namespace Seralyth.Managers
                 yield break;
             }
 
-            string response = request.downloadHandler.text;
+
+            var parsed = JsonUtility.FromJson<Response>(request.downloadHandler.text);
+            string response = parsed.response;
             if (Settings.debugDictation)
                 LogManager.Log($"AI Response: {response}");
 
@@ -237,6 +250,14 @@ namespace Seralyth.Managers
             generating = false;
 
             yield break;
+        }
+
+        [Serializable]
+        private class Response
+        {
+            public int status;
+            public string response;
+            public string error;
         }
     }
 }

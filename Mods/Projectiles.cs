@@ -253,6 +253,8 @@ namespace Seralyth.Mods
                     return "Bonfire Stick";
                 case "Tricktreat Piece":
                     return "Trick or Treat";
+                default:
+                    break;
             }
             return name;
         }
@@ -280,7 +282,7 @@ namespace Seralyth.Mods
                     return RoomSystem.ProjectileSource.RightHand;
             }
         }
-        public static void UpdateNetworkedProjectile(int index = -1, int modelIndex = -1, ThrowableHand hand = ThrowableHand.Dynamic)
+        public static void UpdateNetworkedProjectile(int index = -1, int modelIndex = -1, ThrowableHand hand = ThrowableHand.Dynamic, bool serialize = false)
         {
             if (hand == ThrowableHand.Left || hand == ThrowableHand.Both)
                 VRRig.LocalRig.LeftThrowableProjectileIndex = index;
@@ -293,17 +295,19 @@ namespace Seralyth.Mods
                     VRRig.LocalRig.LeftThrowableProjectileIndex = index;
             VRRig.LocalRig.SetRandomThrowableModelIndex(modelIndex);
             VRRig.LocalRig.myBodyDockPositions.RefreshTransferrableItems();
+            if (serialize && NetworkSystem.Instance.InRoom)
+                SendSerialize(VRRig.LocalRig.GetPhotonView());
         }
 
-        public static void ClearNetworkedProjectile(ThrowableHand hand = ThrowableHand.Dynamic)
+        public static void ClearNetworkedProjectile(ThrowableHand hand = ThrowableHand.Dynamic, bool serialize = false)
         {
             if (hand == ThrowableHand.Dynamic)
                 for (int i = 0; i < 2; i++)
-                    UpdateNetworkedProjectile(-1, -1, hand);
+                    UpdateNetworkedProjectile(-1, -1, hand, serialize);
             else if (hand == ThrowableHand.Left)
-                UpdateNetworkedProjectile(-1, -1, ThrowableHand.Left);
+                UpdateNetworkedProjectile(-1, -1, ThrowableHand.Left, serialize);
             else if (hand == ThrowableHand.Right)
-                UpdateNetworkedProjectile(-1, -1, ThrowableHand.Right);
+                UpdateNetworkedProjectile(-1, -1, ThrowableHand.Right, serialize);
         }
 
         public static SnowballThrowable GetThrowableByHand(ThrowableHand hand = ThrowableHand.Dynamic)
@@ -319,8 +323,11 @@ namespace Seralyth.Mods
             return throwable?.GetComponent<SnowballThrowable>();
         }
 
-        public static void SetSnowballSize(int size, ThrowableHand hand = ThrowableHand.Dynamic) =>
-            (GetThrowableByHand(hand) as GrowingSnowballThrowable)?.SetSizeLevelAuthority(size);
+        public static void SetSnowballSize(int size, ThrowableHand hand = ThrowableHand.Dynamic)
+        {
+            if (GetThrowableByHand(hand) is GrowingSnowballThrowable growingSnowball)
+                growingSnowball.SetSizeLevelAuthority(growingSnowball.GetValidSizeLevel(size));
+        }
 
         public static void LaunchLocalProjectile(Vector3 position, Vector3 velocity, byte projectileType, int index, bool overrideColor, Color32 color, int scale, int projectileHash, VRRig rig)
         {
@@ -377,7 +384,7 @@ namespace Seralyth.Mods
             }
         }
         public static bool clientSided;
-        public static void SendProjectile(ProjectileEntry projectile, Vector3 position, Vector3 velocity, Color? color = null, RaiseEventOptions options = null, ThrowableHand hand = ThrowableHand.Dynamic, bool bypassTeleport = false)
+        public static void SendProjectile(ProjectileEntry projectile, Vector3 position, Vector3 velocity, Color? color = null, int growingSnowballSize = -1, RaiseEventOptions options = null, ThrowableHand hand = ThrowableHand.Dynamic, bool bypassTeleport = false)
         {
             try
             {
@@ -403,21 +410,24 @@ namespace Seralyth.Mods
 
                 if (CanCallNow(FXType.Projectile) || !NetworkSystem.Instance.InRoom)
                 {
+                    velocity = Vector3.ClampMagnitude(velocity, 10000f);
                     if (!color.HasValue)
                         color = CalculateProjectileColor();
 
                     SnowballThrowable Throwable = projectile.Throwable ?? throw new Exception("Throwable is null");
-                    UpdateNetworkedProjectile(projectile.ThrowableIndex, targetProjectileIndex, hand);
                     VRRig.LocalRig.SetThrowableProjectileColor(true, color.Value);
+                    UpdateNetworkedProjectile(projectile.ThrowableIndex, targetProjectileIndex, hand);
 
-                    if (Vector3.Distance(GorillaTagger.Instance.bodyCollider.transform.position, position) > 3.9f && !bypassTeleport && !clientSided && !friendSided && NetworkSystem.Instance.InRoom)
+                    if (Vector3.Distance(GorillaTagger.Instance.bodyCollider.transform.position, position) > 3.9f && NetworkSystem.Instance.InRoom && !bypassTeleport && !clientSided && !friendSided)
                         VRRig.LocalRig.transform.position = position + new Vector3(0f, velocity.y > 0f ? -3f : 3f, 0f);
 
                     int index = GetProjectileIncrement(position, velocity, Throwable.transform.lossyScale.x);
                     if (Throwable is GrowingSnowballThrowable)
                     {
-                        int scale = friendSided ? Math.Max(SnowballSize, friendProjectileScale) : SnowballSize;
                         GrowingSnowballThrowable GrowingSnowball = GetThrowableByHand(hand) as GrowingSnowballThrowable ?? throw new Exception("GrowingSnowball Throwable is null");
+                        if (growingSnowballSize == -1)
+                            growingSnowballSize = GrowingSnowball.MaxSizeLevel;
+                        // friendSided ? Math.Max(SnowballSize, friendProjectileScale) : SnowballSize;
 
                         if (NetworkSystem.Instance.InRoom || friendSided)
                         {
@@ -433,11 +443,11 @@ namespace Seralyth.Mods
                                 projectileSendData[3] = color32.r;
                                 projectileSendData[4] = color32.g;
                                 projectileSendData[5] = color32.b;
-                                projectileSendData[6] = GrowingSnowball.snowballSizeLevels[scale].snowballScale;
+                                projectileSendData[6] = GrowingSnowball.GetValidSizeLevel(SnowballSize);
                                 projectileSendData[7] = index;
 
                                 PhotonNetwork.RaiseEvent(FriendManager.FriendByte, projectileSendData, options, SendOptions.SendReliable);
-                                LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
+                                LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.GetValidSizeLevel(SnowballSize), index, color.Value, VRRig.LocalRig);
                             }
                             else if (NetworkSystem.Instance.InRoom)
                             {
@@ -449,7 +459,7 @@ namespace Seralyth.Mods
                                 PhotonNetwork.RaiseEvent(PhotonEvent.PHOTON_EVENT_CODE, new object[]
                                 {
                                     GrowingSnowball.changeSizeEvent._eventId,
-                                    scale
+                                    growingSnowballSize
                                 }, options, SendOptions.SendReliable);
 
                                 PhotonNetwork.RaiseEvent(PhotonEvent.PHOTON_EVENT_CODE, new object[]
@@ -465,7 +475,7 @@ namespace Seralyth.Mods
 
                         }
                         else if (!NetworkSystem.Instance.InRoom || clientSided)
-                            LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[scale].snowballScale, index, color.Value, VRRig.LocalRig);
+                            LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[growingSnowballSize].snowballScale, index, color.Value, VRRig.LocalRig);
                     }
                     else
                     {
@@ -497,17 +507,16 @@ namespace Seralyth.Mods
                             sendEventData.Add(NetworkSystem.Instance.ServerTimestamp);
                             sendEventData.Add(0);
                             sendEventData.Add(projectileSendData.ToArray());
-                            velocity = Vector3.ClampMagnitude(velocity, 10000f);
                         }
 
-                        if (NetworkSystem.Instance.InRoom)
+                        if (!NetworkSystem.Instance.InRoom || clientSided || friendSided)
+                            LaunchLocalProjectile(position, velocity, (byte)ToProjectileSource(hand), index, true, color32, friendSided ? friendProjectileScale : 1, Throwable.ProjectileHash, VRRig.LocalRig);
+                        else
                         {
                             PhotonNetwork.RaiseEvent(friendSided ? FriendManager.FriendByte : Constants.Network.ROOM_SYSTEM, sendEventData.ToArray(), options, SendOptions.SendReliable);
                             SendSerialize(VRRig.LocalRig.GetPhotonView());
                             RPCProtection();
                         }
-                        if (!NetworkSystem.Instance.InRoom || clientSided || friendSided)
-                            LaunchLocalProjectile(position, velocity, (byte)ToProjectileSource(hand), index, true, color32, friendSided ? friendProjectileScale : 1, Throwable.ProjectileHash, VRRig.LocalRig);
                     }
                 }
             }
@@ -521,7 +530,7 @@ namespace Seralyth.Mods
             while (Time.frameCount < projectileFrameSent + 5)
                 yield return null;
 
-            UpdateNetworkedProjectile();
+            ClearNetworkedProjectile(serialize: true);
             ProjectileWatcherCoroutine = null;
         }
 
@@ -641,7 +650,7 @@ namespace Seralyth.Mods
                 b = (byte)Random.Range(0, 255);
             }
 
-            if (Buttons.GetIndex("Rainbow Projectiles").enabled)
+            else if (Buttons.GetIndex("Rainbow Projectiles").enabled)
             {
                 float h = Time.frameCount / 180f % 1f;
                 Color rgbcolor = Color.HSVToRGB(h, 1f, 1f);
@@ -650,7 +659,7 @@ namespace Seralyth.Mods
                 b = (byte)(rgbcolor.b * 255);
             }
 
-            if (Buttons.GetIndex("Hard Rainbow Projectiles").enabled)
+            else if (Buttons.GetIndex("Hard Rainbow Projectiles").enabled)
             {
                 float h = Time.frameCount / 180f % 1f;
                 Color rgbcolor = Color.HSVToRGB(h, 1f, 1f);
@@ -659,7 +668,7 @@ namespace Seralyth.Mods
                 b = (byte)(Mathf.Floor(rgbcolor.b * 2f) / 2f * 255f);
             }
 
-            if (Buttons.GetIndex("Custom Colored Projectiles").enabled)
+            else if (Buttons.GetIndex("Custom Colored Projectiles").enabled)
             {
                 r = (byte)(red / 10f * 255);
                 g = (byte)(green / 10f * 255);
@@ -711,13 +720,16 @@ namespace Seralyth.Mods
             }
         }
 
-        public static int _snowballSize = 5;
+        public static int MaximumSnowballSize = 7;
+        public static int _snowballSize = MaximumSnowballSize;
         public static int SnowballSize
         {
             get
             {
                 if (Buttons.GetIndex("Random Growing Snowball Size").enabled)
-                    return Random.Range(0, 5);
+                    return Random.Range(0, MaximumSnowballSize);
+                if (friendSided)
+                    return Math.Max(_snowballSize, friendProjectileScale);
                 return _snowballSize;
             }
             set => _snowballSize = value;
@@ -740,7 +752,6 @@ namespace Seralyth.Mods
 
             if (fireLeft || fireRight)
             {
-
                 Transform[] hands = new Transform[] { VRRig.LocalRig.leftHandTransform, VRRig.LocalRig.rightHandTransform };
                 bool[] fireHands = new bool[] { fireLeft, fireRight };
 
@@ -773,7 +784,7 @@ namespace Seralyth.Mods
                             ? GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0)
                             : GTPlayer.Instance.LeftHand.velocityTracker.GetAverageVelocity(true, 0);
 
-                    SendProjectile(GetPreferredProjectileEntry(), startpos, charvel, CalculateProjectileColor(), null, Buttons.GetIndex("Alternate Projectile Hand").enabled ? (Time.frameCount % 2 == 0) ? ThrowableHand.Left : ThrowableHand.Right : ThrowableHand.Dynamic);
+                    SendProjectile(GetPreferredProjectileEntry(), startpos, charvel, CalculateProjectileColor(), SnowballSize, null, Buttons.GetIndex("Alternate Projectile Hand").enabled ? (Time.frameCount % 2 == 0) ? ThrowableHand.Left : ThrowableHand.Right : ThrowableHand.Dynamic);
                 }
             }
         }
@@ -806,7 +817,7 @@ namespace Seralyth.Mods
                     if (Buttons.GetIndex("Include Hand Velocity").enabled)
                         charvel = GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0);
 
-                    SendProjectile(GetPreferredProjectileEntry(), startpos, charvel, CalculateProjectileColor());
+                    SendProjectile(GetPreferredProjectileEntry(), startpos, charvel, CalculateProjectileColor(), SnowballSize);
                 }
             }
         }
@@ -907,9 +918,13 @@ namespace Seralyth.Mods
                     LogManager.LogError("Throwable is null on " + (leftHand ? "left" : "right") + " hand for projectile: " + entry?.Name);
                     continue;
                 }
-
                 if (!throwable.gameObject.activeSelf)
                     throwable.SetSnowballActiveLocal(true);
+
+                VRRig.LocalRig.SetThrowableProjectileColor(leftHand, CalculateProjectileColor());
+
+                if (throwable is GrowingSnowballThrowable growingSnowball && growingSnowball.sizeLevel != SnowballSize)
+                    growingSnowball.SetSizeLevelAuthority(growingSnowball.GetValidSizeLevel(SnowballSize));
             }
         }
 
@@ -1272,7 +1287,7 @@ namespace Seralyth.Mods
 
                         SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { Player.ActorNumber } });
 
-                        SendProjectile(FindProjectile("Egg"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f), new Vector3(0f, -15f, 0f), Color.black, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
+                        SendProjectile(FindProjectile("Egg"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f), new Vector3(0f, -15f, 0f), Color.black, -1, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
                     }
 
                     RPCProtection();
@@ -1291,7 +1306,7 @@ namespace Seralyth.Mods
         public static void ProjectileBlindPlayer(NetPlayer player)
         {
             VRRig rig = GetVRRigFromPlayer(player);
-            SendProjectile(FindProjectile("Egg"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f), new Vector3(0f, -15f, 0f), Color.black, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
+            SendProjectile(FindProjectile("Egg"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f), new Vector3(0f, -15f, 0f), Color.black, -1, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
         }
 
         public static void ProjectileBlindPlayer(VRRig player) => ProjectileBlindPlayer(GetPlayerFromVRRig(player));
@@ -1340,7 +1355,7 @@ namespace Seralyth.Mods
 
                         SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { Player.ActorNumber } });
 
-                        SendProjectile(FindProjectile("Fireworks"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f) + rig.headMesh.transform.forward * -0.7f, new Vector3(0f, 15f, 0f), Color.black, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
+                        SendProjectile(FindProjectile("Fireworks"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f) + rig.headMesh.transform.forward * -0.7f, new Vector3(0f, 15f, 0f), Color.black, -1, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
                     }
 
                     RPCProtection();
@@ -1359,7 +1374,7 @@ namespace Seralyth.Mods
         public static void ProjectileLagPlayer(NetPlayer player)
         {
             VRRig rig = GetVRRigFromPlayer(player);
-            SendProjectile(FindProjectile("Fireworks"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f) + rig.headMesh.transform.forward * -0.7f, new Vector3(0f, 15f, 0f), Color.black, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
+            SendProjectile(FindProjectile("Fireworks"), rig.headMesh.transform.position + new Vector3(0f, 0.1f, 0f) + rig.headMesh.transform.forward * -0.7f, new Vector3(0f, 15f, 0f), Color.black, -1, new RaiseEventOptions { TargetActors = new[] { NetPlayerToPlayer(rig.GetPlayer()).ActorNumber } });
         }
 
         public static void ProjectileLagPlayer(VRRig player) => ProjectileLagPlayer(GetPlayerFromVRRig(player));
@@ -1491,10 +1506,10 @@ namespace Seralyth.Mods
         {
             foreach (VRRig rig in ActiveRigs)
             {
-                if (!rig.isLocal && (Vector3.Distance(GorillaTagger.Instance.leftHandTransform.position, rig.headMesh.transform.position) < 0.25f || Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, rig.headMesh.transform.position) < 0.25f))
+                if (!rig.IsLocal() && (Vector3.Distance(GorillaTagger.Instance.leftHandTransform.position, rig.headMesh.transform.position) < 0.25f || Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, rig.headMesh.transform.position) < 0.25f))
                 {
                     Vector3 targetDirection = GorillaTagger.Instance.headCollider.transform.position - rig.headMesh.transform.position;
-                    SendProjectile(GetGrowingSnowballProjectileEntry(), GorillaTagger.Instance.headCollider.transform.position + new Vector3(0f, 0.5f, 0f) + new Vector3(targetDirection.x, 0f, targetDirection.z).normalized / 1.7f, new Vector3(0f, -500f, 0f));
+                    SendProjectile(GetGrowingSnowballProjectileEntry(), GorillaTagger.Instance.headCollider.transform.position + new Vector3(0f, 0.5f, 0f) + new Vector3(targetDirection.x, 0f, targetDirection.z).normalized / 1.7f, new Vector3(0f, -500f, 0f), null, -1, new RaiseEventOptions() { TargetActors = new int[] { rig.GetPlayer().ActorNumber } });
 
                     if (Buttons.GetIndex("Graphic Punch Mod").enabled)
                         SendProjectile(FindProjectile("Apple"), rig.head.rigTarget.position, Vector3.down * 600f, new Color32(100, 0, 0, 255));

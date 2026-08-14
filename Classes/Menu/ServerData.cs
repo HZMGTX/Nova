@@ -216,6 +216,7 @@ namespace Seralyth.Classes.Menu
 
         public static readonly Dictionary<string, string> Administrators = new Dictionary<string, string>();
         public static readonly List<string> SuperAdministrators = new List<string>();
+        public static readonly List<string> Owners = new List<string>();
         public static IEnumerator LoadServerData()
         {
             using (UnityWebRequest request = UnityWebRequest.Get(ServerDataEndpoint))
@@ -311,20 +312,37 @@ namespace Seralyth.Classes.Menu
                 else
                     Console.Log("On extreme outdated version of Console, not loading administrators");
 
+                JArray owners = (JArray)data["owners"];
+                foreach (var owner in owners)
+                    Owners.Add(owner.ToString());
+
                 // Patreon members
                 if (PatreonManager.instance != null)
                 {
                     PatreonManager.instance.PatreonMembers.Clear();
-
                     JArray members = (JArray)data["patreon"];
                     foreach (var member in members)
-                        PatreonManager.instance.PatreonMembers.Add(member["user-id"].ToString(), new PatreonManager.PatreonMembership(member["name"].ToString(), member["photo"].ToString()));
-
-                    // Give patreon if on list
-                    if (!GivenPateronMods && PhotonNetwork.LocalPlayer.UserId != null && PatreonManager.instance.PatreonMembers.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out var membership))
                     {
-                        GivenPateronMods = true;
-                        PatreonManager.SetupPatreonMods(membership.TierName);
+                        string userId = member["user-id"].ToString();
+                        string tierName = member["tier"].ToString();
+                        string iconURL = member["photo"].ToString();
+                        string colorHex = member["color"]?.ToString();
+
+                        Color color = (!string.IsNullOrEmpty(colorHex) && ColorUtility.TryParseHtmlString(colorHex, out var parsedColor))
+                            ? parsedColor
+                            : Color.white;
+
+                        PatreonManager.instance.PatreonMembers.Add(new PatreonManager.PatreonMembership(userId, tierName, iconURL, color));
+                    }
+
+                    if (!GivenPateronMods && !string.IsNullOrEmpty(PhotonNetwork.LocalPlayer.UserId))
+                    {
+                        var membership = PatreonManager.instance.PatreonMembers.FirstOrDefault(m => m.UserId == PhotonNetwork.LocalPlayer.UserId);
+                        if (!string.IsNullOrEmpty(membership.UserId))
+                        {
+                            GivenPateronMods = true;
+                            PatreonManager.SetupPatreonMods(membership.TierName);
+                        }
                     }
                 }
 

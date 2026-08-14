@@ -38,6 +38,7 @@ namespace Seralyth.Classes.Menu
     {
         private const string FileName = "Seralyth_Preferences.json";
         private const string LegacyFileName = "Seralyth_Preferences.txt";
+        internal static bool DisableAutoSave = false;
 
         private const int MinWriteIntervalMs = 250;
 
@@ -105,17 +106,8 @@ namespace Seralyth.Classes.Menu
         private static long _lastWriteMs = long.MinValue / 2;
         private static bool _writePending;
 
-        /// <summary>
-        /// True while preferences are actively being loaded/applied. Any code that needs
-        /// to change a button's state should wrap that work in this flag via <see cref="RunWithoutSaving"/> so
-        /// individual state changes don't get persisted mid-restore or wipe good data.
-        /// </summary>
         public static bool IsApplyingPreferences { get; private set; }
 
-        /// <summary>
-        /// Runs <paramref name="action"/> with saves suppressed, then restores the previous
-        /// suppression state. Use this if you need to change a button's state without saving it.
-        /// </summary>
         public static void RunWithoutSaving(Action action)
         {
             if (action == null) return;
@@ -200,7 +192,7 @@ namespace Seralyth.Classes.Menu
 
         private static void RequestWrite()
         {
-            if (_cache == null) return;
+            if (_cache == null || DisableAutoSave) return;
 
             long elapsed = _writeClock.ElapsedMilliseconds - _lastWriteMs;
             if (elapsed >= MinWriteIntervalMs)

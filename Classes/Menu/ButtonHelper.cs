@@ -69,7 +69,7 @@ namespace Seralyth.Classes.Menu
                 return 0;
             }
 
-            button.onValueChanged = () =>
+            void RefreshLabel()
             {
                 var names = getNames();
                 if (names == null || names.Length == 0)
@@ -82,6 +82,19 @@ namespace Seralyth.Classes.Menu
                 button.value = names[v];
 
                 button.overlapText = $"{label} <color=grey>[</color><color=green>{names[v]}</color><color=grey>]</color>";
+            }
+
+            button.onValueChanged = () =>
+            {
+                var names = getNames();
+                if (names == null || names.Length == 0)
+                {
+                    RefreshLabel();
+                    return;
+                }
+
+                int v = CurrentIndex(names);
+                RefreshLabel();
                 apply(v);
             };
 
@@ -98,6 +111,8 @@ namespace Seralyth.Classes.Menu
                 Preferences.SaveButton(button);
                 onCycle?.Invoke(positive);
             };
+
+            RefreshLabel();
 
             return button;
         }
@@ -134,15 +149,19 @@ namespace Seralyth.Classes.Menu
                 excludeFromSave = !persist
             };
 
-            if (!string.IsNullOrEmpty(overlapText))
-                button.overlapText = overlapText;
+            void RefreshLabel()
+            {
+                int v = Mathf.Clamp(button.GetValue<int>(), min, max);
+                button.value = v;
+
+                if (display != null)
+                    button.overlapText = $"{label} <color=grey>[</color><color=green>{display(v)}</color><color=grey>]</color>";
+            }
 
             button.onValueChanged = () =>
             {
-                int v = button.GetValue<int>();
-                if (display != null)
-                    button.overlapText = $"{label} <color=grey>[</color><color=green>{display(v)}</color><color=grey>]</color>";
-                apply(v);
+                RefreshLabel();
+                apply(button.GetValue<int>());
             };
 
             button.cycleValue = positive =>
@@ -159,6 +178,8 @@ namespace Seralyth.Classes.Menu
                 Preferences.SaveButton(button);
                 onCycle?.Invoke(positive);
             };
+
+            RefreshLabel();
 
             return button;
         }

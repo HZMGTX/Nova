@@ -369,7 +369,8 @@ namespace Seralyth.Mods
                     }
 
                     AddSprite("Steam", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/steam.png", "Images/Mods/Visuals/steam.png"));
-                    AddSprite("Standalone", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/oculus.png", "Images/Mods/Visuals/oculus.png"));
+                    AddSprite("Quest", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/meta.png", "Images/Mods/Visuals/meta.png"));
+                    AddSprite("Rift", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/oculus.png", "Images/Mods/Visuals/oculus.png"));
                     AddSprite("PC", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/pc.png", "Images/Mods/Visuals/pc.png"));
                     for (int i = 1; i <= 5; i++)
                         AddSprite($"Ping{i}", LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/ping{i}.png", $"Images/Mods/Visuals/ping{i}.png"));
@@ -914,7 +915,7 @@ namespace Seralyth.Mods
                     NotificationManager.information["Name"] = lockTarget.GetName();
                     NotificationManager.information["Color"] = lockTarget.GetColor().ToRGBString();
                     NotificationManager.information["ID"] = lockTarget.GetPlayer().UserId;
-                    NotificationManager.information["Platform"] = lockTarget.GetPlatform();
+                    NotificationManager.information["Platform"] = lockTarget.GetPlatform().ToString();
                     NotificationManager.information["Ping"] = lockTarget.GetPing().ToString();
                     NotificationManager.information["FPS"] = lockTarget.fps.ToString();
                     NotificationManager.information["Creation Date"] = lockTarget.GetCreationDate();
@@ -1766,7 +1767,64 @@ namespace Seralyth.Mods
 
                         if (NameTagOptimize())
                         {
-                            tmp.SafeSetText($"{vrrig.fps} FPS");
+                            tmp.SafeSetText($"{vrrig.GetFPS()} FPS");
+                            tmp.color = vrrig.GetColor();
+                            tmp.SafeSetFontStyle(activeFontStyle);
+                            tmp.SafeSetFont(activeFont);
+                        }
+                        if (nameTagChams)
+                            tmp.Chams();
+                        nameTag.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f) * vrrig.scaleFactor;
+
+                        nameTag.transform.position = GetNameTagPosition(vrrig);
+                        nameTag.transform.LookAt(Camera.main.transform.position);
+                        nameTag.transform.Rotate(0f, 180f, 0f);
+                    }
+                }
+                catch { }
+            }
+        }
+        public static void DisableFPSTags()
+        {
+            foreach (KeyValuePair<VRRig, GameObject> nametag in fpsNametags)
+                Object.Destroy(nametag.Value);
+
+            fpsNametags.Clear();
+        }
+
+        private static readonly Dictionary<VRRig, GameObject> targetFPSNameTags = new Dictionary<VRRig, GameObject>();
+        public static void TargetFPSTags()
+        {
+            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = targetFPSNameTags.ToList();
+            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
+            {
+                Object.Destroy(nametag.Value);
+                targetFPSNameTags.Remove(nametag.Key);
+            }
+
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
+            {
+                try
+                {
+                    if (!vrrig.isLocal || selfNameTag)
+                    {
+                        if (!targetFPSNameTags.ContainsKey(vrrig))
+                        {
+                            GameObject go = new GameObject("Seralyth_FPStag");
+                            go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
+                            TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
+                            TextMeshPro.fontSize = 4.8f;
+                            TextMeshPro.alignment = TextAlignmentOptions.Center;
+
+                            targetFPSNameTags.Add(vrrig, go);
+                        }
+
+                        GameObject nameTag = targetFPSNameTags[vrrig];
+                        TextMeshPro tmp = nameTag.GetOrAddComponent<TextMeshPro>();
+
+                        if (NameTagOptimize())
+                        {
+                            tmp.SafeSetText($"Target FPS: {vrrig.GetTargetFPS()}");
                             tmp.color = vrrig.GetColor();
                             tmp.SafeSetFontStyle(activeFontStyle);
                             tmp.SafeSetFont(activeFont);
@@ -1784,12 +1842,12 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void DisableFPSTags()
+        public static void DisableTargetFPSTags()
         {
-            foreach (KeyValuePair<VRRig, GameObject> nametag in fpsNametags)
+            foreach (KeyValuePair<VRRig, GameObject> nametag in targetFPSNameTags)
                 Object.Destroy(nametag.Value);
 
-            fpsNametags.Clear();
+            targetFPSNameTags.Clear();
         }
 
         private static readonly Dictionary<VRRig, GameObject> idNameTags = new Dictionary<VRRig, GameObject>();
@@ -2833,14 +2891,14 @@ namespace Seralyth.Mods
 
         public static string GetPrettyPlatform(VRRig vrrig)
         {
-            string platform = vrrig.GetPlatform();
+            VRRigExtensions.PlatformType platform = vrrig.GetPlatform();
 
             return platform switch
             {
-                "PC" => "<color=#00FFFF>PC</color>",
-                "Steam" => "<color=blue>Steam</color>",
-                "Standalone" => "<color=green>Standalone</color>",
-                _ => platform,
+                VRRigExtensions.PlatformType.Rift => "<color=#00FFFF>Rift</color>",
+                VRRigExtensions.PlatformType.Steam => " <color=blue>Steam</color>",
+                VRRigExtensions.PlatformType.Quest => "<color=green>Quest</color>",
+                _ => platform.ToString(),
             };
         }
 
@@ -2851,9 +2909,9 @@ namespace Seralyth.Mods
             return ping < 300 ? $"<color=green>{ping}</color>" : ping < 1000 ? $"<color=yellow>{ping}</color>" : $"<color=red>{ping}</color>";
         }
 
-        public static string GetPrettyFPS(VRRig vrrig)
+        public static string GetPrettyFPS(VRRig vrrig, bool target = false)
         {
-            int fps = vrrig.fps;
+            int fps = target ? vrrig.GetTargetFPS() : vrrig.GetFPS();
 
             return fps < 30 ? $"<color=red>{fps}</color>" : fps < 60 ? $"<color=yellow>{fps}</color>" : $"<color=green>{fps}</color>";
         }
@@ -2874,7 +2932,7 @@ namespace Seralyth.Mods
             {
                 try
                 {
-                    if (!vrrig.isLocal || selfNameTag)
+                    if (!vrrig.IsLocal() || selfNameTag)
                     {
                         if (!compactNameTags.ContainsKey(vrrig))
                         {
@@ -2950,11 +3008,12 @@ namespace Seralyth.Mods
                         Transform nameBgTr = bgCont.transform.Find("namebg");
 
                         string tagText =
-                            $"{(vrrig.GetTruePing() > 2500 && !vrrig.IsLocal() ? "[<color=red>Crashed</color>] | " : "")}" +
+                            $"{(vrrig.GetTruePing() > 2500 && !vrrig.IsLocal() ? "[<color=red>Unresponsive</color>] | " : "")}" +
                             $"[<color=#00FFFF>{GetCreationDate(vrrig.GetPlayer().UserId, null, "MMM dd, yyyy")}</color>] | " +
                             $"[{GetPrettyPlatform(vrrig)}] | " +
                             $"[Ping: {GetPrettyPing(vrrig)}] | " +
-                            $"[FPS: {GetPrettyFPS(vrrig)}]" +
+                            $"[FPS: {GetPrettyFPS(vrrig)}] | " +
+                            $"[Target FPS: {GetPrettyFPS(vrrig, true)}]" +
                             $"{(vrrig.IsVIMSubscriber() ? " | [<color=yellow>VIM Subscriber</color>]" : "")}" +
                             $"{(vrrig.GetPlayer().IsMasterClient ? " | [<color=#00FFFF>Master</color>]" : "")}";
 
@@ -3488,7 +3547,7 @@ namespace Seralyth.Mods
                     indicator.GetComponent<Renderer>().material.mainTexture = texture;
 
                     indicator.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
-                    indicator.transform.position = vrrig.headMesh.transform.position + vrrig.headMesh.transform.up * (Classes.Menu.Console.GetIndicatorDistance(vrrig) * vrrig.scaleFactor);
+                    indicator.transform.position = GetNameTagPosition(vrrig);
                     indicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                 }
                 else if (currentCosmetic == null && cosmeticIndicators.TryGetValue(vrrig, out GameObject staleIndicator))
@@ -3514,9 +3573,10 @@ namespace Seralyth.Mods
         {
             return rig.GetPlatform() switch
             {
-                "Steam" => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/steam.png", "Images/Mods/Visuals/steam.png"),
-                "Standalone" => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/oculus.png", "Images/Mods/Visuals/oculus.png"),
-                "PC" => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/pc.png", "Images/Mods/Visuals/pc.png"),
+                VRRigExtensions.PlatformType.Steam => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/steam.png", "Images/Mods/Visuals/steam.png"),
+                VRRigExtensions.PlatformType.Quest => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/meta.png", "Images/Mods/Visuals/meta.png"),
+                VRRigExtensions.PlatformType.Rift => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/oculus.png", "Images/Mods/Visuals/oculus.png"),
+                VRRigExtensions.PlatformType.PC => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/pc.png", "Images/Mods/Visuals/pc.png"),
                 _ => LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Visuals/unknown.png", "Images/Mods/Visuals/unknown.png"),
             };
         }
@@ -3559,7 +3619,7 @@ namespace Seralyth.Mods
                 indicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
 
                 indicator.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
-                indicator.transform.position = vrrig.headMesh.transform.position + vrrig.headMesh.transform.up * (Classes.Menu.Console.GetIndicatorDistance(vrrig) * vrrig.scaleFactor);
+                indicator.transform.position = GetNameTagPosition(vrrig);
                 indicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
             }
         }
@@ -3593,7 +3653,7 @@ namespace Seralyth.Mods
                 indicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
 
                 indicator.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
-                indicator.transform.position = vrrig.headMesh.transform.position + vrrig.headMesh.transform.up * (Classes.Menu.Console.GetIndicatorDistance(vrrig) * vrrig.scaleFactor);
+                indicator.transform.position = GetNameTagPosition(vrrig);
                 indicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
             }
         }
@@ -3659,7 +3719,7 @@ namespace Seralyth.Mods
 
                         volIndicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
                         volIndicator.transform.localScale = new Vector3(size, size, 0.01f) * vrrig.scaleFactor;
-                        volIndicator.transform.position = vrrig.headMesh.transform.position + vrrig.headMesh.transform.up * (Classes.Menu.Console.GetIndicatorDistance(vrrig) * vrrig.scaleFactor);
+                        volIndicator.transform.position = GetNameTagPosition(vrrig);
                         volIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                     }
                     else
@@ -3709,7 +3769,7 @@ namespace Seralyth.Mods
 
                         volIndicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
                         volIndicator.transform.localScale = new Vector3(size, size, 0.01f) * vrrig.scaleFactor;
-                        volIndicator.transform.position = vrrig.headMesh.transform.position + vrrig.headMesh.transform.up * (Classes.Menu.Console.GetIndicatorDistance(vrrig) * vrrig.scaleFactor);
+                        volIndicator.transform.position = GetNameTagPosition(vrrig);
                         volIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                     }
                     else
@@ -3784,10 +3844,9 @@ namespace Seralyth.Mods
 
                 if (grabbable)
                 {
-                    Vector3 tagPosition = GetNameTagPosition(vrrig);
                     renderer.material.color = vrrig.GetColor();
                     gripIcon.transform.localScale = new Vector3(0.5f, 0.5f, 0.01f) * vrrig.scaleFactor;
-                    gripIcon.transform.position = tagPosition;
+                    gripIcon.transform.position = GetNameTagPosition(vrrig);
                     gripIcon.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                 }
             }

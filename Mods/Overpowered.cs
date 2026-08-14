@@ -954,7 +954,7 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void VirtualStumpCrashGun()
+        public static void MasterVirtualStumpCrashGun()
         {
             if (GetGunInput(false))
             {
@@ -981,7 +981,7 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void VirtualStumpCrashAll() =>
+        public static void MasterVirtualStumpCrashAll() =>
             GameEntityCrash(ManagerRegistry.CustomMaps.GameEntityManager, RpcTarget.Others);
 
         public static void GhostReactorCrashGun()
@@ -1255,7 +1255,6 @@ namespace Seralyth.Mods
                 {
                     localLink.TentacleTryCreateLink(remoteLink);
                     VRRig.LocalRig.transform.position = targetTransform;
-                    //SendSerialize(VRRig.LocalRig.GetPhotonView());
                     NotificationManager.SendNotification("<color=grey>[</color><color=purple>MENU</color><color=grey>]</color> Tried to grab " + rig.GetPlayer().NickName + ".");
                     grabDelay = remoteLink.rejectGrabsUntilTimestamp > Time.time ? remoteLink.rejectGrabsUntilTimestamp : Time.time + 1f;
                 }
@@ -1273,14 +1272,13 @@ namespace Seralyth.Mods
 
         public static void FlingOnGrab()
         {
-            if (VRRig.LocalRig.leftHandLink.IsLinkActive() || VRRig.LocalRig.rightHandLink.IsLinkActive())
+            if (VRRig.LocalRig.IsBeingHeld())
             {
+                Transform transform = VRRig.LocalRig.leftHandLink.IsLinkActive() ? VRRig.LocalRig.leftHandTransform : VRRig.LocalRig.rightHandTransform;
                 VRRig rig = VRRig.LocalRig.leftHandLink.grabbedPlayer.VRRig() ?? VRRig.LocalRig.rightHandLink.grabbedPlayer.VRRig();
-                Vector3 velocity = (Vector3.up + GorillaTagger.Instance.bodyCollider.transform.forward * 1).normalized * 3f;
+                Vector3 velocity = rig.transform.up * 3f;
                 rig.GetNetView().SendRPC("DroppedByPlayer", rig.GetPlayer(), velocity);
             }
-            else
-                VRRig.LocalRig.enabled = true;
         }
 
         private static float propHuntSpazDelay;
@@ -4120,7 +4118,7 @@ namespace Seralyth.Mods
             if (Time.time < lagDebounce) return;
 
             if (target is VRRig rig) target = rig.GetPhotonPlayer();
-            if (target is NetPlayer legacyNetPlayer) target = legacyNetPlayer.GetPlayer();
+            if (target is NetPlayer NetPlayer) target = NetPlayer.GetPlayer();
 
             lagDebounce = Time.time + lagDelay;
 
@@ -4203,7 +4201,28 @@ namespace Seralyth.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                    ForceGrab(lockTarget, new Vector3(0, 500, 0));
+                {
+                    if (!lockTarget.IsBeingHeld())
+                    {
+                        if (!lockTarget.IsNear())
+                        {
+                            VRRig.LocalRig.enabled = false;
+                            VRRig.LocalRig.transform.position = lockTarget.transform.position;
+                        }
+                        else if (!VRRig.LocalRig.enabled)
+                            VRRig.LocalRig.enabled = true;
+                        VRRig.LocalRig.rightHandLink.TentacleTryCreateLink(lockTarget.rightHandLink);
+                    }
+                    else if (lockTarget.IsBeingHeld(VRRig.LocalRig))
+                    {
+                        if (lockTarget.rightHandLink.grabbedPlayer == VRRig.LocalRig.GetPlayer())
+                        {
+                            Vector3 velocity = lockTarget.transform.up * 3f;
+                            lockTarget.GetNetView().SendRPC("DroppedByPlayer", lockTarget.GetPlayer(), velocity);
+                        }
+
+                    }
+                }
 
                 if (GetGunInput(true))
                 {
@@ -4223,8 +4242,21 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void GrabFlingAll() =>
-            ForceGrab(new Vector3(0, 500, 0));
+        public static void GrabFlingAll()
+        {
+            if (!VRRig.LocalRig.IsBeingHeld() && !lockTarget.IsNear())
+            {
+                VRRig.LocalRig.enabled = false;
+                VRRig.LocalRig.transform.position = lockTarget.transform.position;
+                VRRig.LocalRig.rightHandLink.TentacleTryCreateLink(lockTarget.rightHandLink);
+            }
+            else if (VRRig.LocalRig.IsBeingHeld())
+            {
+                FlingOnGrab();
+                if (!VRRig.LocalRig.enabled)
+                    VRRig.LocalRig.enabled = true;
+            }
+        }
 
         public static void BringPlayerGun()
         {
@@ -4488,7 +4520,7 @@ namespace Seralyth.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                    SendBarrelProjectile(lockTarget.transform.position + Vector3.down * 0.2f, lockTarget.bodyTransform.up * 5000f, Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)), new RaiseEventOptions { TargetActors = new[] { lockTarget.GetPlayer().ActorNumber } });
+                    SendBarrelProjectile(lockTarget.transform.position + Vector3.down * 0.2f, Vector3.up * 15000, Random.rotation, new RaiseEventOptions { TargetActors = new[] { lockTarget.GetPlayer().ActorNumber } });
 
                 if (GetGunInput(true))
                 {
@@ -4512,7 +4544,7 @@ namespace Seralyth.Mods
         public static void BarrelFlingAll()
         {
             foreach (var TargetRig in VRRigExtensions.ActiveRigs.Where(TargetRig => !TargetRig.IsTagged()))
-                SendBarrelProjectile(lockTarget.transform.position + Vector3.down * 0.2f, Vector3.up * 5000f, Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)), new RaiseEventOptions { TargetActors = new[] { TargetRig.GetPlayer().ActorNumber } });
+                SendBarrelProjectile(lockTarget.transform.position + Vector3.down * 0.2f, Vector3.up * 15000, Random.rotation, new RaiseEventOptions { TargetActors = new[] { TargetRig.GetPlayer().ActorNumber } });
         }
         public static void BarrelObliterateGun()
         {
@@ -4656,8 +4688,6 @@ namespace Seralyth.Mods
                 PhotonNetwork.RaiseEvent(177, data, options, SendOptions.SendReliable);
                 barrel._child.Deploy(barrel, pos, rot, vel);
                 RPCProtection();
-                LogManager.Log($"Sent barrel projectile at position {pos} with velocity {vel} and rotation {rot}");
-
             }
         }
 
@@ -5036,29 +5066,6 @@ namespace Seralyth.Mods
             NetworkSystem.Instance.ReturnToSinglePlayer();
         }
 
-        static bool didWarnForTransparentRig;
-        public static void TransparentRig()
-        {
-            if (!didWarnForTransparentRig)
-            {
-                NotificationManager.SendNotification("<color=grey>[</color><color=red>WARNING</color><color=grey>]</color> This mod can not make yourself visible again for other players, even when turned off. You must rejoin the room with the mod off.", 15000);
-                didWarnForTransparentRig = true;
-            }
-            SetTransparent(true);
-        }
-
-        public static void SetTransparent(bool status, VRRig receiver = null)
-        {
-            ManagerRegistry.GhostReactor.GhostReactorManager.GetView.RPC("PlayerStateChangeRPC", receiver != null ? (object)receiver.GetPhotonPlayer() : RpcTarget.All, new object[]
-            {
-                NetworkSystem.Instance.LocalPlayer.ActorNumber,
-                NetworkSystem.Instance.LocalPlayer.ActorNumber,
-                GRPlayer.GRPlayerState.Ghost
-            });
-            VRRig.LocalRig.bodyRenderer.SetGameModeBodyType(status ? GorillaBodyType.Invisible : GorillaBodyType.Default);
-            VRRig.LocalRig.SetInvisibleToLocalPlayer(status);
-        }
-
         public static void BetaShuttleFollowCommand(Player player)
         {
             PhotonNetworkController.Instance.FriendIDList.Add(player.UserId);
@@ -5190,7 +5197,7 @@ namespace Seralyth.Mods
             {
                 partyLastCode = PhotonNetwork.CurrentRoom.Name;
                 waitForPlayerJoin = true;
-                PhotonNetworkController.Instance.AttemptToJoinSpecificRoom("KKK", JoinType.ForceJoinWithParty);
+                PhotonNetworkController.Instance.AttemptToJoinSpecificRoom(GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)], JoinType.ForceJoinWithParty);
                 partyTime = Time.time + 0.25f;
                 partyKickReconnecting = false;
                 amountPartying = FriendshipGroupDetection.Instance.myPartyMemberIDs.Count - 1;

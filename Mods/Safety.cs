@@ -756,29 +756,6 @@ namespace Seralyth.Mods
             }
         }
 
-        public static int fpsSpoofValue = 90;
-        public static void FPSSpoof()
-        {
-            FPSPatch.enabled = true;
-            FPSPatch.spoofFPSValue = Random.Range(fpsSpoofValue - 10, fpsSpoofValue + 10);
-        }
-
-        public static int pingSpoofValue = 200;
-        public static void PingSpoof()
-        {
-            SerializePatch.OverrideSerialization ??= () =>
-            {
-                MassSerialize(timeOffset: pingSpoofValue);
-                return false;
-            };
-        }
-
-        // value is an index of 5fps steps (1..28), not the raw fps, since CycleSetting only steps by 1.
-        public static void ApplyFPSSpoofValue(int index) => fpsSpoofValue = index * 5;
-
-        // value is an index of 100ms steps (1..100), not the raw ping, since CycleSetting only steps by 1.
-        public static void ApplyPingSpoofValue(int index) => pingSpoofValue = index * 100;
-
         public static readonly string[] namePrefix = {
             "EPIC", "EPIK", "REAL", "NOT", "SILLY", "LITTLE", "BIG", "MAYBE", "MONKE", "SUB2", "OG", "FUN", "FR", "NOT", "NOTA"
         };
@@ -825,17 +802,6 @@ namespace Seralyth.Mods
             RankedPatch.targetPlatform = target;
         }
 
-
-        public static bool spoofingPlatform;
-        public static void SpoofPlatform(bool enabled)
-        {
-            spoofingPlatform = enabled;
-            try
-            {
-                VRRig.LocalRig.GetNetView().SendRPC("RPC_UpdateRankedInfo", RpcTarget.Others, 0, enabled ? 1 : 0, enabled ? 0 : 1);
-            }
-            catch { }
-        }
 
         public static int targetElo = 4000;
         public static int targetBadge = 7;

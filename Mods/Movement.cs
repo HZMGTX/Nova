@@ -1065,7 +1065,7 @@ namespace Seralyth.Mods
         }
 
         // We present to you: *misery*
-        // -- ii & kingofnetflix
+        // -- iiDk & kingofnetflix
 
         // TODO: Add parallax to cameras to simulate 3D views
         // TODO: Calculate proper velocity, rotation, and position when going through portals instead of cheating and just giving some basic stuff
@@ -2660,9 +2660,6 @@ namespace Seralyth.Mods
             playspace = GetAllType<Playspace>().FirstOrDefault();
             playspace.enabled = false;
         }
-
-        static readonly HashSet<MeshCollider> colliders = new HashSet<MeshCollider>();
-        static float colliderRefresh;
 
         public static void UpdateClipColliders(bool enabled)
         {

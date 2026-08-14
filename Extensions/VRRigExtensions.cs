@@ -39,6 +39,12 @@ namespace Seralyth.Extensions
         public static bool IsLocal(this VRRig rig, bool ghostRig = true) =>
             rig != null && (rig.isLocal || (GhostRig != null && rig == GhostRig));
 
+        public static bool IsBeingHeld(this VRRig rig, VRRig remoteRig = null) =>
+            rig != null && (
+                (!rig.IsLeftHandGrabbable() && (remoteRig == null || rig.leftHandLink.grabbedPlayer == remoteRig.GetPlayer())) ||
+                (!rig.IsRightHandGrabbable() && (remoteRig == null || rig.rightHandLink.grabbedPlayer == remoteRig.GetPlayer()))
+            );
+
         public static bool IsLeftHandGrabbable(this VRRig rig) =>
             rig != null && rig.leftHandLink.CanBeGrabbed();
 
@@ -93,14 +99,26 @@ namespace Seralyth.Extensions
             return infectedPlayers.Contains(targetPlayer);
         }
 
+        public enum PlatformType
+        {
+            Steam,
+            Quest,
+            Rift,
+            PC,
+            Unknown
+        }
+
         public static bool IsSteam(this VRRig rig) =>
-            rig.GetPlatform() != "Standalone";
+            rig != null && rig.GetPlatform() is PlatformType.Steam;
 
         public static bool IsKIDRestricted(this VRRig rig) =>
-            !rig.IsMicEnabled && rig.GetName().ToLower().StartsWith("gorilla");
+            rig != null && !rig.IsMicEnabled && rig.GetName().ToLower().StartsWith("gorilla");
 
-        public static string GetPlatform(this VRRig rig)
+        public static PlatformType GetPlatform(this VRRig rig)
         {
+            if (rig == null) return PlatformType.Unknown;
+            string platform = NetworkSystem.Instance.GetPlayerPlatform(rig.GetPlayer().ActorNumber);
+
             int suspiciouslySteam = 0;
             int suspiciouslyPC = 0;
             int suspiciouslyQuest = 0;
@@ -112,17 +130,22 @@ namespace Seralyth.Extensions
             if (concatStringOfCosmeticsAllowed.Contains("FIRST LOGIN") || rig.GetPhotonPlayer().CustomProperties.Count >= 2)
                 suspiciouslyPC++;
 
+            /*
             if (rig.currentRankedSubTierPC > 0)
                 suspiciouslyPC++;
             else if (rig.currentRankedSubTierQuest > 0)
                 suspiciouslyQuest++;
+            */
 
+            if (!string.IsNullOrEmpty(platform) && Enum.TryParse(platform, out PlatformType result))
+                return result;
+            int max = Math.Max(suspiciouslySteam, Math.Max(suspiciouslyPC, suspiciouslyQuest));
 
-            if (suspiciouslySteam > suspiciouslyPC && suspiciouslySteam > suspiciouslyQuest) return "Steam";
-            if (suspiciouslyPC > suspiciouslySteam && suspiciouslyPC > suspiciouslyQuest) return "PC";
-            if (suspiciouslyQuest > suspiciouslySteam && suspiciouslyQuest > suspiciouslyPC) return "Standalone";
+            if (suspiciouslySteam == max) return PlatformType.Steam;
+            if (suspiciouslyQuest == max) return PlatformType.Quest;
+            if (suspiciouslyPC == max) return PlatformType.PC;
 
-            return "Standalone";
+            return PlatformType.Unknown;
         }
 
         public static string GetCreationDate(this VRRig rig, Action<string> onTranslated = null, string format = "MMMM dd, yyyy h:mm tt") =>
@@ -170,10 +193,13 @@ namespace Seralyth.Extensions
                                          .OrderBy(rig.Distance)
                                          .FirstOrDefault();
 
-        public static int GetPing(this VRRig rig)
-        {
-            return playerPing.TryGetValue(rig, out int ping) ? ping : PhotonNetwork.GetPing();
-        }
+        public static int GetFPS(this VRRig rig) =>
+            Mathf.Max(rig.rigContainer.PlayerStats.FPS, rig.fps);
+
+        public static int GetTargetFPS(this VRRig rig) =>
+            rig.rigContainer.PlayerStats.TargetFPS;
+        public static int GetPing(this VRRig rig) =>
+            Mathf.Max(rig.rigContainer.PlayerStats.Ping, playerPing.TryGetValue(rig, out int ping) ? ping : PhotonNetwork.GetPing());
 
         public static int GetTruePing(this VRRig rig)
         {

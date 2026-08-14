@@ -103,7 +103,6 @@ namespace Seralyth.Mods
                 VRRig.LocalRig.head.trackingRotationOffset.x = Mathf.Lerp(VRRig.LocalRig.head.trackingRotationOffset.x, 0f, 0.1f);
         }
 
-        // value is an index of 0.05 steps (0..100), not the raw float, since CycleSetting only steps by 1.
         public static float soundboardVolumeIndex = 1;
         public static void ApplySoundboardVolume(int index)
         {
@@ -815,9 +814,11 @@ namespace Seralyth.Mods
             }
         }
 
-        // value is an index of 5-degree steps (0..36), not the raw FOV, since CycleSetting only steps by 1.
         public static int targetFOV = 90;
-        public static void ApplyTargetFOV(int index) => targetFOV = index * 5;
+
+        public static void ApplyTargetFOV(int level) =>
+            targetFOV = 70 + (level * 10);
+
 
         public static void CameraFOV()
         {
@@ -1492,13 +1493,6 @@ namespace Seralyth.Mods
         }
 
         public static void ApplyCustomQuestScore(int index) => targetQuestScore = index;
-
-        public static void FakeFPS()
-        {
-            FPSPatch.enabled = true;
-            FPSPatch.spoofFPSValue = Random.Range(0, 255);
-        }
-
 
 
         public static void GrabIDCard()
@@ -2692,7 +2686,7 @@ Piece Name: {gunTarget.name}";
                 foreach (SnowballThrowable Throwable in Maker.snowballs)
                 {
                     Throwable.linSpeedMultiplier = 10f;
-                    Throwable.maxLinSpeed = 99999f;
+                    Throwable.maxLinSpeed = 10000f;
                 }
             }
         }
@@ -5923,6 +5917,23 @@ Piece Name: {gunTarget.name}";
 
         public static void FlashNameTag() =>
             GoldenNameTag((Time.time % 0.2f) > 0.1f);
+
+        public static void DisableMiningCooldown(bool enabled)
+        {
+            Voxel_Pickaxe pickaxe = GetObject("Player Objects/Local VRRig/Local Gorilla Player(Clone)/rig/hand.R/VIMVoxelPickaxe").GetComponent<Voxel_Pickaxe>();
+            if (pickaxe)
+                pickaxe.hitCooldown = enabled ? 0 : 0.5f;
+        }
+
+        public static void StationaryMining(bool enabled)
+        {
+            Voxel_Pickaxe pickaxe = GetObject("Player Objects/Local VRRig/Local Gorilla Player(Clone)/rig/hand.R/VIMVoxelPickaxe").GetComponent<Voxel_Pickaxe>();
+            if (pickaxe)
+            {
+                pickaxe.minHitSpeed = enabled ? 0 : 1;
+                pickaxe.minMineSpeed = enabled ? 0 : 5;
+            }
+        }
 
         public static void NameCycle(string[] names)
         {

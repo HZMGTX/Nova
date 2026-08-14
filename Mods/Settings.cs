@@ -647,13 +647,20 @@ namespace Seralyth.Mods
                         {
                             buttonText = "Player Platform",
                             overlapText =
-                                $"Platform: {((playerRig?.IsSteam() ?? false) ? "Steam" : "Quest")}",
+                                $"Platform: {playerRig.GetPlatform()}",
                             label = true
                         },
                         new ButtonInfo
                         {
                             buttonText = "Player FPS",
-                            overlapText = $"FPS: {playerRig.fps}",
+                            overlapText = $"FPS: {playerRig.GetFPS()}",
+                            label = true,
+                            legal = true
+                        },
+                        new ButtonInfo
+                        {
+                            buttonText = "Player Target FPS",
+                            overlapText = $"Target FPS: {playerRig.GetTargetFPS()}",
                             label = true,
                             legal = true
                         }
@@ -3325,9 +3332,10 @@ exit 0";
         public static void ApplyMenuTheme(int themeType)
         {
             Main.themeType = themeType;
-            if (Buttons.GetIndex("Custom Menu Theme").enabled)
+            ButtonInfo button = Buttons.GetIndex("Custom Menu Theme");
+            if (button != null && button.enabled)
                 return;
-            if (themeType > Themes.Count)
+            if (themeType < 0 || themeType >= Themes.Count)
                 return;
 
             ThemeDefinition theme = Themes[themeType];
@@ -5215,7 +5223,7 @@ exit 0";
                 arrowType.ToString(),
                 pcbg.ToString(),
                 Important.reconnectDelay.ToString(),
-                Safety.fpsSpoofValue.ToString(),
+                "0",//Safety.fpsSpoofValue.ToString(),
                 SoundManager.DefaultSounds["Button"],
                 buttonClickVolume.ToString(),
                 Safety.antiReportRangeIndex.ToString(),
@@ -5268,7 +5276,7 @@ exit 0";
                 Overpowered.lagTypeIndex.ToString(),
                 Overpowered.masterVisualizationType.ToString(),
                 Movement.targetHz.ToString(),
-                Safety.pingSpoofValue.ToString(),
+                "0",//Safety.pingSpoofValue.ToString(),
                 Fun.soundboardVolumeIndex.ToString(),
                 Fun.soundboardSpeedIndex.ToString(),
                 SoundManager.DefaultSoundpack,
@@ -5414,8 +5422,8 @@ exit 0";
                 Important.reconnectDelay = int.Parse(data[14]);
                 RestoreCycle("Change Reconnect Time", Important.reconnectDelay);
 
-                Safety.fpsSpoofValue = string.IsNullOrWhiteSpace(data[15]) ? 85 : int.Parse(data[15]);
-                RestoreCycle("Change FPS Spoof Value", Safety.fpsSpoofValue);
+                //Safety.fpsSpoofValue = string.IsNullOrWhiteSpace(data[15]) ? 85 : int.Parse(data[15]);
+                //RestoreCycle("Change FPS Spoof Value", Safety.fpsSpoofValue);
 
                 SoundManager.DefaultSounds["Button"] = data[16];
                 RestoreNamedCycle("Change Button Sound", data[16]);
@@ -5568,8 +5576,8 @@ exit 0";
                 Movement.targetHz = int.Parse(data[67]);
                 RestoreCycle("Change Tinnitus Hertz", Movement.targetHz);
 
-                Safety.pingSpoofValue = int.Parse(data[68]);
-                RestoreCycle("Change Ping Spoof Value", Safety.pingSpoofValue);
+                //Safety.pingSpoofValue = int.Parse(data[68]);
+                //RestoreCycle("Change Ping Spoof Value", Safety.pingSpoofValue);
 
                 Fun.soundboardVolumeIndex = float.Parse(data[69]);
                 RestoreCycle("Change Soundboard Volume", (int)Fun.soundboardVolumeIndex);

@@ -97,7 +97,8 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Fun Settings", method =() => CurrentCategoryName = "Fun Settings", isTogglable = false, toolTip = "Opens the settings for the fun mods.", legal = true},
                 new ButtonInfo { buttonText = "Overpowered Settings", method =() => CurrentCategoryName = "Overpowered Settings", isTogglable = false, toolTip = "Opens the settings for the overpowered mods."},
                 new ButtonInfo { buttonText = "Detected Settings", method =() => CurrentCategoryName = "Detected Settings", isTogglable = false, toolTip = "Opens the settings for the detected mods."},
-                new ButtonInfo { buttonText = "Projectile Settings", method =() => CurrentCategoryName = "Projectile Settings", isTogglable = false, toolTip = "Opens the settings for the projectiles."}
+                new ButtonInfo { buttonText = "Projectile Settings", method =() => CurrentCategoryName = "Projectile Settings", isTogglable = false, toolTip = "Opens the settings for the projectiles."},
+                new ButtonInfo { buttonText = "Patreon Settings", method =() => CurrentCategoryName = "Patreon Settings", isTogglable = false, toolTip = "Opens the settings for the Patreon mods."},
             },
 
             new[] { // Menu Settings [2]
@@ -311,7 +312,7 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Backup Preferences", enableMethod =() => backupPreferences = true, disableMethod =() => backupPreferences = false, toolTip = "Automatically saves a copy of your preferences every minute.", legal = true},
                 new ButtonInfo { buttonText = "Save Preferences", method = Preferences.Save, isTogglable = false, toolTip = "Saves your preferences to a file.", legal = true},
                 new ButtonInfo { buttonText = "Load Preferences", method = Preferences.Load, isTogglable = false, toolTip = "Loads your preferences from a file.", legal = true},
-                new ButtonInfo { buttonText = "Disable Autosave", method =() => autoSaveDelay = Time.time + 1f, toolTip = "Disables the auto save mechanism.", legal = true},
+                new ButtonInfo { buttonText = "Disable Autosave", enableMethod = () => Preferences.DisableAutoSave = true, disableMethod = () => Preferences.DisableAutoSave = false, toolTip = "Disables the auto save mechanism.", legal = true},
                 new ButtonInfo { buttonText = "Panic", method = Settings.Panic, isTogglable = false, toolTip = "Disables every single active mod.", legal = true},
             },
 
@@ -394,14 +395,15 @@ namespace Seralyth.Menu
 
                 new ButtonInfo { buttonText = "Include Hand Velocity", toolTip = "Adds the hand velocity to the projectile velocity." },
 
-                new ButtonInfo { buttonText = "Rainbow Projectiles", toolTip = "Makes projectiles be rainbow (real RGB)." },
-                new ButtonInfo { buttonText = "Hard Rainbow Projectiles", toolTip = "Makes projectiles be rainbow but ye rainbow tis very harsh (real RGB)." },
+                new ButtonInfo { buttonText = "Rainbow Projectiles", toolTip = "Makes the projectiles' color be rainbow." },
+                new ButtonInfo { buttonText = "Hard Rainbow Projectiles", toolTip = "Makes the projectiles' color be a harsher form of rainbow." },
+
+                new ButtonInfo { buttonText = "Custom Colored Projectiles", toolTip = "Makes the projectile color the custom color (buttons above)." },
 
                 ButtonHelper.CreateNumeric("RedProj", 0, 10, Projectiles.red, Projectiles.ApplyRed, v => v.ToString(), "Makes projectiles more red.", overlapText: "Red"),
                 ButtonHelper.CreateNumeric("GreenProj", 0, 10, Projectiles.green, Projectiles.ApplyGreen, v => v.ToString(), "Makes projectiles more green.", overlapText: "Green"),
                 ButtonHelper.CreateNumeric("BlueProj", 0, 10, Projectiles.blue, Projectiles.ApplyBlue, v => v.ToString(), "Makes projectiles more blue.", overlapText: "Blue"),
 
-                new ButtonInfo { buttonText = "Custom Colored Projectiles", toolTip = "Makes the projectile color the custom color (buttons above)." },
                 new ButtonInfo { buttonText = "Friend Sided Projectiles", enableMethod =() => Projectiles.friendSided = true, disableMethod =() => Projectiles.friendSided = false, toolTip = "Makes projectiles only appear for you and your friends on the menu." },
                 ButtonHelper.CreateNumeric("Friend Projectile Scale", 1, 5, Projectiles.friendProjectileScale, Projectiles.ApplyFriendProjectileScale, v => v.ToString(), "Changes the scale of projectiles sent by the Friend system."),
                 new ButtonInfo { buttonText = "Client Sided Projectiles", enableMethod =() => Projectiles.clientSided = true, disableMethod =() => Projectiles.clientSided = false, toolTip = "Makes projectiles only appear for you." },
@@ -411,7 +413,7 @@ namespace Seralyth.Menu
 
                 ButtonHelper.CreateNumeric("Change Projectile Delay", -1, 20, Projectiles.projDebounceIndex, Projectiles.ApplyProjectileDelay, Projectiles.DisplayProjectileDelay, "Gives the projectiles a delay before spawning another.", onCycle: Projectiles.ProjectileDelayWarning),
 
-                ButtonHelper.CreateNumeric("Change Snowball Size", 0, 5, Projectiles._snowballSize, Projectiles.ApplySnowballSize, v => (v + 1).ToString(), "Changes the size of the growing snowballs.", overlapText: "Change Growing Snowball Size"),
+                ButtonHelper.CreateNumeric("Change Snowball Size", 0, Projectiles.MaximumSnowballSize, Projectiles._snowballSize, Projectiles.ApplySnowballSize, v => (v + 1).ToString(), "Changes the size of the growing snowballs.", overlapText: "Change Growing Snowball Size"),
                 new ButtonInfo { buttonText = "Random Growing Snowball Size", isTogglable = false, toolTip = "Randomizes the size of the growing snowballs." },
                 ButtonHelper.CreateNumeric("Change Snowball Multiplication Factor", 1, 5, Projectiles.snowballMultiplicationFactor, Projectiles.ApplySnowballMultiplicationFactor, v => v.ToString(), "Changes the multiplication factor of the snowballs."),
 
@@ -580,8 +582,6 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Bypass Mod Checkers", enableMethod =() => PropertiesPatches.enabled = true, method = Safety.BypassModCheckers, disableMethod =() => PropertiesPatches.enabled = false, toolTip = "Tells players using mod checkers that you have no mods."},
                 new ButtonInfo { buttonText = "Bypass Cosmetic Check", method =() => RequestPatch.bypassCosmeticCheck = true, disableMethod =() => RequestPatch.bypassCosmeticCheck = false, toolTip = "Turns off the networking for any cosmetic mods, stopping people from seeing if you're using one."},
 
-                new ButtonInfo { buttonText = "Spoof Platform", aliases = new[] { "Platform Spoof" }, enableMethod =() => Safety.SpoofPlatform(true), disableMethod =() => Safety.SpoofPlatform(false), toolTip = "Allows you to be seen as a Quest player to some mod checkers." },
-
                 new ButtonInfo { buttonText = "Anti Predictions", enableMethod = Safety.AntiPredictions, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Prevents people from checking if your predictions are too high."},
 
                 new ButtonInfo { buttonText = "Anti Report <color=grey>[</color><color=green>Disconnect</color><color=grey>]</color>", method = Safety.AntiReportDisconnect, toolTip = "Disconnects you from the room when anyone comes near your report button."},
@@ -604,8 +604,10 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Change Identity on Disconnect <color=grey>[</color><color=green>Normal</color><color=grey>]</color>", method =() => Safety.ChangeIdentityOnDisconnect(Safety.ChangeIdentityRegular), toolTip = "When you leave, your name and color will be set to something a regular player would have."},
                 new ButtonInfo { buttonText = "Change Identity on Disconnect <color=grey>[</color><color=green>Child</color><color=grey>]</color>", method =() => Safety.ChangeIdentityOnDisconnect(Safety.ChangeIdentityCustom), toolTip = "When you leave, your name and color will be set to whatever you desire."},
 
-                new ButtonInfo { buttonText = "FPS Spoof", method = Safety.FPSSpoof, disableMethod =() => FPSPatch.enabled = false, toolTip = "Makes your FPS appear different for other players and the competitive bot."},
-                new ButtonInfo { buttonText = "Ping Spoof", enableMethod = Safety.PingSpoof, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes your ping appear different for other players and the competitive bot."},
+                new ButtonInfo { buttonText = "FPS Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your FPS appear different for other players and the competitive bot."},
+                new ButtonInfo { buttonText = "Target FPS Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your FPS appear different for other players and the competitive bot."},
+                new ButtonInfo { buttonText = "Ping Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your ping appear different for other players and the competitive bot."},
+
                 new ButtonInfo { buttonText = "Name Spoof", method = Safety.NameSpoof, toolTip = "Changes your name on the leaderboard to something random, but not on your rig."},
                 new ButtonInfo { buttonText = "Color Spoof", method = Safety.ColorSpoof, toolTip = "Makes your color appear different to every player."},
 
@@ -660,16 +662,16 @@ namespace Seralyth.Menu
 
                 new ButtonInfo { buttonText = "Force Tag Freeze", method = Movement.ForceTagFreeze, disableMethod = Movement.NoTagFreeze, toolTip = "Forces tag freeze on your character."},
                 new ButtonInfo { buttonText = "No Tag Freeze", method = Movement.NoTagFreeze, toolTip = "Disables tag freeze on your character."},
-                new ButtonInfo { buttonText = "Feather Falling", method = Movement.FeatherFalling, toolTip = "Makes you fall like a feather."},
-                new ButtonInfo { buttonText = "Low Gravity", aliases = new[] { "Moon Gravity" }, method = Movement.LowGravity, toolTip = "Makes gravity lower on your character."},
-                new ButtonInfo { buttonText = "Zero Gravity", aliases = new[] { "No Gravity" }, method = Movement.ZeroGravity, toolTip = "Disables gravity on your character."},
-                new ButtonInfo { buttonText = "High Gravity", aliases = new[] { "Mars Gravity" }, method = Movement.HighGravity, toolTip = "Makes gravity higher on your character."},
-                new ButtonInfo { buttonText = "Reverse Gravity", aliases = new[] { "Flip Gravity" }, method = Movement.ReverseGravity, disableMethod = Movement.UnflipCharacter, toolTip = "Reverses gravity on your character."},
+                new ButtonInfo { buttonText = "Feather Falling", postMethod = Movement.FeatherFalling, toolTip = "Makes you fall like a feather."},
+                new ButtonInfo { buttonText = "Low Gravity", aliases = new[] { "Moon Gravity" }, postMethod = Movement.LowGravity, toolTip = "Makes gravity lower on your character."},
+                new ButtonInfo { buttonText = "Zero Gravity", aliases = new[] { "No Gravity" }, postMethod = Movement.ZeroGravity, toolTip = "Disables gravity on your character."},
+                new ButtonInfo { buttonText = "High Gravity", aliases = new[] { "Mars Gravity" }, postMethod = Movement.HighGravity, toolTip = "Makes gravity higher on your character."},
+                new ButtonInfo { buttonText = "Reverse Gravity", aliases = new[] { "Flip Gravity" }, enableMethod = Movement.ReverseGravity, disableMethod = Movement.UnflipCharacter, toolTip = "Reverses gravity on your character."},
 
                 new ButtonInfo { buttonText = "Rewind <color=grey>[</color><color=green>T</color><color=grey>]</color>", aliases = new[] { "Reverse" }, method = Movement.Rewind, disableMethod = Movement.ClearRewind, toolTip = "Brings you back in time when holding <color=green>trigger</color>."},
                 new ButtonInfo { buttonText = "Macros", method =() => CurrentCategoryName = "Macros", isTogglable = false, toolTip = "Opens a category to manage your macros."},
 
-                new ButtonInfo { buttonText = "Wall Walk <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.WallWalk, toolTip = "Makes you get brought towards any wall you touch when holding <color=green>grip</color>."},
+                new ButtonInfo { buttonText = "Wall Walk <color=grey>[</color><color=green>G</color><color=grey>]</color>", postMethod = Movement.WallWalk, toolTip = "Makes you get brought towards any wall you touch when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Legitimate Wall Walk <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.LegitimateWallWalk, toolTip = "Makes you get brought towards any wall you touch when holding <color=green>grip</color>, but less noticable."},
                 new ButtonInfo { buttonText = "Spider Walk", aliases = new[] { "Spider Monke", "Spider Monkey" }, method = Movement.SpiderWalk, disableMethod = Movement.UnflipCharacter, toolTip = "Makes your gravity and character towards any wall you touch. This may cause motion sickness."},
 
@@ -953,6 +955,7 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Name Tags", method = Visuals.NameTags, disableMethod = Visuals.DisableNameTags, toolTip = "Gives players name tags above their heads that show their nickname.", legal = true},
                 new ButtonInfo { buttonText = "Velocity Name Tags", method = Visuals.VelocityTags, disableMethod = Visuals.DisableVelocityTags, toolTip = "Gives players name tags above their heads that show their velocity."},
                 new ButtonInfo { buttonText = "FPS Name Tags", method = Visuals.FPSTags, disableMethod = Visuals.DisableFPSTags, toolTip = "Gives players name tags above their heads that show their FPS."},
+                new ButtonInfo { buttonText = "Target FPS Name Tags", method = Visuals.TargetFPSTags, disableMethod = Visuals.DisableTargetFPSTags, toolTip = "Gives players name tags above their heads that show their maximum FPS."},
                 new ButtonInfo { buttonText = "ID Name Tags", method = Visuals.IDTags, disableMethod = Visuals.DisableIDTags, toolTip = "Gives players name tags above their heads that show their ID."},
                 new ButtonInfo { buttonText = "Platform Name Tags", method = Visuals.PlatformTags, disableMethod = Visuals.DisablePlatformTags, toolTip = "Gives players name tags above their heads that show what platform they're playing on.", legal = true},
                 new ButtonInfo { buttonText = "k-ID Name Tags", method = Visuals.KIDNameTags, disableMethod = Visuals.DisableKIDNameTags, toolTip = "Gives players name tags above their heads that show if they have k-ID restrictions."},
@@ -1199,8 +1202,6 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Elevator Door Spam", method = Fun.ElevatorDoorSpam, toolTip = "Repeatedly opens and closes the elevator door."},
 
                 new ButtonInfo { buttonText = "Custom Virtual Stump Video", enableMethod = Fun.CustomVirtualStumpVideo, disableMethod = Fun.DisableCustomVirtualStumpVideo, toolTip = "Plays a video by the virtual stump VR headset in stump."},
-
-                new ButtonInfo { buttonText = "Fake FPS", method = Fun.FakeFPS, disableMethod =() => FPSPatch.enabled = false, toolTip = "Makes your FPS appear to be completely random to other players and the competitive bot."},
 
                 new ButtonInfo { buttonText = "Get Builder Watch", method = Fun.GiveBuilderWatch, isTogglable = false, toolTip = "Gives you the builder watch without needing to be in attic."},
                 new ButtonInfo { buttonText = "Remove Builder Watch", method = Fun.RemoveBuilderWatch, isTogglable = false, toolTip = "Disables the builder watch."},
@@ -1603,6 +1604,9 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Golden Name Tag", method =() => Fun.GoldenNameTag(true), disableMethod =() => Fun.GoldenNameTag(false), toolTip = "Changes your name tag to a golden color. This mod only works if you are subscribed to the fan club." },
                 new ButtonInfo { buttonText = "Flash Name Tag", method = Fun.FlashNameTag, toolTip = "Flashes your name tag to between golden and white. This mod only works if you are subscribed to the fan club." },
 
+                new ButtonInfo { buttonText = "Disable Mining Cooldown", enableMethod = ()=> Fun.DisableMiningCooldown(false), disableMethod =() => Fun.DisableMiningCooldown(true), toolTip = "Remove the cooldown on your pickaxe for mining."},
+                new ButtonInfo { buttonText = "Instant Mining", enableMethod = ()=> Fun.StationaryMining(true), disableMethod =() => Fun.StationaryMining(false), toolTip = "Be able to mine by swinging your pickaxe at any speed."},
+
                 new ButtonInfo { buttonText = "Set Name to \"STATUE\"", method =() => ChangeName("STATUE"), isTogglable = false, toolTip = "Sets your name to \"STATUE\"." },
                 new ButtonInfo { buttonText = "Set Name to \"HIDE\"", method =() => ChangeName("HIDE"), isTogglable = false, toolTip = "Sets your name to \"HIDE\"." },
                 new ButtonInfo { buttonText = "Set Name to \"RUN\"", method =() => ChangeName("RUN"), isTogglable = false, toolTip = "Sets your name to \"RUN\"." },
@@ -1898,8 +1902,8 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Virtual Stump Kick Gun", method = Overpowered.VirtualStumpKickGun, toolTip = "Kicks whoever your hand desires in the virtual stump."},
                 new ButtonInfo { buttonText = "Virtual Stump Kick All", method = Overpowered.VirtualStumpKickAll, toolTip = "Kicks everyone in the virtual stump."},
 
-                new ButtonInfo { buttonText = "Virtual Stump Crash Gun", method = Overpowered.VirtualStumpCrashGun, toolTip = "Crashes whoever your hand desires in the virtual stump."},
-                new ButtonInfo { buttonText = "Virtual Stump Crash All", method = Overpowered.VirtualStumpCrashAll, toolTip = "Crashes everyone in the virtual stump."},
+                new ButtonInfo { buttonText = "Virtual Stump Crash Gun", method = Overpowered.MasterVirtualStumpCrashGun, toolTip = "Crashes whoever your hand desires in the virtual stump."},
+                new ButtonInfo { buttonText = "Virtual Stump Crash All", method = Overpowered.MasterVirtualStumpCrashAll, toolTip = "Crashes everyone in the virtual stump."},
 
                 new ButtonInfo { buttonText = "Ghost Reactor Freeze Gun", method = Fun.GhostReactorFreezeGun, toolTip = "Freezes whoever your hand desires in the ghost reactor."},
                 new ButtonInfo { buttonText = "Ghost Reactor Freeze All", method = Fun.GhostReactorFreezeAll, toolTip = "Freezes everyone in the ghost reactor."},
@@ -2105,12 +2109,12 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Grab Fling Gun", enableMethod =() => Overpowered.GrabStatus = true, method = Overpowered.GrabFlingGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to fling whoever your hand desires."},
                 new ButtonInfo { buttonText = "Grab Fling All", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.GrabFlingAll, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to fling everyone in the room."},
 
-                new ButtonInfo { buttonText = "Grab Bring Player Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.BringPlayerGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to bring whoever your hand desires to you."},
-                new ButtonInfo { buttonText = "Grab Bring All Players", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.BringAllPlayers, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to bring everyone in the room to you."},
-                new ButtonInfo { buttonText = "Grab Push Player Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.PushPlayerGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to push whoever your hand desires away from you."},
+                //new ButtonInfo { buttonText = "Grab Bring Player Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.BringPlayerGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to bring whoever your hand desires to you."},
+                //new ButtonInfo { buttonText = "Grab Bring All Players", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.BringAllPlayers, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to bring everyone in the room to you."},
+                //new ButtonInfo { buttonText = "Grab Push Player Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.PushPlayerGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to push whoever your hand desires away from you."},
 
-                new ButtonInfo { buttonText = "Grab Crash Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.GrabCrashGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to crash whoever your hand desires."},
-                new ButtonInfo { buttonText = "Grab Crash All", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.GrabCrashAll, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to crash everyone in the room."},
+                //new ButtonInfo { buttonText = "Grab Crash Gun", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.GrabCrashGun, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to crash whoever your hand desires."},
+                //new ButtonInfo { buttonText = "Grab Crash All", enableMethod =() => Overpowered.GrabStatus = true, postMethod = Overpowered.GrabCrashAll, disableMethod =() => Overpowered.GrabStatus = false, toolTip = "Tries to crash everyone in the room."},
 
 
                 new ButtonInfo { buttonText = "Lag Gun", method = Overpowered.LagGun, toolTip = "Lags whoever your hand desires."},
@@ -2148,8 +2152,6 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Unlock Room", method =() => Overpowered.SetRoomStatus(true), isTogglable = false, toolTip = "Unlocks the room so anyone can join."},
                 new ButtonInfo { buttonText = "Close Room", enableMethod =() => SerializePatch.OverrideSerialization = () => false, method = Overpowered.CloseRoom, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Kicks everyone in the room." },
                 new ButtonInfo { buttonText = "Spy Room", enableMethod =() => Overpowered.CreatePeerBase(), disableMethod =() => Overpowered.UnloadPeerBase(), toolTip = "Allows you to hear people whilst being disconnected from the room." },
-
-                new ButtonInfo { buttonText = "Transparent Rig", enableMethod = Overpowered.TransparentRig, disableMethod =() => Overpowered.SetTransparent(false), toolTip = "Makes your rig's material completely see through." },
 
                 new ButtonInfo { buttonText = "Destroy Gun", method = Overpowered.DestroyGun, toolTip = "Block new players from seeing whoever your hand desires."},
                 new ButtonInfo { buttonText = "Destroy All", method = Overpowered.DestroyAll, isTogglable = false, toolTip = "Block new players from seeing everyone."},
@@ -2430,8 +2432,10 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Exit Safety Settings", method =() => CurrentCategoryName = "Settings", isTogglable = false, toolTip = "Returns you back to the settings menu.", legal = true},
 
                 ButtonHelper.Create("Change Anti Report Distance", () => Safety.AntiReportRangeNames, Safety.antiReportRangeIndex, Safety.ApplyAntiReportRange, "Changes the distance threshold for the anti report mods."),
-                ButtonHelper.CreateNumeric("Change FPS Spoof Value", 1, 28, Safety.fpsSpoofValue / 5, Safety.ApplyFPSSpoofValue, v => (v * 5).ToString(), "Changes the target FPS for the FPS Spoof mod."),
-                ButtonHelper.CreateNumeric("Change Ping Spoof Value", 1, 100, Safety.pingSpoofValue / 100, Safety.ApplyPingSpoofValue, v => (v * 100).ToString(), "Changes the target ping for the Ping Spoof mod."),
+                ButtonHelper.CreateNumeric("Change FPS Spoof Value", 1, 120, 90, v => GTPlayerStatsPatch.FPS = (short)v, toolTip: "Changes the target FPS for the FPS Spoof mod."),
+                ButtonHelper.CreateNumeric("Change Target FPS Spoof Value", 1, 120, 90, v => GTPlayerStatsPatch.TargetFPS = (short)v, toolTip: "Changes the target FPS used by the FPS Spoof mod."),
+                ButtonHelper.CreateNumeric("Change Ping Spoof Value", short.MinValue, short.MaxValue, 60, v => GTPlayerStatsPatch.Ping = (short)v, toolTip: "Changes the target ping for the Ping Spoof mod."),
+
 
                 new ButtonInfo { buttonText = "Hide Anti Cheat Report Reasons", enableMethod =() => AntiCheatPatches.SendReportPatch.AntiCheatReasonHide = true, disableMethod =() => AntiCheatPatches.SendReportPatch.AntiCheatReasonHide = false, toolTip = "Hides the reason for Show Anti Cheat Reports."},
 
@@ -2537,7 +2541,7 @@ namespace Seralyth.Menu
                 ButtonHelper.CreateNumeric("Change ELO Value", 0, 4000, 4000, elo => Safety.targetElo = elo, v => v.ToString(), "Changes the target ELO for the badge spoof mod."),
                 ButtonHelper.Create("Change Badge Tier", () => Safety.BadgeNames, Safety.targetBadge, Safety.ApplyBadgeTier, "Changes the target tier for the badge spoof mod."),
 
-                ButtonHelper.CreateNumeric("Change Target FOV", 0, 36, Fun.targetFOV / 5, Fun.ApplyTargetFOV, v => (v * 5).ToString(), "Changes the target field of view for the \"Camera FOV\" mod.", legal: true),
+                ButtonHelper.CreateNumeric("Change Target FOV", 0, 4, 2, Fun.ApplyTargetFOV, v => (70 + (v * 10)).ToString(), "Changes the target field of view for the \"Camera FOV\" mod.", legal: true),
                 ButtonHelper.CreateNumeric("Knockback Multiplication Amount", 0, 1280, Movement.multiplicationAmount, Movement.ApplyMultiplicationAmount, v => (v / 10f).ToString(), "Adjusts how much your knockback is multiplied."),
 
                 new ButtonInfo { buttonText = "Zero Gravity Blocks", toolTip = "Removes the gravity from the blocks."},
@@ -2561,7 +2565,8 @@ namespace Seralyth.Menu
             new[] { // Credits [38]
                 new ButtonInfo { buttonText = "Exit Credits", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
-                new ButtonInfo { buttonText = "Kingofnetflix", method =() => Process.Start("https://github.com/kingofnetflix"), isTogglable = false, toolTip = "Kingofnetflix is the creator of <b>Seralyth (Menu)</b>, and was a developer for ii's <b>Stupid</b> Menu." },
+                new ButtonInfo { buttonText = "Multifactor", method =() => Process.Start("https://github.com/multifactorrr"), isTogglable = false, toolTip = "Multifactor is the current owner of Seralyth and Seralyth Menu, previously a developer of Seralyth." },
+                new ButtonInfo { buttonText = "Kingofnetflix", isTogglable = false, toolTip = "Kingofnetflix is the creator of <b>Seralyth (Menu)</b>, and was a developer for ii's <b>Stupid</b> Menu. Quit modding and the modding community August 2026." },
                 new ButtonInfo { buttonText = "iiDk", method =() => Process.Start("https://github.com/iiDk-the-actual"), isTogglable = false, toolTip = "iiDk is the creator of ii's <b>Stupid</b> Menu (which this menu is forked from), and was working on it since 2023. He was also the owner of ii's Stupid Mods. Both have shut down ever since 2/24/2026.", legal = true},
                 new ButtonInfo { buttonText = "Twigcore", method =() => Process.Start("https://github.com/Twigcore"), isTogglable = false, toolTip = "Twigcore is one of the main owners of Console, the admin system in the menu. He helps with asset ideas, moderate users, contributed to the menu, and much more."},
 
@@ -2618,18 +2623,23 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Detected Lag Aura", overlapText = "Lag Aura", method = Detected.LagAura, detected = true, toolTip = "Lags players nearby you."},
                 new ButtonInfo { buttonText = "Detected Lag On Touch", overlapText = "Lag On Touch", method = Detected.LagOnTouch, detected = true, toolTip = "Lags players that you touch."},
 
-                new ButtonInfo { buttonText = "Detected Obliterate Gun", overlapText = "Obliterate Gun", method = Detected.ObliterateGun, detected = true, toolTip = "Mess up whoever your hand desires' game."},
-                new ButtonInfo { buttonText = "Detected Obliterate All", overlapText = "Obliterate All", method = Detected.ObliterateAll, detected = true, toolTip = "Mess up everyone in the room."},
+                new ButtonInfo { buttonText = "Detected Quarantine Gun", overlapText = "Quarantine Gun", method = Detected.QuarantineGun, detected = true, toolTip = "Quarantine whoever your hand desires' game."},
+                new ButtonInfo { buttonText = "Detected Quarantine All", overlapText = "Quarantine All", method = Detected.QuarantineAll, detected = true, toolTip = "Quarantine everyone in the room."},
+                new ButtonInfo { buttonText = "Detected Quarantine Aura", overlapText = "Quarantine Aura", method = Detected.QuarantineAura, detected = true, toolTip = "Mess up everyone in the room."},
+                new ButtonInfo { buttonText = "Detected Quarantine On Touch", overlapText = "Quarantine On Touch", method = Detected.QuarantineOnTouch, detected = true, toolTip = "Mess up everyone in the room."},
+                new ButtonInfo { buttonText = "Detected Leaderboard Quarantine", overlapText = "Leaderboard Quarantine", method = Detected.LeaderboardQuarantine, disableMethod =() => Detected.RevertLeaderboard("QUARANTINE"), detected = true, toolTip = "Quarantines players when you report them on the leaderboard."},
 
                 new ButtonInfo { buttonText = "Detected Mute Gun", overlapText = "Mute Gun", method = Detected.MuteGun, detected = true, toolTip = "Mutes whoever your hand desires."},
                 new ButtonInfo { buttonText = "Detected Mute All", overlapText = "Mute All", method = Detected.MuteAll, detected = true, toolTip = "Mutes everyone in the room."},
                 new ButtonInfo { buttonText = "Detected Mute Aura", overlapText = "Mute Aura", method = Detected.MuteAura, detected = true, toolTip = "Mutes players nearby you."},
                 new ButtonInfo { buttonText = "Detected Mute On Touch", overlapText = "Mute On Touch", method = Detected.MuteOnTouch, detected = true, toolTip = "Mutes players that you touch."},
+                new ButtonInfo { buttonText = "Detected Leaderboard Mute", overlapText = "Leaderboard Mute", method = Detected.LeaderboardMute, detected = true, toolTip = "Mutes players globally when you mute them on the leaderboard."},
 
                 new ButtonInfo { buttonText = "Detected Ghost Gun", overlapText = "Ghost Gun", method = Detected.GhostGun, detected = true, toolTip = "Freezes whoever your hand desires, making them a ghost."},
                 new ButtonInfo { buttonText = "Detected Ghost All", overlapText = "Ghost All", method = Detected.GhostAll, isTogglable = false, detected = true, toolTip = "Freezes everyone, making them a ghost."},
                 new ButtonInfo { buttonText = "Detected Ghost Aura", overlapText = "Ghost Aura", method = Detected.GhostAura, isTogglable = true, detected = true, toolTip = "Freezes nearby players, making them a ghost."},
                 new ButtonInfo { buttonText = "Detected Ghost On Touch", overlapText = "Ghost On Touch", method = Detected.GhostOnTouch, detected = true, toolTip = "Freezes players you touch, making them a ghost."},
+                new ButtonInfo { buttonText = "Detected Leaderboard Ghost", overlapText = "Leaderboard Ghost", method = Detected.LeaderboardGhost, disableMethod =() => Detected.RevertLeaderboard("GHOST"), detected = true, toolTip = "Ghosts players when you report them on the leaderboard."},
 
                 new ButtonInfo { buttonText = "Detected Unghost Gun", overlapText = "Unghost Gun", method = Detected.UnghostGun, detected = true, toolTip = "Unfreezes whoever your hand desires, making them no longer a ghost."},
                 new ButtonInfo { buttonText = "Detected Unghost All", overlapText = "Unghost All", method = Detected.UnghostAll, isTogglable = false, detected = true, toolTip = "Unfreezes everyone, making them no longer a ghost."},
@@ -2641,8 +2651,6 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Detected Spam Ghost Aura", overlapText = "Spam Ghost Aura", method =() => { Detected.GhostAura(); Detected.UnghostAura(); }, isTogglable = true, detected = true, toolTip = "Spam makes players nearby freeze and unfreeze again. Ghost and Unghost."},
                 new ButtonInfo { buttonText = "Detected Spam Ghost On Touch", overlapText = "Spam Ghost On Touch", method =() => { Detected.GhostOnTouch(); Detected.UnghostOnTouch(); }, detected = true, toolTip = "Spam makes players you touch freeze and unfreeze again. Ghost and Unghost."},
 
-                new ButtonInfo { buttonText = "Leaderboard Ghost", method = Detected.LeaderboardGhost, disableMethod = Detected.DisableLeaderboardGhost, detected = true, toolTip = "Ghosts players when you report them on the leaderboard."},
-                new ButtonInfo { buttonText = "Leaderboard Mute", method = Detected.LeaderboardMute, detected = true, toolTip = "Mutes players when you mute them on the leaderboard."},
 
                 new ButtonInfo { buttonText = "Detected Isolate Gun", overlapText = "Isolate Gun", method = Detected.IsolateGun, detected = true, toolTip = "Makes whoever your hand desires only be able to see you."},
                 new ButtonInfo { buttonText = "Detected Isolate All", overlapText = "Isolate All", method = Detected.IsolateAll, isTogglable = false, detected = true, toolTip = "Makes everyone only be able to see you."},
@@ -2656,8 +2664,6 @@ namespace Seralyth.Menu
 
                 new ButtonInfo { buttonText = "Detected Ban Gun", overlapText = "Ban Gun", method = Detected.BanGun, detected = true, toolTip = "Changes the name of whoever your hand desires to a banned name."},
                 new ButtonInfo { buttonText = "Detected Ban All", overlapText = "Ban All", method = Detected.BanGun, detected = true, toolTip = "Changes the name of everyone in the room to a banned name."},
-                new ButtonInfo { buttonText = "Detected Ban Aura", overlapText = "Ban Aura", method = Detected.BanAura, detected = true, toolTip = "Changes the name of whoever is near you to a banned name."},
-                new ButtonInfo { buttonText = "Detected Ban On Touch", overlapText = "Ban On Touch", method = Detected.BanOnTouch, detected = true, toolTip = "Changes the name of players that you touch to a banned name."},
 
                 new ButtonInfo { buttonText = "Bypass Mod Checkers Gun", method = Detected.BypassModCheckersGun, detected = true, toolTip = "Tells players using mod checkers that whoever your hand desires has no mods."},
                 new ButtonInfo { buttonText = "Bypass Mod Checkers All", method = Detected.BypassModCheckersAll, isTogglable = false, detected = true, toolTip = "Tells players using mod checkers that no one has no mods."},
@@ -2828,7 +2834,7 @@ namespace Seralyth.Menu
                 CurrentCategoryIndex = Buttons.GetCategory(value);
         }
 
-        private static readonly Dictionary<string, (int Category, int Index)> cacheGetIndex = new Dictionary<string, (int Category, int Index)>(); // Looping through 800 elements is not a light task :/
+        private static readonly Dictionary<string, (int Category, int Index)> cacheGetIndex = new Dictionary<string, (int Category, int Index)>();
 
         /// <summary>
         /// Returns the ButtonInfo for the given button text.

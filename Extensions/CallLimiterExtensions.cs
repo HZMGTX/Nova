@@ -18,6 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using Photon.Pun;
+using Seralyth.Managers;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -60,13 +62,15 @@ namespace Seralyth.Extensions
         public static bool CanCallNow(this CallLimiter limiter, double? time = null, bool usesNetworkTime = false)
         {
             if (limiter == null)
+            {
+                LogManager.LogWarning("CallLimiter is null");
                 return false;
+            }
 
             CallLimiter shadow = shadows.GetValue(limiter, rl => rl.Clone());
 
             if (usesNetworkTime && NetworkSystem.Instance.IsOnline)
-                return shadow.CheckCallServerTime(time ?? (NetworkSystem.Instance.ServerTimestamp / 1000.0f));
-
+                return shadow.CheckCallServerTime(time ?? (PhotonNetwork.CurrentTime));
             return shadow.CheckCallTime((float)(time ?? Time.time));
         }
 

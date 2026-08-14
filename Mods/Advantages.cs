@@ -416,8 +416,8 @@ namespace Seralyth.Mods
 
             if (Buttons.GetIndex("Visualize Tag Reach").enabled)
             {
-                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.leftHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 0.01f, tagReachDistance), backgroundColor.GetCurrentColor(), -149286, 0.1f);
-                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.rightHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 0.01f, tagReachDistance), backgroundColor.GetCurrentColor(), -149285, 0.1f);
+                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.leftHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 1, tagReachDistance), backgroundColor.GetCurrentColor(), -149286, 0.1f);
+                Visuals.Visualize(PrimitiveType.Sphere, GorillaTagger.Instance.rightHandTransform.position, Quaternion.identity, new Vector3(tagReachDistance, 1, tagReachDistance), backgroundColor.GetCurrentColor(), -149285, 0.1f);
             }
         }
 
@@ -619,7 +619,7 @@ namespace Seralyth.Mods
         {
             if (GetGunInput(false))
             {
-                var GunData = RenderGun(GTPlayer.Instance.locomotionEnabledLayers);
+                var GunData = RenderGun();
                 GameObject NewPointer = GunData.NewPointer;
 
                 if (GetGunInput(true))

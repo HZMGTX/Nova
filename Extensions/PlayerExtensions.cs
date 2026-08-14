@@ -55,11 +55,8 @@ namespace Seralyth.Extensions
         #endregion
 
         #region GorillaTagger
-        public static bool IsGrounded(this GorillaTagger tagger, float maxDistance = 0.15f)
-        {
-            return
+        public static bool IsGrounded(this GorillaTagger tagger, float maxDistance = 0.15f) =>
                 Physics.Raycast(tagger.bodyCollider.transform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, maxDistance, GTPlayer.Instance.locomotionEnabledLayers);
-        }
         #endregion
     }
 }

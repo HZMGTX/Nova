@@ -86,51 +86,207 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void ObliterateGun()
+        public static void QuarantineGun()
         {
             if (GetGunInput(false))
             {
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
-
                 if (GetGunInput(true))
                 {
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        foreach (PhotonView view in PhotonNetwork.PhotonViewCollection)
+                        PhotonView view = gunTarget.GetPhotonView();
+                        if (view != null)
                         {
                             Destroy(gunTarget, new Hashtable
                             {
                                 { 0, view.ViewID }
                             }, new RaiseEventOptions
                             {
-                                TargetActors = new[] { gunTarget.Creator.ActorNumber }
+                                TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
                             });
+                            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+                            {
+                                if (rig != gunTarget)
+                                {
+                                    Destroy(rig, new Hashtable
+                                    {
+                                        { 0, rig.GetPhotonView().ViewID }
+                                    }, new RaiseEventOptions
+                                    {
+                                        TargetActors = new[] { gunTarget.GetPlayer().ActorNumber }
+                                    });
+                                }
+                            }
                         }
-
                     }
                 }
             }
         }
 
-        public static void ObliterateAll()
+        public static void QuarantineAll()
         {
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                foreach (PhotonView view in PhotonNetwork.PhotonViewCollection)
+                if (!rig.IsLocal())
                 {
-                    Destroy(rig, new Hashtable
+                    PhotonView view = rig.GetPhotonView();
+                    if (view != null)
                     {
-                        { 0, view.ViewID }
-                    }, new RaiseEventOptions
-                    {
-                        TargetActors = new[] { rig.Creator.ActorNumber }
-                    });
+                        Destroy(rig, new Hashtable
+                        {
+                            { 0, view.ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                        });
+                        foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
+                        {
+                            if (otherRig != rig)
+                            {
+                                Destroy(otherRig, new Hashtable
+                                {
+                                    { 0, otherRig.GetPhotonView().ViewID }
+                                }, new RaiseEventOptions
+                                {
+                                    TargetActors = new[] { rig.GetPlayer().ActorNumber }
+                                });
+                            }
+                        }
+                    }
                 }
-
             }
+        }
 
+        public static void QuarantineAura()
+        {
+            if (!NetworkSystem.Instance.InRoom) return;
+            List<VRRig> nearbyPlayers = new List<VRRig>();
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
+            {
+                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
+                    nearbyPlayers.Add(vrrig);
+                else if (nearbyPlayers.Contains(vrrig))
+                    nearbyPlayers.Remove(vrrig);
+            }
+            if (nearbyPlayers.Count > 0)
+            {
+                foreach (VRRig rig in nearbyPlayers)
+                {
+                    PhotonView view = rig.GetPhotonView();
+                    if (view != null)
+                    {
+                        Destroy(rig, new Hashtable
+                        {
+                            { 0, view.ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                        });
+                        foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
+                        {
+                            if (otherRig != rig)
+                            {
+                                Destroy(otherRig, new Hashtable
+                                {
+                                    { 0, otherRig.GetPhotonView().ViewID }
+                                }, new RaiseEventOptions
+                                {
+                                    TargetActors = new[] { rig.GetPlayer().ActorNumber }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void QuarantineOnTouch()
+        {
+            if (!NetworkSystem.Instance.InRoom) return;
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+            {
+                if (!rig.IsLocal() && rig.IsBeingTouched())
+                {
+                    PhotonView view = rig.GetPhotonView();
+                    if (view != null)
+                    {
+                        Destroy(rig, new Hashtable
+                        {
+                            { 0, view.ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                        });
+                    }
+                    foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
+                    {
+                        if (otherRig != rig)
+                        {
+                            Destroy(otherRig, new Hashtable
+                            {
+                                { 0, otherRig.GetPhotonView().ViewID }
+                            }, new RaiseEventOptions
+                            {
+                                TargetActors = new[] { rig.GetPlayer().ActorNumber }
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        public static void LeaderboardQuarantine()
+        {
+            foreach (var scoreboard in GorillaScoreboardTotalUpdater.allScoreboards.Where(scoreboard => scoreboard.buttonText.text.Contains("REPORT")))
+                scoreboard.buttonText.text = scoreboard.buttonText.text.Replace("REPORT", "QUARANTINE");
+            foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.linePlayer != NetworkSystem.Instance.LocalPlayer))
+            {
+                PhotonView view = line.linePlayer.VRRig().GetPhotonView();
+
+                if (line.reportInProgress)
+                {
+                    line.SetReportState(false, GorillaPlayerLineButton.ButtonType.Cancel);
+                    line.reportButton.isOn = true;
+                    line.reportButton.UpdateColor();
+                    if (view != null)
+                    {
+                        Destroy(line.linePlayer.VRRig(), new Hashtable
+                        {
+                            { 0, view.ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                        });
+                    }
+                }
+                if (!line.reportButton.isOn || !line.reportInProgress) continue;
+                line.SetReportState(false, GorillaPlayerLineButton.ButtonType.Cancel);
+                line.reportButton.isOn = false;
+                line.reportButton.UpdateColor();
+                Destroy(line.linePlayer, new Hashtable
+                {
+                    { 0, view.ViewID }
+                }, new RaiseEventOptions
+                {
+                    TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                });
+                foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
+                {
+                    if (otherRig != line.linePlayer.VRRig())
+                    {
+                        Destroy(otherRig, new Hashtable
+                        {
+                            { 0, otherRig.GetPhotonView().ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = new[] { line.linePlayer.ActorNumber }
+                        });
+                    }
+                }
+            }
         }
 
         public static void GhostGun()
@@ -145,7 +301,7 @@ namespace Seralyth.Mods
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        PhotonView view = GetPhotonViewFromVRRig(gunTarget);
+                        PhotonView view = gunTarget.GetPhotonView();
                         if (view != null)
                         {
                             viewIdArchive[gunTarget] = view.ViewID;
@@ -170,7 +326,7 @@ namespace Seralyth.Mods
                 {
                     if (!rig.IsLocal())
                     {
-                        PhotonView view = GetPhotonViewFromVRRig(rig);
+                        PhotonView view = rig.GetPhotonView();
 
                         if (view != null)
                         {
@@ -209,7 +365,7 @@ namespace Seralyth.Mods
             {
                 foreach (VRRig rig in nearbyPlayers.ToList())
                 {
-                    PhotonView view = GetPhotonViewFromVRRig(rig);
+                    PhotonView view = rig.GetPhotonView();
 
                     if (view != null)
                     {
@@ -234,35 +390,27 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedRigs = new List<VRRig>();
 
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
+                if (!rig.IsLocal() && !viewIdArchive.ContainsKey(rig) && rig.IsBeingTouched())
                 {
-                    if (rig.IsBeingTouched())
-                        touchedRigs.Add(rig);
-                }
-            }
-
-            foreach (VRRig rig in touchedRigs)
-            {
-                PhotonView view = GetPhotonViewFromVRRig(rig);
-                if (view != null)
-                {
-                    viewIdArchive[rig] = view.ViewID;
-                    Destroy(rig, new Hashtable
+                    PhotonView view = rig.GetPhotonView();
+                    if (view != null)
                     {
-                        { 0, view.ViewID }
-                    }, new RaiseEventOptions
-                    {
-                        TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
-                    });
+                        viewIdArchive[rig] = view.ViewID;
+                        Destroy(rig, new Hashtable
+                        {
+                            { 0, view.ViewID }
+                        }, new RaiseEventOptions
+                        {
+                            TargetActors = PhotonNetwork.PlayerList.Where(p => p != view.Owner).Select(p => p.ActorNumber).ToArray()
+                        });
+                    }
                 }
             }
         }
 
-        private static readonly Dictionary<GorillaPlayerScoreboardLine, VRRig> linerig = new Dictionary<GorillaPlayerScoreboardLine, VRRig>();
         public static void LeaderboardGhost()
         {
             foreach (var scoreboard in GorillaScoreboardTotalUpdater.allScoreboards.Where(scoreboard => scoreboard.buttonText.text.Contains("REPORT")))
@@ -279,7 +427,6 @@ namespace Seralyth.Mods
                     if (view != null)
                     {
                         viewIdArchive[line.linePlayer.VRRig()] = view.ViewID;
-                        linerig.Add(line, line.linePlayer.VRRig());
                         Destroy(line.linePlayer.VRRig(), new Hashtable
                         {
                             { 0, view.ViewID }
@@ -299,10 +446,10 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void DisableLeaderboardGhost()
+        public static void RevertLeaderboard(string query)
         {
-            foreach (var scoreboard in GorillaScoreboardTotalUpdater.allScoreboards.Where(scoreboard => scoreboard.buttonText.text.Contains("GHOST")))
-                scoreboard.buttonText.text = scoreboard.buttonText.text.Replace("GHOST", "REPORT");
+            foreach (var scoreboard in GorillaScoreboardTotalUpdater.allScoreboards.Where(scoreboard => scoreboard.buttonText.text.Contains(query)))
+                scoreboard.buttonText.text = scoreboard.buttonText.text.Replace(query, "REPORT");
 
             foreach (GorillaPlayerScoreboardLine line in GorillaScoreboardTotalUpdater.allScoreboardLines)
             {
@@ -383,23 +530,13 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedRigs = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
+                if (rig.IsBeingTouched() && viewIdArchive.ContainsKey(rig))
                 {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedRigs.Add(rig);
-                    }
+                    int viewID = viewIdArchive[rig];
+                    Destroy(rig, null, null, viewID);
                 }
-            }
-
-            foreach (VRRig rig in touchedRigs)
-            {
-                int viewID = viewIdArchive[rig];
-                Destroy(rig, null, null, viewID);
             }
         }
 
@@ -493,39 +630,29 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedRigs = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
+                if (!rig.IsLocal() && !viewIdArchive.ContainsKey(rig) && rig.IsBeingTouched())
                 {
-                    if (rig.IsBeingTouched())
+                    foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
                     {
-                        touchedRigs.Add(rig);
+                        bool includeLocal = !Buttons.GetIndex("Isolate Others").enabled || !otherRig.IsLocal();
+                        PhotonView view = GetPhotonViewFromVRRig(otherRig);
+                        if (includeLocal && otherRig != rig)
+                        {
+                            Destroy(otherRig, new Hashtable
+                            {
+                                { 0, view.ViewID }
+                            }, new RaiseEventOptions
+                            {
+                                TargetActors = new[] { rig.GetPlayer().ActorNumber }
+                            });
+                        }
                     }
                 }
-            }
 
-            foreach (VRRig touchedRig in touchedRigs)
-            {
-                foreach (VRRig otherRig in VRRigExtensions.ActiveRigs)
-                {
-                    bool includeLocal = !Buttons.GetIndex("Isolate Others").enabled || !otherRig.IsLocal();
-                    PhotonView view = GetPhotonViewFromVRRig(otherRig);
-                    if (includeLocal && otherRig != touchedRig)
-                    {
-                        Destroy(otherRig, new Hashtable
-                        {
-                            { 0, view.ViewID }
-                        }, new RaiseEventOptions
-                        {
-                            TargetActors = new[] { touchedRig.GetPlayer().ActorNumber }
-                        });
-                    }
-                }
             }
         }
-
 
         public static void LagGun()
         {
@@ -584,22 +711,9 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                     Destroy(rig.GetPhotonPlayer());
             }
         }
@@ -674,24 +788,17 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedRigs = new List<VRRig>();
 
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
+                if (!rig.IsLocal() && rig.IsBeingTouched() && Time.time > muteDelay)
                 {
-                    if (rig.IsBeingTouched())
-                        touchedRigs.Add(rig);
+                    Destroy(rig.GetPhotonPlayer());
+                    muteDelay = Time.time + 0.15f;
                 }
             }
 
-            if (touchedRigs.Count > 0 && Time.time > muteDelay)
-            {
-                foreach (VRRig rig in touchedRigs)
-                    Destroy(rig.GetPhotonPlayer());
 
-                muteDelay = Time.time + 0.15f;
-            }
         }
 
         public static string name = "SERALYTH";
@@ -710,7 +817,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = name
+                        [ActorProperties.PlayerName] = name
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(lockTarget.GetPlayer().ActorNumber, hashtable);
                 }
@@ -738,7 +845,7 @@ namespace Seralyth.Mods
             {
                 Hashtable hashtable = new Hashtable
                 {
-                    [Photon.Realtime.ActorProperties.PlayerName] = name
+                    [ActorProperties.PlayerName] = name
                 };
                 PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(player.ActorNumber, hashtable);
             }
@@ -763,7 +870,7 @@ namespace Seralyth.Mods
                 {
                     Hashtable hashtable = new Hashtable
                     {
-                        [Photon.Realtime.ActorProperties.PlayerName] = name
+                        [ActorProperties.PlayerName] = name
                     };
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(nearbyPlayer.GetPlayer().ActorNumber, hashtable);
                 }
@@ -774,22 +881,9 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                 {
                     Hashtable hashtable = new Hashtable
                     {
@@ -798,6 +892,7 @@ namespace Seralyth.Mods
                     PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(rig.GetPlayer().ActorNumber, hashtable);
                 }
             }
+
         }
 
         public static void BanGun()
@@ -844,64 +939,6 @@ namespace Seralyth.Mods
                 };
                 PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(player.ActorNumber, hashtable);
                 MonkeAgent.instance.SendReport("evading the name ban", player.UserId, player.NickName);
-            }
-        }
-
-        public static void BanAura()
-        {
-            if (!NetworkSystem.Instance.InRoom) return;
-            List<VRRig> nearbyPlayers = new List<VRRig>();
-
-            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
-            {
-                if (vrrig.Distance(VRRig.LocalRig) < 4 && !vrrig.IsLocal())
-                    nearbyPlayers.Add(vrrig);
-                else if (nearbyPlayers.Contains(vrrig))
-                    nearbyPlayers.Remove(vrrig);
-            }
-
-            if (nearbyPlayers.Count > 0)
-            {
-                foreach (VRRig nearbyPlayer in nearbyPlayers)
-                {
-                    Hashtable hashtable = new Hashtable
-                    {
-                        [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
-                    };
-                    PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(nearbyPlayer.GetPlayer().ActorNumber, hashtable);
-                    MonkeAgent.instance.SendReport("evading the name ban", nearbyPlayer.GetPlayer().UserId, nearbyPlayer.GetPlayer().NickName);
-                }
-            }
-        }
-
-        public static void BanOnTouch()
-        {
-            if (!NetworkSystem.Instance.InRoom) return;
-
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
-            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
-            {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
-                {
-                    Hashtable hashtable = new Hashtable
-                    {
-                        [ActorProperties.PlayerName] = GorillaComputer.instance.anywhereTwoWeek[Random.Range(0, GorillaComputer.instance.anywhereTwoWeek.Length)]
-                    };
-                    PhotonNetwork.CurrentRoom.LoadBalancingClient.OpSetPropertiesOfActor(rig.GetPlayer().ActorNumber, hashtable);
-                    MonkeAgent.instance.SendReport("evading the name ban", rig.GetPlayer().UserId, rig.GetPlayer().NickName);
-                }
             }
         }
 
@@ -988,28 +1025,20 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                 {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (var player in touchedPlayers.Select(rig => rig.GetPhotonPlayer()).Where(player => player != null))
-                {
+                    Player player = rig.GetPhotonPlayer();
                     if (player.CustomProperties == null || player.CustomProperties.Count == 0) return;
 
                     Hashtable toRemove = new Hashtable();
 
-                    foreach (var key in from keyObj in player.CustomProperties.Keys.ToList() select keyObj?.ToString() into key where key != null where !key.Equals(PlayerConfig.Player_HasDoneTutorial) select key)
+                    var keysToRemove = player.CustomProperties.Keys
+                        .Select(keyObj => keyObj?.ToString())
+                        .Where(key => key != null && !key.Equals(PlayerConfig.Player_HasDoneTutorial));
+
+                    foreach (var key in keysToRemove)
                         toRemove[key] = null;
 
                     if (toRemove.Count > 0)
@@ -1082,22 +1111,9 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                 {
                     Hashtable props = new Hashtable();
                     foreach (string mod in Visuals.modDictionary.Keys)
@@ -1165,22 +1181,9 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                 {
                     Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, true } };
                     rig.GetPhotonPlayer().SetCustomProperties(props);
@@ -1245,22 +1248,9 @@ namespace Seralyth.Mods
         {
             if (!NetworkSystem.Instance.InRoom) return;
 
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (VRRig rig in touchedPlayers)
+                if (!rig.IsLocal() && rig.IsBeingTouched())
                 {
                     Hashtable props = new Hashtable { { PlayerConfig.Player_HasDoneTutorial, false } };
                     rig.GetPhotonPlayer().SetCustomProperties(props);

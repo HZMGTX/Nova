@@ -44,7 +44,7 @@ namespace Seralyth.Patches.Menu
                 try
                 {
                     VRRig rig = __instance.linePlayer.VRRig();
-                    targetName = $"{Main.CleanPlayerName(__instance.linePlayer.NickName)}<size=50> <sprite name=\"{rig.GetPlatform()}\"> <sprite name=\"Ping{GetPing(rig)}\">{rig.fps}</size>";
+                    targetName = $"{Main.CleanPlayerName(__instance.linePlayer.NickName)}<size=50> <sprite name=\"{rig.GetPlatform()}\"> <sprite name=\"Ping{GetPing(rig)}\">{rig.GetFPS()}</size>";
                 }
                 catch { }
                 __instance.playerNameVisible = targetName;

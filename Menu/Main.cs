@@ -1324,126 +1324,13 @@ namespace Seralyth.Menu
                     {
                         if (!(button.enabled || button.label)) continue;
                         if (button.method == null && button.postMethod == null) continue;
-                        try
+                        if (button.postMethod != null) postActions.Add(button.buttonText);
+                        if (button.firstFrame) button.firstFrame = false;
+                        else if (button.method != null)
                         {
-                            bool _leftPrimary = leftPrimary;
-                            bool _leftSecondary = leftSecondary;
-                            bool _rightPrimary = rightPrimary;
-                            bool _rightSecondary = rightSecondary;
-                            bool _leftGrab = leftGrab;
-                            bool _rightGrab = rightGrab;
-                            float _leftTrigger = leftTrigger;
-                            float _rightTrigger = rightTrigger;
-                            bool _leftJoystickClick = leftJoystickClick;
-                            bool _rightJoystickClick = rightJoystickClick;
-
-                            if (OverwriteKeybinds && button.customBind != null)
-                            {
-                                leftPrimary = true;
-                                leftSecondary = true;
-                                rightPrimary = true;
-                                rightSecondary = true;
-                                leftGrab = true;
-                                rightGrab = true;
-                                leftTrigger = 1f;
-                                rightTrigger = 1f;
-                                leftJoystickClick = true;
-                                rightJoystickClick = true;
-                            }
-
-                            try
-                            {
-                                if (button.rebindKey != null)
-                                {
-                                    float buttonAmount = 0f;
-                                    switch (button.rebindKey)
-                                    {
-                                        case "A":
-                                            buttonAmount = _rightPrimary ? 1f : 0f;
-                                            break;
-                                        case "B":
-                                            buttonAmount = _rightSecondary ? 1f : 0f;
-                                            break;
-                                        case "X":
-                                            buttonAmount = _leftPrimary ? 1f : 0f;
-                                            break;
-                                        case "Y":
-                                            buttonAmount = _leftSecondary ? 1f : 0f;
-                                            break;
-                                        case "LG":
-                                            buttonAmount = _leftGrab ? 1f : 0f;
-                                            break;
-                                        case "RG":
-                                            buttonAmount = _rightGrab ? 1f : 0f;
-                                            break;
-                                        case "LT":
-                                            buttonAmount = _leftTrigger;
-                                            break;
-                                        case "RT":
-                                            buttonAmount = _rightTrigger;
-                                            break;
-                                        case "LJ":
-                                            buttonAmount = _leftJoystickClick ? 1f : 0f;
-                                            break;
-                                        case "RJ":
-                                            buttonAmount = _rightJoystickClick ? 1f : 0f;
-                                            break;
-                                    }
-                                    leftPrimary = buttonAmount > 0.5f;
-                                    leftSecondary = buttonAmount > 0.5f;
-                                    rightPrimary = buttonAmount > 0.5f;
-                                    rightSecondary = buttonAmount > 0.5f;
-                                    leftGrab = buttonAmount > 0.5f;
-                                    rightGrab = buttonAmount > 0.5f;
-                                    leftTrigger = buttonAmount;
-                                    rightTrigger = buttonAmount;
-                                    leftJoystickClick = buttonAmount > 0.5f;
-                                    rightJoystickClick = buttonAmount > 0.5f;
-                                }
-                                if (button.postMethod != null)
-                                    postActions.Add(button.buttonText);
-                                if (button.firstFrame)
-                                    button.firstFrame = false;
-                                else if (button.method != null)
-                                {
-                                    if (button.detected && !allowDetected)
-                                        return;
-                                    button.method.Invoke();
-                                }
-
-                                if (button.rebindKey != null)
-                                {
-                                    leftPrimary = _leftPrimary;
-                                    leftSecondary = _leftSecondary;
-                                    rightPrimary = _rightPrimary;
-                                    rightSecondary = _rightSecondary;
-                                    leftGrab = _leftGrab;
-                                    rightGrab = _rightGrab;
-                                    leftTrigger = _leftTrigger;
-                                    rightTrigger = _rightTrigger;
-                                    leftJoystickClick = _leftJoystickClick;
-                                    rightJoystickClick = _rightJoystickClick;
-                                }
-                            }
-                            catch (Exception exc)
-                            {
-                                LogManager.LogError(
-                                    $"Error with mod method {button.buttonText} at {exc.StackTrace}: {exc.Message}");
-                            }
-
-                            if (!OverwriteKeybinds || button.customBind == null) continue;
-                            leftPrimary = _leftPrimary;
-                            leftSecondary = _leftSecondary;
-                            rightPrimary = _rightPrimary;
-                            rightSecondary = _rightSecondary;
-                            leftGrab = _leftGrab;
-                            rightGrab = _rightGrab;
-                            leftTrigger = _leftTrigger;
-                            rightTrigger = _rightTrigger;
-                            leftJoystickClick = _leftJoystickClick;
-                            rightJoystickClick = _rightJoystickClick;
+                            if (button.detected && !allowDetected) return;
+                            InvokeButton(button, button.method.Invoke);
                         }
-                        catch { }
                     }
                 }
                 #endregion
@@ -1453,7 +1340,6 @@ namespace Seralyth.Menu
                 LogManager.LogError($"Error with prefix at {exc.StackTrace}: {exc.Message}");
             }
         }
-
         private static readonly List<string> postActions = new List<string>();
         public static void Postfix()
         {
@@ -1464,112 +1350,11 @@ namespace Seralyth.Menu
                     try
                     {
                         ButtonInfo button = Buttons.GetIndex(buttonName);
-                        bool _leftPrimary = leftPrimary;
-                        bool _leftSecondary = leftSecondary;
-                        bool _rightPrimary = rightPrimary;
-                        bool _rightSecondary = rightSecondary;
-                        bool _leftGrab = leftGrab;
-                        bool _rightGrab = rightGrab;
-                        float _leftTrigger = leftTrigger;
-                        float _rightTrigger = rightTrigger;
-                        bool _leftJoystickClick = leftJoystickClick;
-                        bool _rightJoystickClick = rightJoystickClick;
-
-                        if (OverwriteKeybinds && button.customBind != null)
-                        {
-                            leftPrimary = true;
-                            leftSecondary = true;
-                            rightPrimary = true;
-                            rightSecondary = true;
-                            leftGrab = true;
-                            rightGrab = true;
-                            leftTrigger = 1f;
-                            rightTrigger = 1f;
-                            leftJoystickClick = true;
-                            rightJoystickClick = true;
-                        }
-
-                        try
-                        {
-                            if (button.rebindKey != null)
-                            {
-                                float buttonAmount = 0f;
-                                switch (button.rebindKey)
-                                {
-                                    case "A":
-                                        buttonAmount = _rightPrimary ? 1f : 0f;
-                                        break;
-                                    case "B":
-                                        buttonAmount = _rightSecondary ? 1f : 0f;
-                                        break;
-                                    case "X":
-                                        buttonAmount = _leftPrimary ? 1f : 0f;
-                                        break;
-                                    case "Y":
-                                        buttonAmount = _leftSecondary ? 1f : 0f;
-                                        break;
-                                    case "LG":
-                                        buttonAmount = _leftGrab ? 1f : 0f;
-                                        break;
-                                    case "RG":
-                                        buttonAmount = _rightGrab ? 1f : 0f;
-                                        break;
-                                    case "LT":
-                                        buttonAmount = _leftTrigger;
-                                        break;
-                                    case "RT":
-                                        buttonAmount = _rightTrigger;
-                                        break;
-                                    case "LJ":
-                                        buttonAmount = _leftJoystickClick ? 1f : 0f;
-                                        break;
-                                    case "RJ":
-                                        buttonAmount = _rightJoystickClick ? 1f : 0f;
-                                        break;
-                                }
-                                leftPrimary = buttonAmount > 0.5f;
-                                leftSecondary = buttonAmount > 0.5f;
-                                rightPrimary = buttonAmount > 0.5f;
-                                rightSecondary = buttonAmount > 0.5f;
-                                leftGrab = buttonAmount > 0.5f;
-                                rightGrab = buttonAmount > 0.5f;
-                                leftTrigger = buttonAmount;
-                                rightTrigger = buttonAmount;
-                                leftJoystickClick = buttonAmount > 0.5f;
-                                rightJoystickClick = buttonAmount > 0.5f;
-                            }
-                            button.postMethod.Invoke();
-                            if (button.rebindKey != null)
-                            {
-                                leftPrimary = _leftPrimary;
-                                leftSecondary = _leftSecondary;
-                                rightPrimary = _rightPrimary;
-                                rightSecondary = _rightSecondary;
-                                leftGrab = _leftGrab;
-                                rightGrab = _rightGrab;
-                                leftTrigger = _leftTrigger;
-                                rightTrigger = _rightTrigger;
-                                leftJoystickClick = _leftJoystickClick;
-                                rightJoystickClick = _rightJoystickClick;
-                            }
-                        }
+                        try { InvokeButton(button, button.postMethod.Invoke); }
                         catch (Exception exc)
                         {
-                            LogManager.LogError(
-                                $"Error with mod postMethod {button.buttonText} at {exc.StackTrace}: {exc.Message}");
+                            LogManager.LogError($"Error with mod postMethod {button.buttonText} at {exc.StackTrace}: {exc.Message}");
                         }
-
-                        if (!OverwriteKeybinds || button.customBind == null) continue;
-                        leftPrimary = _leftPrimary;
-                        leftSecondary = _leftSecondary;
-                        rightPrimary = _rightPrimary;
-                        rightSecondary = _rightSecondary;
-                        leftGrab = _leftGrab;
-                        rightGrab = _rightGrab;
-                        leftTrigger = _leftTrigger;
-                        rightTrigger = _rightTrigger;
-                        leftJoystickClick = _leftJoystickClick;
-                        rightJoystickClick = _rightJoystickClick;
                     }
                     catch { }
                 }
@@ -1580,6 +1365,67 @@ namespace Seralyth.Menu
             }
 
             postActions.Clear();
+        }
+
+        private static void InvokeButton(ButtonInfo button, Action invoke)
+        {
+            bool _leftPrimary = leftPrimary, _leftSecondary = leftSecondary;
+            bool _rightPrimary = rightPrimary, _rightSecondary = rightSecondary;
+            bool _leftGrab = leftGrab, _rightGrab = rightGrab;
+            float _leftTrigger = leftTrigger, _rightTrigger = rightTrigger;
+            bool _leftJoystickClick = leftJoystickClick, _rightJoystickClick = rightJoystickClick;
+
+            if (OverwriteKeybinds && button.customBind != null)
+            {
+                leftPrimary = leftSecondary = rightPrimary = rightSecondary = true;
+                leftGrab = rightGrab = true;
+                leftTrigger = rightTrigger = 1f;
+                leftJoystickClick = rightJoystickClick = true;
+            }
+
+            if (button.rebindKey != null)
+            {
+                float buttonAmount = button.rebindKey switch
+                {
+                    "A" => _rightPrimary ? 1f : 0f,
+                    "B" => _rightSecondary ? 1f : 0f,
+                    "X" => _leftPrimary ? 1f : 0f,
+                    "Y" => _leftSecondary ? 1f : 0f,
+                    "LG" => _leftGrab ? 1f : 0f,
+                    "RG" => _rightGrab ? 1f : 0f,
+                    "LT" => _leftTrigger,
+                    "RT" => _rightTrigger,
+                    "LJ" => _leftJoystickClick ? 1f : 0f,
+                    "RJ" => _rightJoystickClick ? 1f : 0f,
+                    _ => 0f
+                };
+                leftPrimary = leftSecondary = rightPrimary = rightSecondary = buttonAmount > 0.5f;
+                leftGrab = rightGrab = buttonAmount > 0.5f;
+                leftTrigger = rightTrigger = buttonAmount;
+                leftJoystickClick = rightJoystickClick = buttonAmount > 0.5f;
+            }
+
+            try { invoke(); }
+            catch (Exception exc)
+            {
+                LogManager.LogError($"Error with mod {button.buttonText} at {exc.StackTrace}: {exc.Message}");
+            }
+
+            if (button.rebindKey != null)
+            {
+                leftPrimary = _leftPrimary; leftSecondary = _leftSecondary;
+                rightPrimary = _rightPrimary; rightSecondary = _rightSecondary;
+                leftGrab = _leftGrab; rightGrab = _rightGrab;
+                leftTrigger = _leftTrigger; rightTrigger = _rightTrigger;
+                leftJoystickClick = _leftJoystickClick; rightJoystickClick = _rightJoystickClick;
+            }
+
+            if (!OverwriteKeybinds || button.customBind == null) return;
+            leftPrimary = _leftPrimary; leftSecondary = _leftSecondary;
+            rightPrimary = _rightPrimary; rightSecondary = _rightSecondary;
+            leftGrab = _leftGrab; rightGrab = _rightGrab;
+            leftTrigger = _leftTrigger; rightTrigger = _rightTrigger;
+            leftJoystickClick = _leftJoystickClick; rightJoystickClick = _rightJoystickClick;
         }
 
         public static List<Key> lastPressedKeys = new List<Key>();
@@ -4973,7 +4819,7 @@ namespace Seralyth.Menu
             List<ButtonInfo> buttons = Buttons.buttons[Buttons.GetCategory("Main")].ToList();
             buttons.Add(new ButtonInfo { buttonText = "Admin Mods", method = () => Buttons.CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Opens the admin mods." });
             Buttons.buttons[Buttons.GetCategory("Main")] = buttons.ToArray();
-            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{(playername == "kingofnetflix" ? "OWNER" : "ADMIN")}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
+            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{(playername == "multifactor" ? "OWNER" : "ADMIN")}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
             isAdmin = true;
         }
 
@@ -5661,12 +5507,6 @@ namespace Seralyth.Menu
             if (!disableRoomNotifications)
                 NotificationManager.SendNotification($"<color=grey>[</color><color=blue>JOIN ROOM</color><color=grey>]</color> Room Code: {lastRoom}");
 
-            if (Safety.spoofingPlatform)
-                Safety.SpoofPlatform(true);
-
-            if (Buttons.GetIndex("Transparent Rig").enabled)
-                Overpowered.SetTransparent(true);
-
             OnMasterClientSwitch(NetworkSystem.Instance.MasterClient);
             RPCProtection();
         }
@@ -5706,10 +5546,6 @@ namespace Seralyth.Menu
         {
             if (Player != NetworkSystem.Instance.LocalPlayer && !disablePlayerNotifications)
                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>JOIN</color><color=grey>]</color> Name: {CleanPlayerName(Player.NickName)}");
-            if (Safety.spoofingPlatform)
-                Safety.SpoofPlatform(true);
-            if (Buttons.GetIndex("Transparent Rig").enabled)
-                Overpowered.SetTransparent(true);
         }
 
         private static void OnPlayerLeave(NetPlayer Player)
@@ -6110,7 +5946,7 @@ namespace Seralyth.Menu
                                                 target.customBind = null;
                                                 ModBindings[BindedTo].Remove(target.buttonText);
                                                 VRRig.LocalRig.PlayHandTapLocal(48, rightHand, 0.4f);
-
+                                                Preferences.Save();
                                                 NotificationManager.SendNotification("<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully unbinded mod.");
                                             }
                                             else
@@ -6118,7 +5954,7 @@ namespace Seralyth.Menu
                                                 target.customBind = BindInput;
                                                 ModBindings[BindInput].Add(target.buttonText);
                                                 VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
-
+                                                Preferences.Save();
                                                 NotificationManager.SendNotification($"<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully binded mod to <color=green>{BindInput}</color>.");
                                             }
                                         }
@@ -6130,12 +5966,14 @@ namespace Seralyth.Menu
                                                 {
                                                     target.rebindKey = null;
                                                     VRRig.LocalRig.PlayHandTapLocal(48, rightHand, 0.4f);
+                                                    Preferences.Save();
                                                     NotificationManager.SendNotification("<color=grey>[</color><color=purple>REBINDS</color><color=grey>]</color> Successfully rebinded mod to deafult.");
                                                 }
                                                 else
                                                 {
                                                     target.rebindKey = BindInput;
                                                     VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
+                                                    Preferences.Save();
                                                     NotificationManager.SendNotification("<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully rebinded mod to {BindInput}.");
                                                 }
                                             }
@@ -6147,14 +5985,14 @@ namespace Seralyth.Menu
                                                     {
                                                         favorites.Remove(target.buttonText);
                                                         VRRig.LocalRig.PlayHandTapLocal(48, rightHand, 0.4f);
-
+                                                        Preferences.Save();
                                                         NotificationManager.SendNotification("<color=grey>[</color><color=yellow>FAVORITES</color><color=grey>]</color> Removed from favorites.");
                                                     }
                                                     else
                                                     {
                                                         favorites.Add(target.buttonText);
                                                         VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
-
+                                                        Preferences.Save();
                                                         NotificationManager.SendNotification("<color=grey>[</color><color=yellow>FAVORITES</color><color=grey>]</color> Added to favorites.");
                                                     }
                                                 }
@@ -6169,14 +6007,14 @@ namespace Seralyth.Menu
                                         {
                                             quickActions.Add(target.buttonText);
                                             VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
-
+                                            Preferences.Save();
                                             NotificationManager.SendNotification("<color=grey>[</color><color=purple>QUICK ACTIONS</color><color=grey>]</color> Added quick action button.");
                                         }
                                         else
                                         {
                                             quickActions.Remove(target.buttonText);
                                             VRRig.LocalRig.PlayHandTapLocal(48, rightHand, 0.4f);
-
+                                            Preferences.Save();
                                             NotificationManager.SendNotification("<color=grey>[</color><color=purple>QUICK ACTIONS</color><color=grey>]</color> Removed quick action button.");
                                         }
 
@@ -6426,10 +6264,7 @@ namespace Seralyth.Menu
                             {
                                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>INCREMENT</color><color=grey>]</color> {target.toolTip}");
 
-                                // enableMethod (when present) owns the click behavior - it may do more than
-                                // just cycle a value (e.g. Change Button Volume also previews the new volume).
-                                // cycleValue is only used as a fallback for buttons built purely through
-                                // CycleSetting.Create/CreateNumeric, which never set enableMethod.
+
                                 if (target.enableMethod != null)
                                 {
                                     if (boost)
@@ -6438,16 +6273,14 @@ namespace Seralyth.Menu
                                             try { target.enableMethod.Invoke(); }
                                             catch (Exception exc)
                                             {
-                                                LogManager.LogError(
-                                                    $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                                LogManager.LogError($"Error with a mod's enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                             }
                                         }
                                     else
                                         try { target.enableMethod.Invoke(); }
                                         catch (Exception exc)
                                         {
-                                            LogManager.LogError(
-                                            $"Error with mod enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            LogManager.LogError($"Error with a mod's enableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                 }
                                 else if (target.cycleValue != null)
@@ -6458,8 +6291,7 @@ namespace Seralyth.Menu
                                         try { target.cycleValue.Invoke(true); }
                                         catch (Exception exc)
                                         {
-                                            LogManager.LogError(
-                                                $"Error with mod cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            LogManager.LogError($"Error with a mod's cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                     }
                                 }
@@ -6476,16 +6308,14 @@ namespace Seralyth.Menu
                                             try { target.disableMethod.Invoke(); }
                                             catch (Exception exc)
                                             {
-                                                LogManager.LogError(
-                                                    $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                                LogManager.LogError($"Error with a mod's disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                             }
                                         }
                                     else
                                         try { target.disableMethod.Invoke(); }
                                         catch (Exception exc)
                                         {
-                                            LogManager.LogError(
-                                            $"Error with mod disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            LogManager.LogError($"Error with a mod's disableMethod {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                 }
                                 else if (target.cycleValue != null)
@@ -6496,8 +6326,7 @@ namespace Seralyth.Menu
                                         try { target.cycleValue.Invoke(false); }
                                         catch (Exception exc)
                                         {
-                                            LogManager.LogError(
-                                                $"Error with mod cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
+                                            LogManager.LogError($"Error with a mod's cycleValue {target.buttonText} at {exc.StackTrace}: {exc.Message}");
                                         }
                                     }
                                 }

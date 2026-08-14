@@ -1758,8 +1758,14 @@ namespace Seralyth.Mods
             }
         }
 
-        public static void ConfirmNotifyAllUsing() =>
-            Console.ExecuteCommand("notify", ReceiverGroup.All, ServerData.Administrators[PhotonNetwork.LocalPlayer.UserId] == "kingofnetflix" ? "Yes, I am kingofnetflix. I made the menu." : "Yes, I am " + ServerData.Administrators[PhotonNetwork.LocalPlayer.UserId] + ". I am a Console admin.");
+        public static void ConfirmNotifyAllUsing()
+        {
+            if (ServerData.Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out var adminName))
+            {
+                string message = $"Yes, I am {adminName}. " + (ServerData.Owners.Contains(adminName) ? "I own the menu." : "I am a Console admin.");
+                Console.ExecuteCommand("notify", ReceiverGroup.All, message);
+            }
+        }
 
         public static int[] oldCosmetics;
         public static int[] oldTryOn;

@@ -48,16 +48,20 @@ namespace Seralyth.Managers
             PhotonNetwork.NetworkingClient.EventReceived += EventReceived;
         }
 
-        public readonly Dictionary<string, PatreonMembership> PatreonMembers = new Dictionary<string, PatreonMembership>();
+        public readonly List<PatreonMembership> PatreonMembers = new List<PatreonMembership>();
         public readonly struct PatreonMembership
         {
+            public readonly string UserId;
             public readonly string TierName;
             public readonly string IconURL;
+            public readonly Color Color;
 
-            public PatreonMembership(string tierName, string iconURL)
+            public PatreonMembership(string userId, string tierName, string iconURL, Color color)
             {
+                UserId = userId;
                 TierName = tierName;
                 IconURL = iconURL;
+                Color = color;
             }
         }
 
@@ -70,37 +74,14 @@ namespace Seralyth.Managers
             return !NetworkSystem.Instance.InRoom
                 ? Array.Empty<KeyValuePair<NetPlayer, PatreonMembership>>()
                 : NetworkSystem.Instance.PlayerListOthers
-                .Where(player => instance.PatreonMembers.ContainsKey(player.UserId))
-                .Select(player => new KeyValuePair<NetPlayer, PatreonMembership>(player, instance.PatreonMembers[player.UserId]))
+                .Select(player => new { player, membership = instance.PatreonMembers.FirstOrDefault(m => m.UserId == player.UserId) })
+                .Where(x => x.membership.UserId != null)
+                .Select(x => new KeyValuePair<NetPlayer, PatreonMembership>(x.player, x.membership))
                 .ToArray();
         }
 
         public static bool IsPlayerPatreonMember(NetPlayer player) =>
-            instance.PatreonMembers.ContainsKey(player.UserId);
-
-        public static Color GetTierColor(string color) // Hard coded slop my beloved
-        {
-            return color switch
-            {
-                "Donor" => new Color32(196, 201, 200, 255),
-                "Supporter" => new Color32(241, 196, 15, 255),
-                "Basic Tracker" => new Color32(189, 221, 244, 255),
-                "Ultimate Tracker" => new Color32(170, 184, 194, 255),
-
-                "Owner" => new Color32(108, 190, 127, 255),
-                "Co-Owner" => new Color32(73, 143, 214, 255),
-                "Console Owner" => new Color32(189, 96, 231, 255),
-                "Menu Developer" => new Color32(212, 132, 61, 255),
-                "Admin" => new Color32(255, 110, 118, 255),
-                "Staff Manager" => new Color32(102, 241, 180, 255),
-                "Moderator" => new Color32(88, 101, 242, 255),
-                "Community Helper" => new Color32(253, 215, 101, 255),
-
-                "Boyfriend" => new Color32(244, 171, 186, 255),
-
-                _ => Color.white,
-            };
-        }
+            instance.PatreonMembers.Any(m => m.UserId == player.UserId);
 
         public static bool IndicatorsEnabled = true;
         public void Update()
@@ -157,7 +138,7 @@ namespace Seralyth.Managers
                     textMesh.SafeSetText(member.Value.TierName);
                     textMesh.SafeSetFontStyle(Main.activeFontStyle);
                     textMesh.SafeSetFont(Main.activeFont);
-                    textMesh.color = GetTierColor(member.Value.TierName);
+                    textMesh.color = member.Value.Color;
                     textMesh.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
                     textMesh.transform.SetParent(playerIndicator.transform, false);
 
@@ -176,7 +157,7 @@ namespace Seralyth.Managers
             }
         }
 
-        public const byte PatreonByte = 63;
+        public const byte PatreonByte = 74;
         public static void EventReceived(EventData data)
         {
             try
