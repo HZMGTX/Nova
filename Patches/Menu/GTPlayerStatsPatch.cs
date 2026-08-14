@@ -26,21 +26,23 @@ namespace Seralyth.Patches.Menu
     [HarmonyPatch(typeof(GTPlayerStats), nameof(GTPlayerStats.DelayedUpdate))]
     public class GTPlayerStatsPatch
     {
-        public static bool enabled;
-        public static short FPS = -1;
-        public static short TargetFPS = -1;
-        public static short Ping = -1;
+        public static bool SpoofFPS;
+        public static bool SpoofTargetFPS;
+        public static bool SpoofPing;
+        public static short FPS = 90;
+        public static short TargetFPS = 90;
+        public static short Ping = 60;
 
         public static bool Prefix()
         {
-            if (enabled)
+            if (SpoofFPS || SpoofTargetFPS || SpoofPing)
             {
-                if (Ping != -1)
-                    GTPlayerStats.Ping = Ping;
-                if (TargetFPS != -1)
-                    GTPlayerStats.TargetFPS = TargetFPS;
-                if (FPS != -1)
+                if (SpoofFPS)
                     GTPlayerStats.FPS = FPS;
+                if (SpoofTargetFPS)
+                    GTPlayerStats.TargetFPS = TargetFPS;
+                if (SpoofPing)
+                    GTPlayerStats.Ping = Ping;
                 return false;
             }
             return true;

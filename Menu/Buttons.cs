@@ -604,9 +604,9 @@ namespace Seralyth.Menu
                 new ButtonInfo { buttonText = "Change Identity on Disconnect <color=grey>[</color><color=green>Normal</color><color=grey>]</color>", method =() => Safety.ChangeIdentityOnDisconnect(Safety.ChangeIdentityRegular), toolTip = "When you leave, your name and color will be set to something a regular player would have."},
                 new ButtonInfo { buttonText = "Change Identity on Disconnect <color=grey>[</color><color=green>Child</color><color=grey>]</color>", method =() => Safety.ChangeIdentityOnDisconnect(Safety.ChangeIdentityCustom), toolTip = "When you leave, your name and color will be set to whatever you desire."},
 
-                new ButtonInfo { buttonText = "FPS Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your FPS appear different for other players and the competitive bot."},
-                new ButtonInfo { buttonText = "Target FPS Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your FPS appear different for other players and the competitive bot."},
-                new ButtonInfo { buttonText = "Ping Spoof", enableMethod =() => GTPlayerStatsPatch.enabled = true, disableMethod =() => GTPlayerStatsPatch.enabled = false, toolTip = "Makes your ping appear different for other players and the competitive bot."},
+                new ButtonInfo { buttonText = "FPS Spoof", enableMethod =() => GTPlayerStatsPatch.SpoofFPS = true, disableMethod =() => GTPlayerStatsPatch.SpoofFPS = false, toolTip = "Makes your FPS appear different for other players."},
+                new ButtonInfo { buttonText = "Target FPS Spoof", enableMethod =() => GTPlayerStatsPatch.SpoofTargetFPS = true, disableMethod =() => GTPlayerStatsPatch.SpoofTargetFPS = false, toolTip = "Makes your FPS appear different for other players."},
+                new ButtonInfo { buttonText = "Ping Spoof", enableMethod =() => GTPlayerStatsPatch.SpoofPing = true, disableMethod =() => GTPlayerStatsPatch.SpoofPing = false, toolTip = "Makes your ping appear different for other players."},
 
                 new ButtonInfo { buttonText = "Name Spoof", method = Safety.NameSpoof, toolTip = "Changes your name on the leaderboard to something random, but not on your rig."},
                 new ButtonInfo { buttonText = "Color Spoof", method = Safety.ColorSpoof, toolTip = "Makes your color appear different to every player."},
