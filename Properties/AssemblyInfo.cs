@@ -22,7 +22,7 @@
 using Seralyth;
 using System.Reflection;
 
-[assembly: AssemblyCompany("Seralyth Software")]
+[assembly: AssemblyCompany("Nova Software")]
 
 #if DEBUG
 [assembly: AssemblyConfiguration("Debug")]
