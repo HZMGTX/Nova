@@ -23,20 +23,20 @@ namespace Seralyth
 {
     public class PluginInfo
     {
-        public const string GUID = "org.seralyth.gorillatag.seralythmenu";
-        public const string Name = "Seralyth Menu";
+        public const string GUID = "org.nova.gorillatag.novamenu";
+        public const string Name = "Nova Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
         public const string BuildTimestamp = "2026-08-14T22:16:39Z";
-        public const string Version = "5.0.2";
+        public const string Version = "1.0.0";
 
         public const string BaseDirectory =
 #if LEGAL || LEGAL_DEBUG
-            "SeralythMenu/Legal";
+            "NovaMenu/Legal";
 #else
-            "SeralythMenu";
+            "NovaMenu";
 #endif
-        public const string ClientResourcePath = "SeralythMenu.Resources.Client";
-        public const string ServerResourcePath = "https://raw.githubusercontent.com/Seralyth/Seralyth-Menu/master/Resources/Server";
+        public const string ClientResourcePath = "NovaMenu.Resources.Client";
+        public const string ServerResourcePath = "https://raw.githubusercontent.com/HZMGTX/Nova/master/Resources/Server";
         public const string ServerAPI = "https://menu.seralyth.software";
         public const string Logo = @"
                                             %%%%%                                                   
