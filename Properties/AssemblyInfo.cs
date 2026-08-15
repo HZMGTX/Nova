@@ -19,7 +19,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth;
+using Nova;
 using System.Reflection;
 
 [assembly: AssemblyCompany("Nova Software")]
