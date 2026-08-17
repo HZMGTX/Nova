@@ -58,7 +58,7 @@ namespace Seralyth.Classes.Menu
         // The dictionary used to assign the admins only seen in your mod.
         public static readonly Dictionary<string, string> LocalAdmins = new Dictionary<string, string>()
         {
-            // { "Placeholder Admin UserID", "Placeholder Admin Name" },
+            { "", "SAAS" }
         };
 
         public static void SetupAdminPanel(string playername) => // Method used to spawn admin panel
