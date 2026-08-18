@@ -23,7 +23,7 @@ using Nova.Managers;
 using Nova.Menu;
 using UnityEngine;
 
-namespace Seralyth
+namespace Nova
 {
     public static class Plugin
     {
