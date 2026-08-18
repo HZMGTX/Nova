@@ -67,7 +67,7 @@ namespace Nova
             if (File.Exists($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt"))
             {
                 if (File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt")[0]
-                    .Split(";;") 
+                    .Split(";;")
                     .Contains("Accept TOS"))
                 {
                     TOSPatches.enabled = true;
