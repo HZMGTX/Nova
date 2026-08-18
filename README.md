@@ -5,22 +5,22 @@
 ---
 
 <p align="center">
-	<a href="https://github.com/Seralyth/Seralyth-Menu/releases"><img src="https://img.shields.io/github/v/release/Seralyth/Seralyth-Menu?label=version&style=for-the-badge"></a>
-	<a href="https://github.com/Seralyth/Seralyth-Menu/releases/latest"><img src="https://img.shields.io/github/downloads/Seralyth/Seralyth-Menu/latest/Seralyth-Menu.dll?style=for-the-badge"></a>
-	<a href="https://discord.gg/seralyth"><img src="https://img.shields.io/discord/1500168360787447909?label=discord&style=for-the-badge&color=blueviolet"></a>
+	<a href="https://github.com/HZMGTX/Nova/releases"><img src="https://img.shields.io/github/v/release/HZMGTX/Nova?label=version&style=for-the-badge"></a>
+	<a href="https://github.com/HZMGTX/Nova/releases/latest"><img src="https://img.shields.io/github/downloads/HZMGTX/Nova/latest/Nova-Menu.dll?style=for-the-badge"></a>
+	<a href="https://discord.gg/nova"><img src="https://img.shields.io/discord/1500168360787447909?label=discord&style=for-the-badge&color=blueviolet"></a>
 </p>
 
 ---
 
-# Seralyth Menu  
+# Nova Menu  
 <sub>Forked from ii's Stupid Menu</sub>
 
-Seralyth Menu is a **feature-packed** mod menu for Gorilla Tag, built by the community, for the community. Whether you just want mods, are a developer, or anything inbetween, this menu has you covered. Designed to be **as useful as possible**, it includes a variety of features and options that let you customize your modding experience to your heart’s content.  
+Nova Menu is a **feature-packed** mod menu for Gorilla Tag, built by the community, for the community. Whether you just want mods, are a developer, or anything inbetween, this menu has you covered. Designed to be **as useful as possible**, it includes a variety of features and options that let you customize your modding experience to your heart's content.  
 
 <details>
   <summary><b>💡 Why open-source?</b></summary>
 	
-Great question. The modding community used to be about **sharing, learning, and improving** together. But nowadays, everything’s locked behind **paywalls and obfuscation**. That’s not how it should be.  
+Great question. The modding community used to be about **sharing, learning, and improving** together. But nowadays, everything's locked behind **paywalls and obfuscation**. That's not how it should be.  
 
 By making this menu open-source, I'm giving **everyone** the opportunity to:  
 - Learn how mod menus work 
@@ -35,7 +35,7 @@ Let's bring back the collaboration of modding. No paywalls, no secrets, no malwa
 <details>
   <summary><b>❓ Can I use your code?</b></summary>
 	
-**Of course!** But there’s a catch: you gotta play fair. **[GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html) rules apply**, which means that if you use my code:  
+**Of course!** But there's a catch: you gotta play fair. **[GPL-3.0 License](https://www.gnu.org/licenses/gpl-3.0.html) rules apply**, which means that if you use my code:  
 - Your project **must** also be open-source.  
 - Give credit where it's due.
 - No shady stuff.
@@ -46,13 +46,13 @@ Let's bring back the collaboration of modding. No paywalls, no secrets, no malwa
 <details>
   <summary><b>💾 Installation</b></summary>
 	
-1. **Download** the latest release **[here](https://github.com/Seralyth/Seralyth-Menu/releases/latest)**
-2. **Drag & Drop** `Seralyth-Menu.dll` into your plugins folder  
+1. **Download** the latest release **[here](https://github.com/HZMGTX/Nova/releases/latest)**
+2. **Drag & Drop** `Nova-Menu.dll` into your plugins folder  
 3. **Launch** Gorilla Tag and enjoy!
 
 **🧱 From Source Code (for developers!)**
 
-1. Download the source code **[here](https://github.com/Seralyth/Seralyth-Menu/releases/latest)**
+1. Download the source code **[here](https://github.com/HZMGTX/Nova/releases/latest)**
 2. Edit `Directory.Build.props` and update `<GamePath>` if your Gorilla Tag is in a custom spot
 3. Build the project with `Ctrl + Shift + B`<Br>
 ✅ The DLL will automatically go into your Gorilla Tag plugins folder
@@ -100,7 +100,7 @@ Let's bring back the collaboration of modding. No paywalls, no secrets, no malwa
 <details>
   <summary><b>🗣️ Contact Information</b></summary>
 	
-Join our [Discord](https://discord.gg/seralyth)!
+Join our [Discord](https://discord.gg/nova)!
 
 </details>
 
@@ -110,27 +110,27 @@ Join our [Discord](https://discord.gg/seralyth)!
 If you wish to support us, here are some of the ways you can!
 
 | Platform   | Link | Address |
-|------------|------|---------|
-| Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd) | [0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd](ethereum:0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd) |
-| Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) | [Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) |
-| Patreon    | [![Patreon](https://img.shields.io/badge/Patreon-Seralyth-orange?style=for-the-badge&logo=patreon)](https://www.patreon.com/Seralyth) | [Seralyth](https://www.patreon.com/Seralyth) |
+|------------|------|----------|
+| Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd) | [0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd](https://etherscan.io/address/0xc14846DF02f45D02a3A5750B21e6e1533ab129Dd) |
+| Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) | [Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9](https://blockchair.com/litecoin/address/Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) |
+| Patreon    | [![Patreon](https://img.shields.io/badge/Patreon-Nova-orange?style=for-the-badge&logo=patreon)](https://www.patreon.com/Nova) | [Nova](https://www.patreon.com/Nova) |
 
 </details>
 
 > [!NOTE] 
-> This product is not affiliated with Gorilla Tag or Another Axiom LLC and is not endorsed or otherwise sponsored by Another Axiom LLC. Portions of the materials contained herein are property of Another Axiom LLC. © 2026 Another Axiom LLC.<br>
-> Menu sends requests to https://menu.seralyth.software for telemetry, administrative, and TTS (text to speech) purposes.<br>
+> This product is not affiliated with Gorilla Tag or Another Axiom LLC and is not endorsed or otherwise sponsored by Another Axiom LLC. Portions of the materials contained herein are property of Another Axiom LLC.
+> Menu sends requests to https://menu.nova.software for telemetry, administrative, and TTS (text to speech) purposes.<br>
 > Menu sends requests to https://text.pollinations.ai for the mod **AI Assistant**. (when enabled)<br>
 > Menu sends requests to https://lazypy.ro for many TTS voices.<br>
-> Menu connects to wss://menu.seralyth.software for friend system and administrative purposes.<br>
-> **Read our [Privacy Policy](https://seralyth.software/policy?tab=privacy) (https://seralyth.software/policy) for details on how this data is collected and used.**<br>
+> Menu connects to wss://menu.nova.software for friend system and administrative purposes.<br>
+> **Read our [Privacy Policy](https://nova.software/policy?tab=privacy) (https://nova.software/policy) for details on how this data is collected and used.**<br>
 > The donate, search, star and speak symbols are provided from [Icons8](https://icons8.com).
 
-> Seralyth Menu  README.md<br>
+> Nova Menu  README.md<br>
 > A community driven mod menu for Gorilla Tag with over 1000+ mods
 >
-> Copyright (C) 2026  Seralyth Software
-> https://github.com/Seralyth/Seralyth-Menu
+> Copyright (C) 2026  Nova Software
+> https://github.com/HZMGTX/Nova
 > 
 > This program is free software: you can redistribute it and/or modify
 > it under the terms of the GNU General Public License as published by
@@ -143,8 +143,8 @@ If you wish to support us, here are some of the ways you can!
 > GNU General Public License for more details.
 > 
 > You should have received a copy of the GNU General Public License
-> along with this program.  If not, see <https://www.gnu.org/licenses>.
+> along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-> This product is not affiliated with Another Axiom Inc. or its videogames Gorilla Tag and Orion Drift and is not endorsed or otherwise sponsored by Another Axiom. Portions of the materials contained herein are property of Another Axiom. ©2021 Another Axiom Inc.
+> This product is not affiliated with Another Axiom Inc. or its videogames Gorilla Tag and Orion Drift and is not endorsed or otherwise sponsored by Another Axiom. Portions of the materials contained herein are property of Another Axiom Inc.
 
-> The names "Seralyth", "Seralyth Software", logos, artwork, and branding are not covered by this license.
+> The names "Nova", "Nova Software", logos, artwork, and branding are not covered by this license.
