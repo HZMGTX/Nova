@@ -1,9 +1,9 @@
 /*
- * Seralyth Menu  Plugin.cs
+ * Nova Menu  Plugin.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Nova Software
+ * https://github.com/HZMGTX/Nova
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,13 +31,13 @@ namespace Nova
         // Don't merge these methods, it just doesn't work
         public static void Inject()
         {
-            var go = new GameObject("Seralyth");
+            var go = new GameObject("Nova");
             go.AddComponent<Injector>();
         }
 
         public static void InjectDontDestroy()
         {
-            var go = new GameObject("Seralyth");
+            var go = new GameObject("Nova");
             Object.DontDestroyOnLoad(go);
             go.AddComponent<Injector>();
         }

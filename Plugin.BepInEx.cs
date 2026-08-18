@@ -1,9 +1,9 @@
 /*
- * Seralyth Menu  Plugin.BepInEx.cs
+ * Nova Menu  Plugin.BepInEx.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Nova Software
+ * https://github.com/HZMGTX/Nova
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,11 +20,11 @@
  */
 
 using BepInEx;
-using Seralyth.Managers;
-using Seralyth.Menu;
+using Nova.Managers;
+using Nova.Menu;
 using System.ComponentModel;
 
-namespace Seralyth
+namespace Nova
 {
     [Description(PluginInfo.Description)]
     [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]

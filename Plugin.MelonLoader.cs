@@ -1,9 +1,9 @@
 /*
- * Seralyth Menu  Plugin.MelonLoader.cs
+ * Nova Menu  Plugin.MelonLoader.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Nova Software
+ * https://github.com/HZMGTX/Nova
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,11 +21,11 @@
 
 
 using MelonLoader;
-using Seralyth.Managers;
+using Nova.Managers;
 
-[assembly: MelonInfo(typeof(Seralyth.PluginMelonLoader), Seralyth.PluginInfo.Name, Seralyth.PluginInfo.Version, "Seralyth")]
+[assembly: MelonInfo(typeof(Nova.PluginMelonLoader), Nova.PluginInfo.Name, Nova.PluginInfo.Version, "Nova")]
 [assembly: MelonOptionalDependencies("BepInEx")]
-namespace Seralyth
+namespace Nova
 {
     public class PluginMelonLoader : MelonMod
     {
