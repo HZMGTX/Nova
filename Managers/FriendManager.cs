@@ -1375,7 +1375,7 @@ namespace Seralyth.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            public readonly string FriendWebsocket = $"wss://menu.management?mod={Classes.Menu.Console.MenuName}";
+            public readonly string FriendWebsocket = $"wss://ws.menu.management?mod={Classes.Menu.Console.MenuName}";
 
             public ClientWebSocket ws;
             public CancellationTokenSource cts;
