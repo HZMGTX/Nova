@@ -97,7 +97,7 @@ namespace Seralyth.Managers
 
             text = URLEncode(text);
             string prompt = URLEncode(string.Format(SystemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
-            string api = "https://menu.management/ai";
+            string api = "https://www.menu.management/ai";
 
             var payload = new
             {

@@ -1375,9 +1375,10 @@ namespace Seralyth.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            // The apex hostname is the one the menu is meant to use, but it only
+            // The apex is the hostname the socket is meant to use, but it only
             // carries websockets once the proxy in front of it is live. The relay's
             // own hostname is tried next so friends keep working until then.
+            // Ordinary requests go to www instead, which Vercel serves directly.
             public readonly string[] FriendWebsockets =
             {
                 $"wss://menu.management?mod={Classes.Menu.Console.MenuName}",
