@@ -1375,18 +1375,26 @@ namespace Seralyth.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            // The apex hostname is the one the menu is meant to use, but it only
+            // The apex is the hostname the socket is meant to use, but it only
             // carries websockets once the proxy in front of it is live. The relay's
             // own hostname is tried next so friends keep working until then.
+            // Ordinary requests go to www instead, which Vercel serves directly.
             public readonly string[] FriendWebsockets =
             {
                 $"wss://menu.management?mod={Classes.Menu.Console.MenuName}",
                 $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}"
             };
 
-            // Which endpoint the next attempt uses. It only moves on a failure, so a
-            // working endpoint is kept rather than re-probed every reconnect.
+            // Which endpoint the next attempt uses. It only moves when one proves
+            // unusable, so a working endpoint is kept rather than re-probed every
+            // reconnect.
             public int endpoint;
+
+            // Whether this socket ever carried a message. An endpoint that accepts
+            // the upgrade and then closes without saying anything has rejected us —
+            // it is not the same as a healthy server going away, and without telling
+            // the two apart a rejecting endpoint traps the retry loop forever.
+            public bool servedAnything;
 
             public string FriendWebsocket =>
                 FriendWebsockets[endpoint % FriendWebsockets.Length];
@@ -1426,6 +1434,7 @@ namespace Seralyth.Managers
                     if (ws.State == WebSocketState.Open)
                     {
                         connected = true;
+                        servedAnything = false;
                         LogManager.Log("Connected to friends websocket");
                         _ = Receive();
                     }
@@ -1455,8 +1464,15 @@ namespace Seralyth.Managers
 
                             if (result.MessageType == WebSocketMessageType.Close)
                             {
-                                LogManager.Log("Server closed");
+                                LogManager.Log($"Server closed: {ws.CloseStatusDescription}");
                                 connected = false;
+
+                                // Closed without ever serving us. Accepting the socket
+                                // and then dropping it is a rejection, so move on rather
+                                // than reconnecting here forever.
+                                if (!servedAnything)
+                                    endpoint++;
+
                                 await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                                 return;
                             }
@@ -1466,6 +1482,7 @@ namespace Seralyth.Managers
                         } while (!result.EndOfMessage);
 
                         string message = messageBuilder.ToString();
+                        servedAnything = true;
                         HandleJSON(message);
                     }
                 }

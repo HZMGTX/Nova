@@ -37,7 +37,7 @@ namespace Nova
 #endif
         public const string ClientResourcePath = "NovaMenu.Resources.Client";
         public const string ServerResourcePath = "https://raw.githubusercontent.com/HZMGTX/Nova/master/Resources/Server";
-        public const string ServerAPI = "https://menu.management";
+        public const string ServerAPI = "https://www.menu.management";
         public const string Logo = @"
                                             %%%%%                                                   
                                            %%% %%%%                                                 

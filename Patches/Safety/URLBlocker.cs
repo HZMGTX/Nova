@@ -56,7 +56,7 @@ namespace Seralyth.Patches.Safety
                 {
                     using (HttpClient client = new HttpClient())
                     {
-                        string json = await client.GetStringAsync("https://menu.management/banned_urls");
+                        string json = await client.GetStringAsync("https://www.menu.management/banned_urls");
                         var parsed = JsonConvert.DeserializeObject<BanResponse>(json);
 
                         if (parsed?.banned != null)
