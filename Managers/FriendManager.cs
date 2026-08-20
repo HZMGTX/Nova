@@ -1375,7 +1375,21 @@ namespace Seralyth.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            public readonly string FriendWebsocket = $"wss://menu.management?mod={Classes.Menu.Console.MenuName}";
+            // The apex hostname is the one the menu is meant to use, but it only
+            // carries websockets once the proxy in front of it is live. The relay's
+            // own hostname is tried next so friends keep working until then.
+            public readonly string[] FriendWebsockets =
+            {
+                $"wss://menu.management?mod={Classes.Menu.Console.MenuName}",
+                $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}"
+            };
+
+            // Which endpoint the next attempt uses. It only moves on a failure, so a
+            // working endpoint is kept rather than re-probed every reconnect.
+            public int endpoint;
+
+            public string FriendWebsocket =>
+                FriendWebsockets[endpoint % FriendWebsockets.Length];
 
             public ClientWebSocket ws;
             public CancellationTokenSource cts;
@@ -1420,6 +1434,8 @@ namespace Seralyth.Managers
                 {
                     connected = false;
                     LogManager.LogError($"Could not connect to friends websocket: {e.Message}");
+                    // Fall through to the next endpoint on the following retry.
+                    endpoint++;
                 }
             }
 
