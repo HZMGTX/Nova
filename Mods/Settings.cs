@@ -901,8 +901,14 @@ if %ERRORLEVEL%==0 set ""DOWNLOAD_NAME=Nova-Menu-Legal""
 
 echo Downloading latest release of %DOWNLOAD_NAME%...
 
-curl -L -o ""%MENU_FILE%"" ^
+curl -f -L -o ""%MENU_FILE%.new"" ^
 ""https://github.com/HZMGTX/Nova/releases/latest/download/%DOWNLOAD_NAME%.dll""
+
+if errorlevel 1 (
+    echo Download failed. Keeping the menu you already have.
+    if exist ""%MENU_FILE%.new"" del ""%MENU_FILE%.new""
+    goto restart
+)
 
 :WAIT_LOOP
 tasklist /FI ""IMAGENAME eq Gorilla Tag.exe"" | find /I ""Gorilla Tag.exe"" >nul
@@ -910,6 +916,8 @@ if %ERRORLEVEL%==0 (
     timeout /t 1 >nul
     goto WAIT_LOOP
 )
+
+move /Y ""%MENU_FILE%.new"" ""%MENU_FILE%"" >nul
 
 :restart
 echo Launching Gorilla Tag...
@@ -944,6 +952,7 @@ PLUGIN_PATH=""$BASE_DIR/BepInEx/plugins""
 MODS_PATH=""$BASE_DIR/Mods""
 
 MENU_FILE=""""
+PENDING=""""
 
 for f in ""$PLUGIN_PATH""/*Nova*Menu*.dll ""$MODS_PATH""/*Nova*Menu*.dll; do
     if [ -f ""$f"" ]; then
@@ -963,13 +972,22 @@ else
     fi
 
     echo ""Downloading latest release of $DOWNLOAD_NAME...""
-    curl -L -o ""$MENU_FILE"" \
-    ""https://github.com/HZMGTX/Nova/releases/latest/download/${DOWNLOAD_NAME}.dll""
+    if curl -f -L -o ""$MENU_FILE.new"" \
+    ""https://github.com/HZMGTX/Nova/releases/latest/download/${DOWNLOAD_NAME}.dll""; then
+        PENDING=""$MENU_FILE.new""
+    else
+        echo ""Download failed. Keeping the menu you already have.""
+        rm -f ""$MENU_FILE.new""
+    fi
 fi
 
 while pgrep -f ""GorillaTag.exe"" > /dev/null; do
     sleep 1
 done
+
+if [ -n ""$PENDING"" ]; then
+    mv -f ""$PENDING"" ""$MENU_FILE""
+fi
 
 echo ""Launching Gorilla Tag...""
 xdg-open ""steam://run/1533390""
