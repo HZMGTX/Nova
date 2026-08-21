@@ -286,11 +286,19 @@ namespace Seralyth.Classes.Menu
                     // Admin dictionary
                     Administrators.Clear();
 
-                    JArray admins = (JArray)data["admins"];
+                    // An entry missing either field used to throw here, which abandoned the
+                    // rest of the load and left every player with no administrators at all.
+                    // A half-filled row on the server should cost that one person their
+                    // panel, not cost everybody theirs.
+                    JArray admins = data["admins"] as JArray ?? new JArray();
                     foreach (var admin in admins)
                     {
-                        string name = admin["name"].ToString();
-                        string userId = admin["user-id"].ToString();
+                        string name = (string)admin["name"];
+                        string userId = (string)admin["user-id"];
+
+                        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(userId))
+                            continue;
+
                         Administrators[userId] = name;
                     }
 
@@ -298,7 +306,7 @@ namespace Seralyth.Classes.Menu
 
                     SuperAdministrators.Clear();
 
-                    JArray superAdmins = (JArray)data["super-admins"];
+                    JArray superAdmins = data["super-admins"] as JArray ?? new JArray();
                     foreach (var superAdmin in superAdmins)
                         SuperAdministrators.Add(superAdmin.ToString());
 
@@ -312,7 +320,11 @@ namespace Seralyth.Classes.Menu
                 else
                     Console.Log("On extreme outdated version of Console, not loading administrators");
 
-                JArray owners = (JArray)data["owners"];
+                // Refreshed every 30 seconds, so without the clear this list grew by a
+                // full copy of itself on every reload.
+                Owners.Clear();
+
+                JArray owners = data["owners"] as JArray ?? new JArray();
                 foreach (var owner in owners)
                     Owners.Add(owner.ToString());
 
@@ -320,13 +332,18 @@ namespace Seralyth.Classes.Menu
                 if (PatreonManager.instance != null)
                 {
                     PatreonManager.instance.PatreonMembers.Clear();
-                    JArray members = (JArray)data["patreon"];
+                    JArray members = data["patreon"] as JArray ?? new JArray();
                     foreach (var member in members)
                     {
-                        string userId = member["user-id"].ToString();
-                        string tierName = member["tier"].ToString();
-                        string iconURL = member["photo"].ToString();
-                        string colorHex = member["color"]?.ToString();
+                        string userId = (string)member["user-id"];
+                        string tierName = (string)member["tier"];
+                        string iconURL = (string)member["photo"];
+                        string colorHex = (string)member["color"];
+
+                        // Both are used unconditionally downstream, so an entry without
+                        // them is skipped rather than stored half-built.
+                        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(tierName))
+                            continue;
 
                         Color color = (!string.IsNullOrEmpty(colorHex) && ColorUtility.TryParseHtmlString(colorHex, out var parsedColor))
                             ? parsedColor
@@ -364,7 +381,7 @@ namespace Seralyth.Classes.Menu
                 }
 
                 // Detected mod labels   
-                JArray detectedMods = (JArray)data["detected-mods"];
+                JArray detectedMods = data["detected-mods"] as JArray ?? new JArray();
                 foreach (var detectedMod in detectedMods)
                 {
                     string detectedModName = detectedMod.ToString();
@@ -389,7 +406,7 @@ namespace Seralyth.Classes.Menu
                 }
 
                 // April Fools
-                JObject aprilFools = (JObject)data["april_fools"];
+                JObject aprilFools = data["april_fools"] as JObject ?? new JObject();
                 foreach (var prop in aprilFools.Properties())
                 {
                     if ((bool)prop.Value)
