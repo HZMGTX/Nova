@@ -314,7 +314,19 @@ namespace Nova.Classes.Menu
                         SuperAdministrators.Add(superAdmin.ToString());
 
                     // Give admin panel if on list
-                    if (!GivenAdminMods && PhotonNetwork.LocalPlayer.UserId != null && Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out var administrator))
+                    // Photon only assigns LocalPlayer.UserId once it has a session,
+                    // so on a refresh taken while sitting in the menu rather than in
+                    // a room this was null and the check skipped in silence. Because
+                    // the admin list is keyed by the id telemetry reports, and
+                    // telemetry only fires on joining a room, an administrator could
+                    // sit at the menu indefinitely without ever being granted the
+                    // panel. The detected-mod check further down already falls back
+                    // to the PlayFab id; do the same here.
+                    string localUserId = PhotonNetwork.LocalPlayer.UserId;
+                    if (string.IsNullOrEmpty(localUserId) && PlayFabAuthenticator.instance != null)
+                        localUserId = PlayFabAuthenticator.instance.GetPlayFabPlayerId();
+
+                    if (!GivenAdminMods && !string.IsNullOrEmpty(localUserId) && Administrators.TryGetValue(localUserId, out var administrator))
                     {
                         GivenAdminMods = true;
                         SetupAdminPanel(administrator);
