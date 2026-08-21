@@ -364,3 +364,7 @@ FodyWeavers.xsd
 
 .vscode
 .idea
+# build output
+/bin/
+/obj/
+/Plugins/

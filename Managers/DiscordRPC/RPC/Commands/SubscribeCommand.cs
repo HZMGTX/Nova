@@ -1,6 +1,6 @@
-﻿using Seralyth.Managers.DiscordRPC.RPC.Payload;
+using Nova.Managers.DiscordRPC.RPC.Payload;
 
-namespace Seralyth.Managers.DiscordRPC.RPC.Commands
+namespace Nova.Managers.DiscordRPC.RPC.Commands
 {
     internal class SubscribeCommand : ICommand
     {

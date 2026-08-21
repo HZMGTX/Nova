@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Mods/Detected.cs
+/*
+ * Nova Menu  Mods/Detected.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,18 +27,18 @@ using GorillaGameModes;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.AssetUtilities;
-using static Seralyth.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RigUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 
-namespace Seralyth.Mods
+namespace Nova.Mods
 {
     public static class Detected
     {
@@ -801,7 +804,7 @@ namespace Seralyth.Mods
 
         }
 
-        public static string name = "SERALYTH";
+        public static string name = "NOVA";
 
         public static void PromptNameChange() =>
             Prompt("Would you like to set a name?", () => PromptSingleText("Please enter the name you'd like to use:", () => name = keyboardInput, "Done"));

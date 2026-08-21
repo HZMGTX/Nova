@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Managers/PluginManager.cs
+ * Nova Menu  Managers/PluginManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -19,8 +22,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth.Classes.Menu;
-using Seralyth.Menu;
+using Nova.Classes.Menu;
+using Nova.Menu;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -28,10 +31,10 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.FileUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.FileUtilities;
 
-namespace Seralyth.Managers
+namespace Nova.Managers
 {
     public class PluginManager
     {

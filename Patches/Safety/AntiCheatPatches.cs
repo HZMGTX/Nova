@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Safety/AntiCheatPatches.cs
+ * Nova Menu  Patches/Safety/AntiCheatPatches.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,11 +24,11 @@
 
 using HarmonyLib;
 using Photon.Pun;
-using Seralyth.Managers;
+using Nova.Managers;
 using UnityEngine;
-using static Seralyth.Patches.PatchHandler;
+using static Nova.Patches.PatchHandler;
 
-namespace Seralyth.Patches.Safety
+namespace Nova.Patches.Safety
 {
     public class AntiCheatPatches
     {

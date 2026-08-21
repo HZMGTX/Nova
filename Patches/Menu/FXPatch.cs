@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/FXPatch.cs
+ * Nova Menu  Patches/Menu/FXPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +23,9 @@
  */
 
 using HarmonyLib;
-using Seralyth.Menu;
+using Nova.Menu;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(FXSystem), nameof(FXSystem.PlayFXForRig), typeof(FXType), typeof(IFXContext), typeof(PhotonMessageInfoWrapped))]
     public class FXPatch

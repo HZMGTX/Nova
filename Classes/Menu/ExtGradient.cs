@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Classes/Menu/ExtGradient.cs
+ * Nova Menu  Classes/Menu/ExtGradient.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,14 +22,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth.Extensions;
-using Seralyth.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Utilities.RandomUtilities;
+using static Nova.Utilities.RandomUtilities;
 
-namespace Seralyth.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ExtGradient
     {

@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Managers/URLBlocker.cs
+/*
+ * Nova Menu  Managers/URLBlocker.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,7 +24,7 @@
 
 // The purpose of this class is to block known malicious URLs from being accessed by the game or mods
 using HarmonyLib;
-using Seralyth.Managers;
+using Nova.Managers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -33,7 +36,7 @@ using System.Threading.Tasks;
 using UnityEngine.Networking;
 using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Patches.Safety
+namespace Nova.Patches.Safety
 {
     public class URLBlocker
     {
@@ -120,7 +123,7 @@ namespace Seralyth.Patches.Safety
                 shouldLog = notifiedAssemblies.Add(assemblyName);
 
             if (shouldLog)
-                LogManager.Log($"HEY!! Seralyth Menu blocked a potentionally DANGEROUS REQUEST to: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
+                LogManager.Log($"HEY!! Nova Menu blocked a potentionally DANGEROUS REQUEST to: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
         }
 
         private static string NormalizeHost(string host)
@@ -329,7 +332,7 @@ namespace Seralyth.Patches.Safety
 
                     var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
                     {
-                        Content = new StringContent("This request has been blocked by Seralyth Menu, as it has been marked as a unsafe site.")
+                        Content = new StringContent("This request has been blocked by Nova Menu, as it has been marked as a unsafe site.")
                     };
 
                     __result = Task.FromResult(response);

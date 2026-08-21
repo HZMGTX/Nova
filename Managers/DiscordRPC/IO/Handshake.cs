@@ -1,6 +1,6 @@
-﻿using Valve.Newtonsoft.Json;
+using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Managers.DiscordRPC.IO
+namespace Nova.Managers.DiscordRPC.IO
 {
     internal class Handshake
     {

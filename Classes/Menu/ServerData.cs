@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Classes/Menu/ServerData.cs
+ * Nova Menu  Classes/Menu/ServerData.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,11 +26,11 @@ using GorillaNetworking;
 using MonoMod.Utils;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Menu;
-using Seralyth.Mods;
-using Seralyth.Utilities;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Mods;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -39,7 +42,7 @@ using UnityEngine.Networking;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
 
-namespace Seralyth.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ServerData : MonoBehaviour
     {
@@ -146,7 +149,7 @@ namespace Seralyth.Classes.Menu
         private IEnumerator RefreshServerData()
         {
             yield return LoadServerData();
-            yield return GetSeralythCCU();
+            yield return GetNovaCCU();
             yield return GetReportData();
         }
 
@@ -616,7 +619,7 @@ namespace Seralyth.Classes.Menu
         }
 
         public static int onlineUsers = 0;
-        private IEnumerator GetSeralythCCU()
+        private IEnumerator GetNovaCCU()
         {
             UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/usercount", "GET")
             {
@@ -632,7 +635,7 @@ namespace Seralyth.Classes.Menu
                 string responseText = request.downloadHandler.text;
                 JObject json = JObject.Parse(responseText);
 
-                onlineUsers = json["mods"]?["seralyth"]?["users"]?.Value<int>() ?? 0;
+                onlineUsers = json["mods"]?["nova"]?["users"]?.Value<int>() ?? 0;
             }
             catch { }
         }

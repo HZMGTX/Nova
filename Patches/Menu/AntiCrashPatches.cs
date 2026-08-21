@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/AntiCrashPatches.cs
+ * Nova Menu  Patches/Menu/AntiCrashPatches.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,7 +30,7 @@ using Photon.Realtime;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     public class AntiCrashPatches
     {

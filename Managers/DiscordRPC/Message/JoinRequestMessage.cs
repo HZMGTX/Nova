@@ -1,6 +1,6 @@
-﻿using Valve.Newtonsoft.Json;
+using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Managers.DiscordRPC.Message
+namespace Nova.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Called when some other person has requested access to this game. C -> D -> C.

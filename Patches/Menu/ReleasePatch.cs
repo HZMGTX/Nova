@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/ReleasePatch.cs
+ * Nova Menu  Patches/Menu/ReleasePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,10 +24,10 @@
 
 using GorillaLocomotion;
 using HarmonyLib;
-using Seralyth.Extensions;
+using Nova.Extensions;
 using UnityEngine;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(TakeMyHand_HandLink), nameof(TakeMyHand_HandLink.OnRelease))]
     public class ReleasePatch

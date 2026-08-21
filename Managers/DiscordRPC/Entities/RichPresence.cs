@@ -1,10 +1,10 @@
-using Seralyth.Managers.DiscordRPC.Exceptions;
-using Seralyth.Managers.DiscordRPC.Helper;
+using Nova.Managers.DiscordRPC.Exceptions;
+using Nova.Managers.DiscordRPC.Helper;
 using System;
 using System.Text;
 using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// The base rich presence structure

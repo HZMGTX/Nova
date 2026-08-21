@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Managers/TranslationManager.cs
+/*
+ * Nova Menu  Managers/TranslationManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -29,9 +32,9 @@ using UnityEngine;
 using UnityEngine.Networking;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
-using static Seralyth.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Seralyth.Managers
+namespace Nova.Managers
 {
     public class TranslationManager
     {

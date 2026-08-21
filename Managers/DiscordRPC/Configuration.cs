@@ -1,6 +1,6 @@
-﻿using Valve.Newtonsoft.Json;
+using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// Configuration of the current RPC connection

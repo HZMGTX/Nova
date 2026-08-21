@@ -1,4 +1,4 @@
-﻿namespace Seralyth.Managers.DiscordRPC.Message
+namespace Nova.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Called when the IPC has closed.

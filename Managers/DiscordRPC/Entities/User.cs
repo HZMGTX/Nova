@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using Valve.Newtonsoft.Json;
 
-namespace Seralyth.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// Object representing a Discord user. This is used for join requests.

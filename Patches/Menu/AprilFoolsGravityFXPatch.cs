@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/EnablePatch.cs
+ * Nova Menu  Patches/Menu/EnablePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,7 +25,7 @@
 // Credits to Zlothy29IQ on GitHub. I saw he made it first and just took it. Thanks. Thanks. Thanks. Thanks
 using HarmonyLib;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(AprilFoolsGravityFX), nameof(AprilFoolsGravityFX.Start))]
     public class AprilFoolsGravityFXEnablePatch

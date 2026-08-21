@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/BanPatches.cs
+ * Nova Menu  Patches/Menu/BanPatches.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,12 +27,12 @@ using HarmonyLib;
 using PlayFab;
 using PlayFab.CloudScriptModels;
 using PlayFab.Internal;
-using Seralyth.Managers;
+using Nova.Managers;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     public class BanPatches
     {

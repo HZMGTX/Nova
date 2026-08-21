@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Extensions/CallLimiterExtensions.cs
+/*
+ * Nova Menu  Extensions/CallLimiterExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,11 +22,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using Photon.Pun;
-using Seralyth.Managers;
+using Nova.Managers;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
-namespace Seralyth.Extensions
+namespace Nova.Extensions
 {
     public static class CallLimiterExtensions
     {

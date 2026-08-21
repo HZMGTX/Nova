@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Mods/Important.cs
+/*
+ * Nova Menu  Mods/Important.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,13 +28,13 @@ using GorillaNetworking;
 using GorillaTagScripts;
 using HarmonyLib;
 using Photon.Pun;
-using Seralyth.Classes.Menu;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Managers.DiscordRPC;
-using Seralyth.Menu;
-using Seralyth.Patches.Menu;
-using Seralyth.Utilities;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Managers.DiscordRPC;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,13 +54,13 @@ using UnityEngine.TextCore;
 using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 using Valve.Newtonsoft.Json;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.AssetUtilities;
-using static Seralyth.Utilities.RandomUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RandomUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 using Object = UnityEngine.Object;
 
-namespace Seralyth.Mods
+namespace Nova.Mods
 {
     public static class Important
     {
@@ -330,7 +333,7 @@ namespace Seralyth.Mods
                 .Aggregate("", (current, line) => current + (Environment.NewLine + "echo      " + line));
 
             string restartScript = @"@echo off
-title Seralyth Menu - Restarting Gorilla Tag
+title Nova Menu - Restarting Gorilla Tag
 color 5
 
 cls
@@ -409,7 +412,7 @@ exit";
                     Assets = new Managers.DiscordRPC.Assets
                     {
                         LargeImageKey = "cone",
-                        LargeImageText = "Seralyth Menu",
+                        LargeImageText = "Nova Menu",
                         SmallImageKey = inRoom ? "online" : "offline",
                         SmallImageText = inRoom ? "Online" : "Offline"
                     },
@@ -427,7 +430,7 @@ exit";
                         new Button
                         {
                             Label = "Download",
-                            Url = "https://github.com/Seralyth/Seralyth-Menu/"
+                            Url = "https://github.com/HZMGTX/Nova/"
                         }
                     }
                 });
@@ -580,7 +583,7 @@ exit";
                 if (_mediaSpriteSheet == null)
                 {
                     _mediaSpriteSheet = ScriptableObject.CreateInstance<TMP_SpriteAsset>();
-                    _mediaSpriteSheet.name = "Seralyth_SpriteSheet";
+                    _mediaSpriteSheet.name = "Nova_SpriteSheet";
 
                     var textureList = new List<Texture2D>();
                     var spriteDataList = new List<(string name, int index)>();
@@ -674,7 +677,7 @@ exit";
 
                 if (mediaText == null)
                 {
-                    GameObject textHolder = new GameObject("Seralyth_MediaText");
+                    GameObject textHolder = new GameObject("Nova_MediaText");
 
                     TextMeshPro text = textHolder.GetOrAddComponent<TextMeshPro>();
                     text.color = Color.white;

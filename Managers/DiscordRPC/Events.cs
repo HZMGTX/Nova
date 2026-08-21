@@ -1,6 +1,6 @@
-﻿using Seralyth.Managers.DiscordRPC.Message;
+using Nova.Managers.DiscordRPC.Message;
 
-namespace Seralyth.Managers.DiscordRPC.Events
+namespace Nova.Managers.DiscordRPC.Events
 {
     /// <summary>
     /// Called when the Discord Client is ready to send and receive messages.

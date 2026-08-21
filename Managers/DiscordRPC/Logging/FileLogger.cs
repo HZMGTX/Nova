@@ -1,4 +1,4 @@
-﻿namespace Seralyth.Managers.DiscordRPC.Logging
+namespace Nova.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Logs the outputs to a file

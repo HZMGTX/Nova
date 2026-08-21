@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Mods/Advantages.cs
+ * Nova Menu  Mods/Advantages.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,19 +27,19 @@ using GorillaGameModes;
 using GorillaLocomotion;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Menu;
-using Seralyth.Patches.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.GameModeUtilities;
-using static Seralyth.Utilities.RandomUtilities;
-using static Seralyth.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.GameModeUtilities;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
 
-namespace Seralyth.Mods
+namespace Nova.Mods
 {
     public static class Advantages
     {

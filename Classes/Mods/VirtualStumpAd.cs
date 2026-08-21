@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Classes/Mods/VirtualStumpAd.cs
+/*
+ * Nova Menu  Classes/Mods/VirtualStumpAd.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,9 +26,9 @@ using GorillaExtensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Video;
-using static Seralyth.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Seralyth.Classes.Mods
+namespace Nova.Classes.Mods
 {
     public class VirtualStumpAd : MonoBehaviour
     {
@@ -107,7 +110,7 @@ namespace Seralyth.Classes.Mods
                 if (featuredMapText != null)
                 {
                     oldText = featuredMapText.text;
-                    featuredMapText.text = "<b><color=#7C00FA>Seralyth Menu</color></b>";
+                    featuredMapText.text = "<b><color=#7C00FA>Nova Menu</color></b>";
                     MapInfoText.SetActive(true);
                 }
 

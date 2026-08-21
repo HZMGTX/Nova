@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/DreidelPatch.cs
+ * Nova Menu  Patches/Menu/DreidelPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,7 +26,7 @@ using GorillaTag.Cosmetics;
 using HarmonyLib;
 using Photon.Pun;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(DreidelHoldable), nameof(DreidelHoldable.OnActivate))]
     public class DreidelPatch

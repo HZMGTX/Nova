@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/CooldownPatch.cs
+ * Nova Menu  Patches/Menu/CooldownPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,7 +24,7 @@
 
 using HarmonyLib;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(SIGadgetChargeBlaster), nameof(SIGadgetChargeBlaster.OnUpdateAuthority))]
     public class CooldownPatch

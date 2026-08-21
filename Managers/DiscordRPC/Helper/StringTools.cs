@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Text;
 
-namespace Seralyth.Managers.DiscordRPC.Helper
+namespace Nova.Managers.DiscordRPC.Helper
 {
     /// <summary>
     /// Collectin of helpful string extensions

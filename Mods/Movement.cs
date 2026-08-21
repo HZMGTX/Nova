@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Mods/Movement.cs
+/*
+ * Nova Menu  Mods/Movement.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,13 +30,13 @@ using GorillaLocomotion.Swimming;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Classes.Menu;
-using Seralyth.Classes.Mods;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Menu;
-using Seralyth.Patches.Menu;
-using Seralyth.Utilities;
+using Nova.Classes.Menu;
+using Nova.Classes.Mods;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,14 +50,14 @@ using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.XR;
 using Valve.Newtonsoft.Json.Linq;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.AssetUtilities;
-using static Seralyth.Utilities.RandomUtilities;
-using static Seralyth.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Seralyth.Mods
+namespace Nova.Mods
 {
     public static class Movement
     {

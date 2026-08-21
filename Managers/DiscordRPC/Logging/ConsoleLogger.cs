@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Seralyth.Managers.DiscordRPC.Logging
+namespace Nova.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Logs the outputs to the console using <see cref="Console.WriteLine()"/>
