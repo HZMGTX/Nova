@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Managers/AchievementManager.cs
+/*
+ * Nova Menu  Managers/AchievementManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,17 +22,17 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth.Classes.Menu;
-using Seralyth.Extensions;
-using Seralyth.Menu;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Valve.Newtonsoft.Json.Linq;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.AssetUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
 
-namespace Seralyth.Managers
+namespace Nova.Managers
 {
     public static class AchievementManager
     {

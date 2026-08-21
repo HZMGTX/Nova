@@ -1,13 +1,13 @@
-﻿using Seralyth.Managers.DiscordRPC.Events;
-using Seralyth.Managers.DiscordRPC.Exceptions;
-using Seralyth.Managers.DiscordRPC.IO;
-using Seralyth.Managers.DiscordRPC.Logging;
-using Seralyth.Managers.DiscordRPC.Message;
-using Seralyth.Managers.DiscordRPC.RPC;
-using Seralyth.Managers.DiscordRPC.RPC.Commands;
+using Nova.Managers.DiscordRPC.Events;
+using Nova.Managers.DiscordRPC.Exceptions;
+using Nova.Managers.DiscordRPC.IO;
+using Nova.Managers.DiscordRPC.Logging;
+using Nova.Managers.DiscordRPC.Message;
+using Nova.Managers.DiscordRPC.RPC;
+using Nova.Managers.DiscordRPC.RPC.Commands;
 using System;
 
-namespace Seralyth.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
 
     /// <summary>

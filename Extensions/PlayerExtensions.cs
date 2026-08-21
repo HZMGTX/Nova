@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Extensions/PlayerExtensions.cs
+/*
+ * Nova Menu  Extensions/PlayerExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,11 +26,11 @@ using ExitGames.Client.Photon;
 using GorillaLocomotion;
 using Photon.Pun;
 using Photon.Realtime;
-using Seralyth.Utilities;
+using Nova.Utilities;
 using System.Linq;
 using UnityEngine;
 
-namespace Seralyth.Extensions
+namespace Nova.Extensions
 {
     public static class PlayerExtensions
     {

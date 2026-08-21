@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Seralyth.Managers.DiscordRPC.Exceptions
+namespace Nova.Managers.DiscordRPC.Exceptions
 {
     /// <summary>
     /// Thrown when an action is performed on a client that has not yet been initialized

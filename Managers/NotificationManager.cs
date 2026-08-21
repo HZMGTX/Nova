@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Managers/NotificationManager.cs
+ * Nova Menu  Managers/NotificationManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +23,9 @@
  */
 
 using GorillaLocomotion;
-using Seralyth.Classes.Menu;
-using Seralyth.Extensions;
-using Seralyth.Menu;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -30,9 +33,9 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static Seralyth.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Seralyth.Managers
+namespace Nova.Managers
 {
     public class NotificationManager : MonoBehaviour
     {
@@ -80,7 +83,7 @@ namespace Seralyth.Managers
         {
             mainCamera = Camera.main.gameObject;
 
-            GameObject canvasParent = new GameObject("Seralyth_NotificationParent");
+            GameObject canvasParent = new GameObject("Nova_NotificationParent");
             canvasParent.transform.position = mainCamera.transform.position;
 
             canvas = new GameObject("Canvas");

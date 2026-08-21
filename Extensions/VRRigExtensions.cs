@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Extensions/VRRigExtensions.cs
+/*
+ * Nova Menu  Extensions/VRRigExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,17 +25,17 @@
 using GorillaGameModes;
 using GorillaTagScripts;
 using Photon.Pun;
-using Seralyth.Menu;
-using Seralyth.Mods;
-using Seralyth.Utilities;
+using Nova.Menu;
+using Nova.Mods;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.GameModeUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.GameModeUtilities;
 
-namespace Seralyth.Extensions
+namespace Nova.Extensions
 {
     public static class VRRigExtensions
     {

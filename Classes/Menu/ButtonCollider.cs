@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Classes/Menu/ButtonCollider.cs
+ * Nova Menu  Classes/Menu/ButtonCollider.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,11 +22,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth.Managers;
+using Nova.Managers;
 using UnityEngine;
-using static Seralyth.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Seralyth.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ButtonCollider : MonoBehaviour
     {

@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Seralyth.Managers.DiscordRPC.Exceptions
+namespace Nova.Managers.DiscordRPC.Exceptions
 {
     /// <summary>
     /// A StringOutOfRangeException is thrown when the length of a string exceeds the allowed limit.

@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Utilities/FileUtilities.cs
+ * Nova Menu  Utilities/FileUtilities.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,7 +27,7 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace Seralyth.Utilities
+namespace Nova.Utilities
 {
     public class FileUtilities
     {

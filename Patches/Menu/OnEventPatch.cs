@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Patches/Menu/AntiKick.cs
+/*
+ * Nova Menu  Patches/Menu/AntiKick.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,10 +24,10 @@
 
 using HarmonyLib;
 using Photon.Pun;
-using Seralyth.Extensions;
+using Nova.Extensions;
 using System.Linq;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(PhotonNetwork), nameof(PhotonNetwork.OnEvent))]
     public class AntiKick

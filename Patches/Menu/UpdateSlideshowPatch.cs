@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/UpdateSlideshowPatch.cs
+ * Nova Menu  Patches/Menu/UpdateSlideshowPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,10 +23,10 @@
  */
 
 using HarmonyLib;
-using Seralyth.Classes.Mods;
+using Nova.Classes.Mods;
 using TMPro;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(NewMapsDisplay), nameof(NewMapsDisplay.UpdateSlideshow))]
     public static class UpdateSlideshowPatch

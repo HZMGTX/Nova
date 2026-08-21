@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-namespace Seralyth.Managers.DiscordRPC.Converters
+namespace Nova.Managers.DiscordRPC.Converters
 {
     internal class EnumValueAttribute : Attribute
     {

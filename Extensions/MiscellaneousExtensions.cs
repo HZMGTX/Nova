@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Extensions/MiscellaneousExtensions.cs
+/*
+ * Nova Menu  Extensions/MiscellaneousExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,15 +23,15 @@
  */
 
 using Photon.Pun;
-using Seralyth.Utilities;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static Seralyth.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Seralyth.Extensions
+namespace Nova.Extensions
 {
     public static class MiscellaneousExtensions
     {

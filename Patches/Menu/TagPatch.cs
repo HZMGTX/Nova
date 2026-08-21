@@ -1,8 +1,11 @@
-﻿/*
- * Seralyth Menu  Patches/Menu/TagPatch.cs
+/*
+ * Nova Menu  Patches/Menu/TagPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,15 +24,15 @@
 
 using GorillaGameModes;
 using HarmonyLib;
-using Seralyth.Extensions;
-using Seralyth.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Seralyth.Utilities.AssetUtilities;
-using static Seralyth.Utilities.GameModeUtilities;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.GameModeUtilities;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(GameMode), nameof(GameMode.ReportTag))]
     public class TagPatch

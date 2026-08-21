@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>Seralyth Menu</AssemblyName>
+    <AssemblyName>Nova Menu</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <RootNamespace>NovaMenu</RootNamespace>
     
     <TargetFramework>netstandard2.1</TargetFramework>
 	  <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
@@ -12,19 +13,19 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Legal'">
-    <AssemblyName>Seralyth Menu Legal</AssemblyName>
+    <AssemblyName>Nova Menu Legal</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Legal Debug'">
-    <AssemblyName>Seralyth Menu Legal Debug</AssemblyName>
+    <AssemblyName>Nova Menu Legal Debug</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'LEGAL_DEBUG'">
-    <AssemblyName>Seralyth Menu Legal Debug</AssemblyName>
+    <AssemblyName>Nova Menu Legal Debug</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'DEBUG' Or '$(Configuration)' == 'Debug'">
-    <AssemblyName>Seralyth Menu Debug</AssemblyName>
+    <AssemblyName>Nova Menu Debug</AssemblyName>
   </PropertyGroup>
   
   <PropertyGroup> 

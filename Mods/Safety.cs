@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Mods/Safety.cs
+ * Nova Menu  Mods/Safety.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,22 +29,22 @@ using GorillaTagScripts;
 using Photon.Pun;
 using Photon.Realtime;
 using Photon.Voice.Unity;
-using Seralyth.Extensions;
-using Seralyth.Managers;
-using Seralyth.Menu;
-using Seralyth.Patches.Menu;
-using Seralyth.Patches.Safety;
-using Seralyth.Utilities;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Patches.Safety;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Menu.Main;
-using static Seralyth.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.RigUtilities;
 using Random = UnityEngine.Random;
 
-namespace Seralyth.Mods
+namespace Nova.Mods
 {
     public static class Safety
     {
@@ -453,7 +456,7 @@ namespace Seralyth.Mods
                         catch { LogManager.Log("Failed to log player"); }
 
                         text += "\n====================================\n";
-                        text += "Text file generated with Seralyth Menu";
+                        text += "Text file generated with Nova Menu";
                         string fileName = $"{PluginInfo.BaseDirectory}/" + player.NickName + " - Anti Moderator.txt";
 
                         File.WriteAllText(fileName, text);
@@ -497,7 +500,7 @@ namespace Seralyth.Mods
                         catch { LogManager.Log("Failed to log player"); }
 
                         text += "\n====================================\n";
-                        text += "Text file generated with Seralyth Menu";
+                        text += "Text file generated with Nova Menu";
                         string fileName = $"{PluginInfo.BaseDirectory}/" + player.NickName + " - Anti Content Creator.txt";
 
                         File.WriteAllText(fileName, text);
@@ -670,7 +673,7 @@ namespace Seralyth.Mods
 
         public static void ChangeIdentityCustom()
         {
-            string[] names = { "seralyth", "me" };
+            string[] names = { "nova", "me" };
             Color[] colors = { new Color32(255, 128, 0, 255), Color.white };
 
             string fileName = $"{PluginInfo.BaseDirectory}/CustomIdentities.txt";
@@ -681,7 +684,7 @@ namespace Seralyth.Mods
                 colors = data[1].Split(";").Select(HexToColor).ToArray();
             }
             else
-                File.WriteAllText(fileName, "seralyth;me\n9b59b6;ffffff");
+                File.WriteAllText(fileName, "nova;me\n9b59b6;ffffff");
 
             string name = names[Random.Range(0, names.Length)];
             Color color = colors[Random.Range(0, colors.Length)];

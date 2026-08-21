@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Classes/Menu/ColorChanger.cs
+ * Nova Menu  Classes/Menu/ColorChanger.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,10 +23,10 @@
  */
 
 using GorillaExtensions;
-using Seralyth.Menu;
+using Nova.Menu;
 using UnityEngine;
 
-namespace Seralyth.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ColorChanger : MonoBehaviour
     {

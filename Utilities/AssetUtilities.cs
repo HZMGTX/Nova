@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Utilities/AssetUtilities.cs
+ * Nova Menu  Utilities/AssetUtilities.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,7 +22,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Seralyth.Managers;
+using Nova.Managers;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -28,16 +31,16 @@ using System.Net;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Networking;
-using static Seralyth.Utilities.FileUtilities;
+using static Nova.Utilities.FileUtilities;
 
-namespace Seralyth.Utilities
+namespace Nova.Utilities
 {
     public class AssetUtilities
     {
         private static AssetBundle assetBundle;
         private static void LoadAssetBundle()
         {
-            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"{PluginInfo.ClientResourcePath}.seralythmenu");
+            Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"{PluginInfo.ClientResourcePath}.novamenu");
             if (stream != null)
                 assetBundle = AssetBundle.LoadFromStream(stream);
             else

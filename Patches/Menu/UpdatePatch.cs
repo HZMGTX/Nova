@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/UpdatePatch.cs
+ * Nova Menu  Patches/Menu/UpdatePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,10 +23,10 @@
  */
 
 using HarmonyLib;
-using Seralyth.Extensions;
-using Seralyth.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(GorillaPlayerScoreboardLine), nameof(GorillaPlayerScoreboardLine.UpdatePlayerText))]
     public class UpdatePatch

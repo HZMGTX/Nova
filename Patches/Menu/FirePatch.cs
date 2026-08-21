@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/FirePatch.cs
+ * Nova Menu  Patches/Menu/FirePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,13 +23,13 @@
  */
 
 using HarmonyLib;
-using Seralyth.Extensions;
+using Nova.Extensions;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Seralyth.Utilities.GameModeUtilities;
+using static Nova.Utilities.GameModeUtilities;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(SIGadgetChargeBlaster), nameof(SIGadgetChargeBlaster.FireProjectile))]
     public class FirePatch

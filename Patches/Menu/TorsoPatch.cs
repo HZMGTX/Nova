@@ -1,8 +1,11 @@
 /*
- * Seralyth Menu  Patches/Menu/TorsoPatch.cs
+ * Nova Menu  Patches/Menu/TorsoPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Seralyth Software
+ * Copyright (C) 2026  Nova
+ *
+ * Modified from Seralyth Menu
  * https://github.com/Seralyth/Seralyth-Menu
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,12 +23,12 @@
  */
 
 using HarmonyLib;
-using Seralyth.Mods;
+using Nova.Mods;
 using System;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-namespace Seralyth.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(VRRig), nameof(VRRig.PostTick))]
     public class TorsoPatch
