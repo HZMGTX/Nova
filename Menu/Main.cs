@@ -6677,7 +6677,15 @@ jgs \_   _/ |Oo\
         public static int buttonClickSound = 8;
         public static int buttonClickVolume = 4;
         public static int buttonOffset = 0;
-        public static int menuButtonIndex = 1;
+        // Index into Settings.MenuButtonNames: Primary, Secondary, Grip, Trigger,
+        // Joystick. Secondary is Y on the left controller, which is the single
+        // most contested button in Gorilla Tag modding — any other mod bound to
+        // it opens on top of this menu, and a player caught that way cannot
+        // reach the setting that would move it, because reaching it means
+        // opening the menu. Joystick click is effectively unclaimed, so it is
+        // the safer thing to arrive on. rightHand defaults to false, so this
+        // resolves to leftJoystickClick.
+        public static int menuButtonIndex = 4;
         public static bool toggleButton;
         public static bool toggleButtonHeld;
         public static bool toggleButtonActive;
