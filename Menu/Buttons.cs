@@ -1064,6 +1064,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Upside Down Head", method = Fun.UpsideDownHead, disableMethod = Fun.FixHead, toolTip = "Flips your head upside down on the Z axis."},
                 new ButtonInfo { buttonText = "Backwards Head", method = Fun.BackwardsHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 180 degrees on the Y axis."},
                 new ButtonInfo { buttonText = "Sideways Head", method = Fun.SidewaysHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the Y axis."},
+                new ButtonInfo { buttonText = "Tilted Head", method = Fun.TiltedHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the X axis."},
 
                 new ButtonInfo { buttonText = "Broken Neck", method = Fun.BrokenNeck, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the Z axis."},
 
@@ -1071,8 +1072,10 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Flip Hands", aliases = new[] { "Fish Arms" }, method = Fun.FlipHands, toolTip = "Swaps your hands, left is right and right is left."},
                 new ButtonInfo { buttonText = "Loud Hand Taps", method = Fun.LoudHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really loud."},
+                new ButtonInfo { buttonText = "Quiet Hand Taps", method = Fun.QuietHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps barely audible, without muting them entirely."},
                 new ButtonInfo { buttonText = "Silent Hand Taps", aliases = new[] { "No Hand Taps" }, method = Fun.SilentHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet."},
                 new ButtonInfo { buttonText = "Instant Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 0f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Removes the hand tap cooldown."},
+                new ButtonInfo { buttonText = "Slow Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 1f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Makes your hand taps trigger far less often."},
                 new ButtonInfo { buttonText = "Silent Hand Taps on Tag", aliases = new[] { "No Hand Taps on Tag" }, method = Fun.SilentHandTapsOnTag, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet when you're tagged, good for ambush."},
 
                 new ButtonInfo { buttonText = "Water Splash Hands <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.WaterSplashHands, toolTip = "Splashes water when holding <color=green>grip</color>."},
@@ -1083,6 +1086,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Orbit Water Splash", method = Fun.OrbitWaterSplash, toolTip = "Splashes water orbitally around you."},
                 new ButtonInfo { buttonText = "Water Splash Gun", method = Fun.WaterSplashGun, toolTip = "Splashes water wherever your hand desires."},
                 new ButtonInfo { buttonText = "Water Splash On Touch", method = Fun.WaterSplashOnTouch, toolTip = "Splashes water whoever your hand touches."},
+
+                new ButtonInfo { buttonText = "Halo", method = Fun.Halo, disableMethod = Fun.DisableHalo, toolTip = "Floats a small glowing halo above your head."},
 
                 new ButtonInfo { buttonText = "Confuse Player Gun", method = Movement.ConfusePlayerGun, toolTip = "Makes whoever your hand desires look like they're going crazy by splashing water on their screen."},
                 new ButtonInfo { buttonText = "Confuse All Players", enableMethod = Movement.ConfuseAllPlayers, method = Movement.ConfuseAllPlayersSplash, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Splashes water on everyone's screens, making them look like they're going crazy."},
@@ -2372,6 +2377,9 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Admin Vibrate Gun", method = Experimental.AdminVibrateGun, toolTip = "Vibrate whoever your hand desires if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Vibrate All", method = Experimental.AdminVibrateAll, isTogglable = false, toolTip = "Vibrates everyone using the menu.", legal = true},
+
+                new ButtonInfo { buttonText = "Admin Shake Gun", method = Experimental.AdminShakeGun, toolTip = "Shakes the view of whoever your hand desires if they're using the menu.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake All", method = Experimental.AdminShakeAll, isTogglable = false, toolTip = "Shakes the view of everyone using the menu.", legal = true},
 
                 new ButtonInfo { buttonText = "Admin Block Gun", method = Experimental.AdminBlockGun, toolTip = "Disables whoever your hand desires from joining servers for 5 minutes if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Announce Block Gun", method =() => Experimental.AdminABlockGun(false), toolTip = "Block gun, but it sends a notification to everyone using the menu that the target was blocked.", legal = true},
