@@ -2378,6 +2378,9 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Admin Vibrate Gun", method = Experimental.AdminVibrateGun, toolTip = "Vibrate whoever your hand desires if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Vibrate All", method = Experimental.AdminVibrateAll, isTogglable = false, toolTip = "Vibrates everyone using the menu.", legal = true},
 
+                new ButtonInfo { buttonText = "Admin Shake Gun", method = Experimental.AdminShakeGun, toolTip = "Shakes the view of whoever your hand desires if they're using the menu.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake All", method = Experimental.AdminShakeAll, isTogglable = false, toolTip = "Shakes the view of everyone using the menu.", legal = true},
+
                 new ButtonInfo { buttonText = "Admin Block Gun", method = Experimental.AdminBlockGun, toolTip = "Disables whoever your hand desires from joining servers for 5 minutes if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Announce Block Gun", method =() => Experimental.AdminABlockGun(false), toolTip = "Block gun, but it sends a notification to everyone using the menu that the target was blocked.", legal = true},
                 new ButtonInfo { buttonText = "Silent Announce Block Gun", method =() => Experimental.AdminABlockGun(true), toolTip = "Block gun, but it sends a notification to everyone using the menu that the target was blocked. Hides your name.", legal = true},
