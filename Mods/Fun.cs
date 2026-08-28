@@ -92,6 +92,9 @@ namespace Nova.Mods
         public static void SidewaysHead() =>
             VRRig.LocalRig.head.trackingRotationOffset.y = 90f;
 
+        public static void TiltedHead() =>
+            VRRig.LocalRig.head.trackingRotationOffset.x = 90f;
+
 
         public static float lastBangTime;
         public static readonly float BPM = 159f;
