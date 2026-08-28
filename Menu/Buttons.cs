@@ -1087,6 +1087,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Water Splash Gun", method = Fun.WaterSplashGun, toolTip = "Splashes water wherever your hand desires."},
                 new ButtonInfo { buttonText = "Water Splash On Touch", method = Fun.WaterSplashOnTouch, toolTip = "Splashes water whoever your hand touches."},
 
+                new ButtonInfo { buttonText = "Halo", method = Fun.Halo, disableMethod = Fun.DisableHalo, toolTip = "Floats a small glowing halo above your head."},
+
                 new ButtonInfo { buttonText = "Confuse Player Gun", method = Movement.ConfusePlayerGun, toolTip = "Makes whoever your hand desires look like they're going crazy by splashing water on their screen."},
                 new ButtonInfo { buttonText = "Confuse All Players", enableMethod = Movement.ConfuseAllPlayers, method = Movement.ConfuseAllPlayersSplash, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Splashes water on everyone's screens, making them look like they're going crazy."},
 
