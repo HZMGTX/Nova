@@ -1072,6 +1072,7 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Flip Hands", aliases = new[] { "Fish Arms" }, method = Fun.FlipHands, toolTip = "Swaps your hands, left is right and right is left."},
                 new ButtonInfo { buttonText = "Loud Hand Taps", method = Fun.LoudHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really loud."},
+                new ButtonInfo { buttonText = "Quiet Hand Taps", method = Fun.QuietHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps barely audible, without muting them entirely."},
                 new ButtonInfo { buttonText = "Silent Hand Taps", aliases = new[] { "No Hand Taps" }, method = Fun.SilentHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet."},
                 new ButtonInfo { buttonText = "Instant Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 0f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Removes the hand tap cooldown."},
                 new ButtonInfo { buttonText = "Slow Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 1f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Makes your hand taps trigger far less often."},

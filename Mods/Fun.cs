@@ -224,6 +224,18 @@ namespace Nova.Mods
             GorillaTagger.Instance.handTapVolume = 99999f;
         }
 
+        // Distinct from SilentHandTaps: tapsEnabled stays true, so taps are
+        // heard, just faintly, rather than muted outright.
+        public static void QuietHandTaps()
+        {
+            EffectDataPatch.enabled = true;
+            EffectDataPatch.tapsEnabled = true;
+            EffectDataPatch.doOverride = true;
+            EffectDataPatch.overrideVolume = 0.02f;
+            EffectDataPatch.tapMultiplier = 1;
+            GorillaTagger.Instance.handTapVolume = 0.02f;
+        }
+
         public static void SilentHandTaps()
         {
             EffectDataPatch.enabled = true;
