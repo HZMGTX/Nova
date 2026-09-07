@@ -41,6 +41,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
@@ -1697,8 +1698,19 @@ namespace Nova.Classes.Menu
                 URL = URL.Replace("/Console/", $"/{split[0]}/");
             }
 
-            using HttpClient client = new HttpClient();
-            byte[] downloadedData = await client.GetByteArrayAsync(URL);
+            byte[] downloadedData;
+            try
+            {
+                using HttpClient client = new HttpClient();
+                downloadedData = await client.GetByteArrayAsync(URL);
+            }
+            catch (Exception e)
+            {
+                // Named separately from a load failure: a missing or renamed file on
+                // the server and a bundle the runtime cannot open need different fixes,
+                // and the caller only ever saw "failed to load" for both.
+                throw new Exception($"Could not download {URL}: {e.Message}", e);
+            }
 
             AssetBundleCreateRequest bundleCreateRequest = AssetBundle.LoadFromMemoryAsync(downloadedData);
             while (!bundleCreateRequest.isDone)
@@ -1706,17 +1718,51 @@ namespace Nova.Classes.Menu
 
             AssetBundle bundle = bundleCreateRequest.assetBundle;
 
-            try
+            if (bundle == null)
             {
-                if (bundle == null)
-                    throw new Exception("Bundle doesn't exist");
+                // Unity returns null rather than raising, so the header is read back
+                // to say what the file actually was. The two answers that matter are
+                // a file that was never built as a bundle, and one built by an editor
+                // the game's Unity version cannot open.
+                throw new Exception($"{URL} did not load as an asset bundle ({DescribeBundle(downloadedData)})");
+            }
 
+            // Two spawns of the same bundle can both miss the pool and both download
+            // it. Adding twice would raise, so the loser unloads its copy rather than
+            // leaving it resident for the rest of the session.
+            if (!assetBundlePool.ContainsKey(assetBundle))
                 assetBundlePool.Add(assetBundle, bundle);
-            }
-            catch
+            else
+                bundle.Unload(true);
+        }
+
+        // Reads the header a bundle would have, to explain why one could not be opened.
+        public static string DescribeBundle(byte[] data)
+        {
+            if (data == null || data.Length < 8)
+                return $"{data?.Length ?? 0} bytes";
+
+            if (Encoding.ASCII.GetString(data, 0, 7) != "UnityFS")
             {
-                bundle?.Unload(true);
+                string opening = Encoding.ASCII.GetString(data, 0, Math.Min(16, data.Length));
+                return $"not an asset bundle, {data.Length} bytes starting \"{opening.Replace("\n", " ").Trim()}\"";
             }
+
+            // Signature, a four byte format version, then the editor version and its
+            // full revision, each null terminated.
+            int cursor = 8 + 4;
+            string Read()
+            {
+                int start = cursor;
+                while (cursor < data.Length && data[cursor] != 0)
+                    cursor++;
+                string value = Encoding.ASCII.GetString(data, start, cursor - start);
+                cursor++;
+                return value;
+            }
+
+            Read();
+            return $"built with Unity {Read()}";
         }
 
         public static async Task<GameObject> LoadAsset(string assetBundle, string assetName)
@@ -1724,7 +1770,12 @@ namespace Nova.Classes.Menu
             if (!assetBundlePool.ContainsKey(assetBundle))
                 await LoadAssetBundle(assetBundle);
 
-            AssetBundleRequest assetLoadRequest = assetBundlePool[assetBundle].LoadAssetAsync<GameObject>(assetName);
+            // LoadAssetBundle raises rather than pooling when it fails, so reaching
+            // here without an entry means something else emptied the pool.
+            if (!assetBundlePool.TryGetValue(assetBundle, out AssetBundle loadedBundle))
+                throw new Exception($"{assetBundle} is not loaded");
+
+            AssetBundleRequest assetLoadRequest = loadedBundle.LoadAssetAsync<GameObject>(assetName);
             while (!assetLoadRequest.isDone)
                 await Task.Yield();
 
@@ -1743,7 +1794,15 @@ namespace Nova.Classes.Menu
 
             if (loadTask.Exception != null)
             {
-                Log($"Failed to load {assetBundle}.{assetName}");
+                // The reason used to be dropped here, so an asset that never appeared
+                // left nothing in the log to act on.
+                Log($"Failed to load {assetBundle}.{assetName}: {loadTask.Exception.GetBaseException().Message}");
+                yield break;
+            }
+
+            if (loadTask.Result == null)
+            {
+                Log($"Failed to load {assetBundle}.{assetName}: the bundle loaded but holds no asset by that name");
                 yield break;
             }
 
@@ -1822,6 +1881,12 @@ namespace Nova.Classes.Menu
 
             while (!loadTask.IsCompleted)
                 yield return null;
+
+            // Observed rather than left to the finalizer: a preload that fails is the
+            // earliest warning that an asset will not appear later, and an unobserved
+            // faulted task surfaces as an unrelated crash whenever the GC gets to it.
+            if (loadTask.Exception != null)
+                Log($"Failed to preload {name}: {loadTask.Exception.GetBaseException().Message}");
         }
 
         public static void ClearConsoleAssets()
