@@ -123,6 +123,11 @@ namespace Nova.Menu
             {
                 ConsoleObject.AddComponent<FriendManager>();
                 ConsoleObject.AddComponent<PatreonManager>();
+
+                // Picks up bundles added to ServerData since this build. The browser
+                // falls back to the list it shipped with, so this failing costs
+                // nothing but the newest additions.
+                Console.instance.StartCoroutine(ConsoleAssets.RefreshManifest());
             }
 
             try
