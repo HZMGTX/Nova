@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Nova Menu  PluginInfo.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
@@ -29,7 +29,7 @@ namespace Nova
         public const string GUID = "org.nova.gorillatag.novamenu";
         public const string Name = "Nova Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-08-14T22:16:39Z";
+        public const string BuildTimestamp = "2026-09-07T09:03:21Z";
         public const string Version = "1.0.0";
 
         public const string BaseDirectory =
