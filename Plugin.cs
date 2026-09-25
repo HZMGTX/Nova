@@ -27,7 +27,7 @@ namespace Poison
 {
     public static class Plugin
     {
-        // For SharpMonoInjector usage :3
+        // For SharpMonoInjector usage
         // Don't merge these methods, it just doesn't work
         public static void Inject()
         {
