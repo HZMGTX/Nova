@@ -27,46 +27,46 @@ namespace Poison
 {
     public static class Plugin
     {
-        // For SharpMonoInjector usage
+        // For SharpMonoInjector usage :3
         // Don't merge these methods, it just doesn't work
-        public static void Inject()
-        {
-            var go = new GameObject("Poison");
-            go.AddComponent<Injector>();
-        }
+        public static void Inject()// For SharpMonoInjector usage :3
+        {// For SharpMonoInjector usage :3
+            var go = new GameObject("Poison");// For SharpMonoInjector usage :3
+            go.AddComponent<Injector>();// For SharpMonoInjector usage :3
+        }// For SharpMonoInjector usage :3
 
-        public static void InjectDontDestroy()
-        {
-            var go = new GameObject("Poison");
-            Object.DontDestroyOnLoad(go);
-            go.AddComponent<Injector>();
-        }
+        public static void InjectDontDestroy()// For SharpMonoInjector usage :3
+        {// For SharpMonoInjector usage :3
+            var go = new GameObject("Poison");// For SharpMonoInjector usage :3
+            Object.DontDestroyOnLoad(go);// For SharpMonoInjector usage :3
+            go.AddComponent<Injector>();// For SharpMonoInjector usage :3
+        }// For SharpMonoInjector usage :3
 
-        private sealed class Injector : MonoBehaviour
-        {
-            private void Awake()
-            {
-                LogManager.SetLogger((Level level, string msg) =>
-                {
-                    switch (level)
-                    {
-                        case Level.Error:
-                            Debug.LogError(msg);
-                            break;
-                        case Level.Warning:
-                            Debug.LogWarning(msg);
-                            break;
-                        default:
-                            Debug.Log(msg);
-                            break;
-                    }
-                });
+        private sealed class Injector : MonoBehaviour// For SharpMonoInjector usage :3
+        {// For SharpMonoInjector usage :3
+            private void Awake()// For SharpMonoInjector usage :3
+            {// For SharpMonoInjector usage :3
+                LogManager.SetLogger((Level level, string msg) =>// For SharpMonoInjector usage :3
+                {// For SharpMonoInjector usage :3
+                    switch (level)// For SharpMonoInjector usage :3
+                    {// For SharpMonoInjector usage :3
+                        case Level.Error:// For SharpMonoInjector usage :3
+                            Debug.LogError(msg);// For SharpMonoInjector usage :3
+                            break;// For SharpMonoInjector usage :3
+                        case Level.Warning:// For SharpMonoInjector usage :3
+                            Debug.LogWarning(msg);// For SharpMonoInjector usage :3
+                            break;// For SharpMonoInjector usage :3
+                        default:// For SharpMonoInjector usage :3
+                            Debug.Log(msg);// For SharpMonoInjector usage :3
+                            break;// For SharpMonoInjector usage :3
+                    }// For SharpMonoInjector usage :3
+                });// For SharpMonoInjector usage :3
 
-                Bootstrapper.Initialize();
-            }
+                Bootstrapper.Initialize();// For SharpMonoInjector usage :3
+            }// For SharpMonoInjector usage :3
 
-            private void OnDestroy() =>
-                Main.UnloadMenu();
+            private void OnDestroy() =>// For SharpMonoInjector usage :3
+                Main.UnloadMenu();// For SharpMonoInjector usage :3
         }
     }
 }
