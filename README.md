@@ -6,7 +6,7 @@
 
 <p align="center">
 	<a href="https://github.com/heycanihavethis/Poison/releases"><img src="https://img.shields.io/github/v/release/heycanihavethis/Poison?label=version&style=for-the-badge"></a>
-	<a href="https://github.com/heycanihavethis/Poiso/releases/latest"><img src="https://img.shields.io/github/downloads/heycanihavethis/Poison/latest/Poison-Menu.dll?style=for-the-badge"></a>
+	<a href="https://github.com/heycanihavethis/Poison/releases/latest"><img src="https://img.shields.io/github/downloads/heycanihavethis/Poison/latest/Poison.Menu.dll?style=for-the-badge"></a>
 	<a href="https://discord.gg/seralyth"><img src="https://img.shields.io/discord/1500168360787447909?label=discord&style=for-the-badge&color=blueviolet"></a>
 </p>
 
