@@ -114,7 +114,8 @@ If you wish to support us, here are some of the ways you can!
 |------------|------|---------|
 | Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) | [0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) |
 | Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) | [LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU](litecoin:LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU) |
-| Ko-fi    | [![Kofi](https://img.shields.io/badge/ko-fi-Poison-blue?style=for-the-badge&logo=ko-fi)](https://www.ko-f.com/mullvad) | [Poison](https://www.ko-fi.com/mullvad) |
+| Ko-fi      | [![Ko-fi](https://shields.io)](https://www.ko-fi.com/mullvad) | [Poison](https://www.ko-fi.com/mullvad) |
+
 
 </details>
 
