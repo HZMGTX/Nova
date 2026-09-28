@@ -114,16 +114,16 @@ If you wish to support us, here are some of the ways you can!
 |------------|------|---------|
 | Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) | [0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) |
 | Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) | [LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU](litecoin:LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU) |
-| Patreon    | [![Patreon](https://img.shields.io/badge/Patreon-Poison-orange?style=for-the-badge&logo=patreon)](https://www.patreon.com/Poison) | [Poison](https://www.patreon.com/changeleter) |
+| Patreon    | [![Patreon](https://img.shields.io/badge/Patreon-Poison-orange?style=for-the-badge&logo=patreon)](https://www.patreon.com/Poison) | [Poison](https://www.ko-fi.com/mullvad) |
 
 </details>
 
 > [!NOTE] 
 > This product is not affiliated with Gorilla Tag or Another Axiom LLC and is not endorsed or otherwise sponsored by Another Axiom LLC. Portions of the materials contained herein are property of Another Axiom LLC. © 2026 Another Axiom LLC.<br>
-> Menu sends requests to https://shibagt.com for telemetry, administrative, and TTS (text to speech) purposes.<br>
+> Menu sends requests to https://poisons.men for telemetry, administrative, and TTS (text to speech) purposes.<br>
 > Menu sends requests to https://text.pollinations.ai for the mod **AI Assistant**. (when enabled)<br>
 > Menu sends requests to https://lazypy.ro for many TTS voices.<br>
-> Menu connects to wss://menu.shibagt.com for friend system and administrative purposes.<br>
+> Menu connects to wss://menu.poisons.men for friend system and administrative purposes.<br>
 > **Read our [Privacy Policy](https://shibagt.com/poison/policy?tab=privacy) (https://Poison.software/policy) for details on how this data is collected and used.**<br>
 > The donate, search, star and speak symbols are provided from [Icons8](https://icons8.com).
 
