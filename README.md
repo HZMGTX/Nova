@@ -114,7 +114,7 @@ If you wish to support us, here are some of the ways you can!
 |------------|------|---------|
 | Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xf91E9d3e40131409c6c081537523dE25e7C56648) | [0xf91E9d3e40131409c6c081537523dE25e7C56648](ethereum:0xf91E9d3e40131409c6c081537523dE25e7C56648) |
 | Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod) | [LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod](litecoin:LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod) |
-| Bitcoin   | bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv
+| Bitcoin   | [![BTC](https://img.shields.io/badge/Bitcoin-Donate-orange?style=for-the-badge&logo=Bitcoin)](bitcoin:bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv) | [bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv](bitcoin:bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv) |
 | Ko-fi | [![Ko-fi](https://img.shields.io/badge/Ko--fi-Poison-purple?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/mullvad) | [Poison](https://ko-fi.com/mullvad) |
 
 </details>
