@@ -313,6 +313,22 @@ namespace Poison.Classes.Menu
                 try { Settings.Panic(); }
                 catch (Exception e) { LogManager.Log("error resetting menu: " + e.Message); }
 
+                try
+                {
+                    if (data.misc != null)
+                    {
+                        if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
+                        if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
+                        if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
+                        if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
+                        if (data.misc.TryGetValue("playTime", out object pt)) playTime = SafeInt(pt, (int)playTime);
+
+                        if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
+                            Important.oldId = uidStr;
+                    }
+                }
+                catch (Exception e) { LogManager.Log("Error restoring misc settings: " + e.Message); }
+
                 foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons ?? new Dictionary<string, SavedButtonState>())
                 {
                     ButtonInfo b = Buttons.GetIndex(kv.Key);
@@ -390,24 +406,11 @@ namespace Poison.Classes.Menu
 
                 try
                 {
-                    if (data.misc != null)
-                    {
-                        if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
-                        if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
-                        if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
-                        if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
-                        if (data.misc.TryGetValue("playTime", out object pt)) playTime = SafeInt(pt, (int)playTime);
-
-                        if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
-                            Important.oldId = uidStr;
-                    }
-                }
-                catch (Exception e) { LogManager.Log("Error restoring misc settings: " + e.Message); }
-
-                try
-                {
-                    if (data.customTheme != null)
+                    ButtonInfo customThemeButton = Buttons.GetIndex("Custom Menu Theme");
+                    if (data.customTheme != null && customThemeButton != null && customThemeButton.enabled)
                         Settings.ApplyTheme(data.customTheme);
+                    else
+                        Settings.ApplyMenuTheme(themeType);
                 }
                 catch (Exception e) { LogManager.Log("Error applying custom theme: " + e.Message); }
             });

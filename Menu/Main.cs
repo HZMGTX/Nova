@@ -193,6 +193,17 @@ namespace Poison.Menu
 
             try
             {
+                ButtonInfo customTheme = Buttons.GetIndex("Custom Menu Theme");
+                if (customTheme == null || !customTheme.enabled)
+                    Settings.ApplyMenuTheme(themeType);
+            }
+            catch (Exception exc)
+            {
+                LogManager.LogError($"Error re-applying menu theme: {exc.Message}");
+            }
+
+            try
+            {
                 Settings.LoadPCControls();
             }
             catch (Exception exc)
@@ -6142,6 +6153,9 @@ namespace Poison.Menu
         /// <param name="buttonText">The text label of the button to be toggled. This is used to identify the target button.</param>
         /// <param name="increment">true to apply the incremental action; false to apply the decremental action.</param>
         public static void ToggleIncremental(string buttonText, bool increment, bool reload = true)
+            => ToggleIncremental(buttonText, increment, reload, false);
+
+        public static void ToggleIncremental(string buttonText, bool increment, bool reload, bool ignoreBindings)
         {
             ButtonInfo target = Buttons.GetIndex(buttonText);
             if (target != null)
@@ -6159,7 +6173,7 @@ namespace Poison.Menu
 
                 switch (true)
                 {
-                    case true when menuButtonIndex != 2 && ((leftGrab && !joystickMenu) || (joystickMenu && rightJoystick.y > 0.5f && leftTrigger > 0.5f)):
+                    case true when !ignoreBindings && menuButtonIndex != 2 && ((leftGrab && !joystickMenu) || (joystickMenu && rightJoystick.y > 0.5f && leftTrigger > 0.5f)):
                         {
                             if (IsBinding)
                             {
@@ -6230,7 +6244,7 @@ namespace Poison.Menu
 
                             break;
                         }
-                    case true when menuButtonIndex != 3 && leftTrigger > 0.5f && !joystickMenu:
+                    case true when !ignoreBindings && menuButtonIndex != 3 && leftTrigger > 0.5f && !joystickMenu:
                         {
                             if (!quickActions.Contains(target.buttonText))
                             {
@@ -6259,7 +6273,7 @@ namespace Poison.Menu
                             if (dynamicAnimations)
                                 lastClickedName = buttonText + (increment ? "+" : "-");
 
-                            bool boost = incrementalBoost && rightGrab;
+                            bool boost = !ignoreBindings && incrementalBoost && rightGrab;
                             if (increment)
                             {
                                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>INCREMENT</color><color=grey>]</color> {target.toolTip}");

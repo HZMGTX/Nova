@@ -3632,6 +3632,9 @@ exit 0";
             backgroundColor.SetColor(0, theme.backgroundFirst.ToColor32());
             backgroundColor.SetColor(1, theme.backgroundSecond.ToColor32());
 
+            menuBackgroundColor.SetColor(0, theme.backgroundFirst.ToColor32());
+            menuBackgroundColor.SetColor(1, theme.backgroundSecond.ToColor32());
+
             buttonColors[0].SetColor(0, theme.buttonDisabledFirst.ToColor32());
             buttonColors[0].SetColor(1, theme.buttonDisabledSecond.ToColor32());
             buttonColors[1].SetColor(0, theme.buttonEnabledFirst.ToColor32());

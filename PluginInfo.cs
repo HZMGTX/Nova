@@ -26,7 +26,7 @@ namespace Poison
         public const string GUID = "org.Poison.gorillatag.Poisonmenu";
         public const string Name = "Poison Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-09-11T01:53:17Z";
+        public const string BuildTimestamp = "2026-09-28T02:29:29Z";
         public const string Version = "5.0.2";
 
         public const string BaseDirectory =
@@ -38,49 +38,7 @@ namespace Poison
         public const string ClientResourcePath = "PoisonMenu.Resources.Client";
         public const string ServerResourcePath = "https://raw.githubusercontent.com/heycanihavethis/Poison/master/Resources/Server";
         public const string ServerAPI = "https://menu.shibagt.com";
-        public const string Logo = @"
-                                            %%%%%                                                   
-                                           %%% %%%%                                                 
-                                         %%%      %%%%                                              
-                                        %%%         %%%%        %%%  %                              
-                                      %%%%            %%%%%%%% %%%%  %%                             
-                                     %%%        %#####% %%%%%        %%                             
-                                    %%%       ############ %%%                                      
-                                  %%%       ######     %###  %%%%     %%%                           
-                                %%%%       ######        ###   %#%%    %%                           
-                             %%%#%        ######         ###%    %#%%                               
-                       %%%%  %%#%         ######         %###      %##% %%                          
-                 %%%%  %%   %##           ######%         ##%         %###%                         
-                           %#%             ######        ###            ###%                        
-                         %##%              %######%    #####              ###%                      
-#%   %##                  #######%                        ###                    
-                   %% %##                     %#######%                        ###%                 
-###                        %########%                       ###%               
-###                            %#######%                       %##%             
-                  %##                                %#######%                        ###           
-                %##%                                   %#######%                     ###%           
-###                   %##########%        #######%                   ###             
-##%                  %####%    %####        %######%                ###               
-###                  %###%        %##%         %######%              ###                
-###                 ###%          %%%           %######%            ##%                 
-###              %###                          #######          ####                  
-                %###           ####                          #######        %###                    
-####         ####                          #######       ###   ##                 
-                    %###       ####                         %######       ##%    ##%                
-###      ###                         ######      ###                         
-                         %###   ####                       ######      ###        %%%               
-####  %####                   %######     ###           #%               
-                            %%###% ####%              ########      ##%         %%%                 
-###%%######%%    %#########%      ###     %%%% %%%%                 
-                             %#   %### %###############%         ##%%%%% %%%%                       
-                              %%    %##%                       %##  %                               
-                                       %##                    %#%                                   
-                               %%        %#%%               %%%%                                    
-                               %%%         %%#%            %%%                                      
-                                      %%%%%  %%%%        %%%%                                       
-                                 %%%%           %%%     %%%                                         
-                                                  %%%% %%%                                          
-                                                    %%%%                                            ";
+        public const string Logo = @"um";
 
 #if DEBUG || LEGAL_DEBUG
         public static bool BetaBuild = true;
