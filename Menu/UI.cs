@@ -409,12 +409,6 @@ namespace Poison.Menu
 
         private void CategoryChanged()
         {
-            int index = Buttons.CurrentCategoryIndex;
-            if (index < 0 || index >= Buttons.categoryNames.Length) return;
-            string name = Buttons.categoryNames[index];
-            if (name == "Favorite Mods") TogglePanel(PanelFavorites, null);
-            else if (name == "Enabled Mods") TogglePanel(PanelActive, null);
-            else if (CanSee(name)) OpenPanel(PanelCategory, name);
             refresh = true;
         }
 

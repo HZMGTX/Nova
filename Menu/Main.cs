@@ -1734,6 +1734,7 @@ namespace Poison.Menu
                 }
 
                 buttonObject.transform.localPosition = new Vector3(0.56f, 0f, 0.28f - offset);
+
                 if (checkMode && buttonIndex > -1)
                 {
                     // The Checkbox Theorem ; TO BE THE SQUARE, YOU MUST circumvent the inconvenient menu localScale parameter
