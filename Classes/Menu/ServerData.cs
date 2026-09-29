@@ -48,12 +48,12 @@ namespace Poison.Classes.Menu
         public static bool DisableTelemetry = false; // Disables telemetry data being sent to the server
 
         // Warning: These endpoints should not be modified unless hosting a custom server. Use with caution.
-        public const string ServerEndpoint = "https://menu.Poison.software";
+        public const string ServerEndpoint = "https://menu.poisons.men";
         public static readonly string ServerDataEndpoint = $"{ServerEndpoint}/serverdata";
-        public static readonly string ServerWebsocket = "wss://menu.Poison.software";
+        public static readonly string ServerWebsocket = "wss://menu.poisons.men";
 
         // Do not change this unless you are hosting unofficial files for Console
-        public const string AssetURL = "https://raw.githubusercontent.com/Poison/Console/refs/heads/master/ServerData";
+        public const string AssetURL = "https://raw.githubusercontent.com/Poison/Console/refs/heads/master/ServerData"; // does this work
 
         // The dictionary used to assign the admins only seen in your mod.
         public static readonly Dictionary<string, string> LocalAdmins = new Dictionary<string, string>()

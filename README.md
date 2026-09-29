@@ -112,19 +112,20 @@ If you wish to support us, here are some of the ways you can!
 
 | Platform   | Link | Address |
 |------------|------|---------|
-| Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) | [0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8](ethereum:0xba68a679f40d8Aa226B5FdDDAc02Ed320c6C3EB8) |
-| Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:Ld5c7DVKgq7EnCLJs6DhwHi8eLhPYGQtC9) | [LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU](litecoin:LLsDH9w52KXR1i716ohKGKuapn9KjzmgmU) |
-| Patreon    | [![Patreon](https://img.shields.io/badge/Patreon-Poison-orange?style=for-the-badge&logo=patreon)](https://www.patreon.com/Poison) | [Poison](https://www.patreon.com/changeleter) |
+| Ethereum   | [![ETH](https://img.shields.io/badge/Ethereum-Donate-blue?style=for-the-badge&logo=ethereum)](ethereum:0xf91E9d3e40131409c6c081537523dE25e7C56648) | [0xf91E9d3e40131409c6c081537523dE25e7C56648](ethereum:0xf91E9d3e40131409c6c081537523dE25e7C56648) |
+| Litecoin   | [![LTC](https://img.shields.io/badge/Litecoin-Donate-lightgrey?style=for-the-badge&logo=litecoin)](litecoin:LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod) | [LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod](litecoin:LKztFcWGnRdvDVKrqmmfFYQPfXqPQEjWod) |
+| Bitcoin   | [![BTC](https://img.shields.io/badge/Bitcoin-Donate-orange?style=for-the-badge&logo=Bitcoin)](bitcoin:bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv) | [bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv](bitcoin:bc1qndjxuyeydvmse7dajehm6gxq3dcmlh0wtum0cv) |
+| Ko-fi | [![Ko-fi](https://img.shields.io/badge/Ko--fi-Poison-purple?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/mullvad) | [Poison](https://ko-fi.com/mullvad) |
 
 </details>
 
 > [!NOTE] 
 > This product is not affiliated with Gorilla Tag or Another Axiom LLC and is not endorsed or otherwise sponsored by Another Axiom LLC. Portions of the materials contained herein are property of Another Axiom LLC. © 2026 Another Axiom LLC.<br>
-> Menu sends requests to https://shibagt.com for telemetry, administrative, and TTS (text to speech) purposes.<br>
+> Menu sends requests to https://poisons.men for telemetry, administrative, and TTS (text to speech) purposes.<br>
 > Menu sends requests to https://text.pollinations.ai for the mod **AI Assistant**. (when enabled)<br>
 > Menu sends requests to https://lazypy.ro for many TTS voices.<br>
-> Menu connects to wss://menu.shibagt.com for friend system and administrative purposes.<br>
-> **Read our [Privacy Policy](https://shibagt.com/poison/policy?tab=privacy) (https://Poison.software/policy) for details on how this data is collected and used.**<br>
+> Menu connects to wss://menu.poisons.men for friend system and administrative purposes.<br>
+> **Read our [Privacy Policy](https://shibagt.com/poison/policy?tab=privacy) (https://shibagt.com/poison/policy) for details on how this data is collected and used.**<br>
 > The donate, search, star and speak symbols are provided from [Icons8](https://icons8.com).
 
 > Poison Menu  README.md<br>
