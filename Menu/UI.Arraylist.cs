@@ -2,6 +2,8 @@ using Poison.Classes.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+
+
 using static Poison.Menu.Main;
 
 namespace Poison.Menu
@@ -53,7 +55,7 @@ namespace Poison.Menu
             GUI.enabled = true;
 
             listStyle ??= new GUIStyle(textStyle);
-            float fit = Mathf.Min(1, Screen.height / 720f);
+            float fit = Mathf.Min(1, ViewHeight / 720f);
             listStyle.fontSize = Mathf.Clamp(Mathf.RoundToInt(arraylistScale * options.listScale * fit), 10, 64);
             listStyle.alignment = flipArraylist ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
 
@@ -62,7 +64,7 @@ namespace Poison.Menu
             float step = rowHeight + options.listSpacing * fit;
 
             foreach (ListRow row in listRows.Values)
-                row.measured = Mathf.Min(Screen.width * 0.65f, listStyle.CalcSize(new GUIContent(row.text)).x + 28);
+                row.measured = Mathf.Min(ViewWidth * 0.65f, listStyle.CalcSize(new GUIContent(row.text)).x + 28);
 
             List<ListRow> rows = options.listByWidth
                 ? listRows.Values.OrderByDescending(row => row.measured).ThenBy(row => row.text, System.StringComparer.Ordinal).ToList()
@@ -78,13 +80,13 @@ namespace Poison.Menu
                     row.alpha = options.animations ? Mathf.Lerp(row.alpha, 1, speed) : 1;
                     row.frame = Time.frameCount;
                 }
-                if (y + rowHeight > Screen.height - margin)
+                if (y + rowHeight > ViewHeight - margin)
                 {
                     overflow++;
                     continue;
                 }
                 float width = row.measured;
-                float x = flipArraylist ? Screen.width - margin - width : margin;
+                float x = flipArraylist ? ViewWidth - margin - width : margin;
                 GUI.color = new Color(1, 1, 1, row.alpha);
                 Rect rect = new Rect(x, y, width, rowHeight);
                 if (options.listBackground)
@@ -100,7 +102,7 @@ namespace Poison.Menu
             {
                 GUI.color = Color.white;
                 float width = listStyle.CalcSize(new GUIContent("+" + overflow)).x + 28;
-                float x = flipArraylist ? Screen.width - margin - width : margin;
+                float x = flipArraylist ? ViewWidth - margin - width : margin;
                 Label(new Rect(x, y, width, rowHeight), "+" + overflow, listStyle, muted);
             }
 

@@ -433,6 +433,13 @@ namespace Poison.Menu
                 if (barkMenu)
                     buttonCondition = isKeyboardCondition || barkMenuOpen;
 
+                if (Hud.InUse)
+                {
+                    if (Hud.Instance != null && buttonCondition != Hud.Instance.IsOpen)
+                        Hud.Instance.SetOpen(buttonCondition);
+                    buttonCondition = false;
+                }
+
                 isMenuButtonHeld = buttonCondition;
                 switch (buttonCondition)
                 {
@@ -709,7 +716,8 @@ namespace Poison.Menu
 
                 GunSpawned = false;
 
-                UpdateKeyboard();
+                if (VRKeyboard != null) VRKeyboard.SetActive(!Hud.InUse);
+                if (!Hud.InUse) UpdateKeyboard();
 
                 if (annoyingMode)
                 {
@@ -795,7 +803,7 @@ namespace Poison.Menu
                 }
                 catch { }
 
-                if (CurrentPrompt != null && CurrentPrompt.IsText && !inTextInput)
+                if (!Hud.InUse && CurrentPrompt != null && CurrentPrompt.IsText && !inTextInput)
                     Settings.SpawnKeyboard();
                 #endregion
 
@@ -835,7 +843,7 @@ namespace Poison.Menu
                     }
                 }
 
-                if (joystickMenu && joystickOpen)
+                if (!Hud.InUse && joystickMenu && joystickOpen)
                 {
                     Vector2 js = leftJoystick;
                     if (Time.time > joystickDelay)
@@ -3148,6 +3156,8 @@ namespace Poison.Menu
         public static event Action OnMenuOpened;
         public static void OpenMenu()
         {
+            if (Hud.InUse) return;
+
             try
             {
                 OnMenuOpened?.Invoke();
@@ -3159,8 +3169,7 @@ namespace Poison.Menu
 
             CreateMenu();
 
-            if (dynamicAnimations)
-                CoroutineManager.instance.StartCoroutine(GrowCoroutine());
+            CoroutineManager.instance.StartCoroutine(GrowCoroutine());
 
             if (particleSpawnEffect)
             {
@@ -3220,7 +3229,16 @@ namespace Poison.Menu
 
             recenterPosition = null;
 
-            if (!dynamicAnimations || explodeMenu)
+            if (Hud.InUse)
+            {
+                Destroy(menu);
+                menu = null;
+                Destroy(reference);
+                reference = null;
+                return;
+            }
+
+            if (explodeMenu || dropOnRemove)
             {
                 if (!dropOnRemove)
                 {
@@ -4866,12 +4884,12 @@ namespace Poison.Menu
 
             float elapsedTime = 0f;
             Vector3 target = menu.transform.localScale;
-            while (elapsedTime < (slowDynamicAnimations ? 0.1f : 0.05f))
+            while (elapsedTime < (slowDynamicAnimations ? 0.3f : 0.16f))
             {
                 if (menuObject == null)
                     yield break;
 
-                menuObject.transform.localScale = Vector3.Lerp(Vector3.zero, target, elapsedTime / (slowDynamicAnimations ? 0.1f : 0.05f));
+                menuObject.transform.localScale = Vector3.Lerp(Vector3.zero, target, elapsedTime / (slowDynamicAnimations ? 0.3f : 0.16f));
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
@@ -4889,9 +4907,9 @@ namespace Poison.Menu
 
             Vector3 before = menuTransform.localScale;
             float elapsedTime = 0f;
-            while (elapsedTime < (slowDynamicAnimations ? 0.1f : 0.05f))
+            while (elapsedTime < (slowDynamicAnimations ? 0.3f : 0.16f))
             {
-                menuTransform.localScale = Vector3.Lerp(before, Vector3.zero, elapsedTime / (slowDynamicAnimations ? 0.1f : 0.05f));
+                menuTransform.localScale = Vector3.Lerp(before, Vector3.zero, elapsedTime / (slowDynamicAnimations ? 0.3f : 0.16f));
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
@@ -5762,6 +5780,12 @@ namespace Poison.Menu
 
         public static void ReloadMenu()
         {
+            if (Hud.InUse)
+            {
+                if (menu != null) CloseMenu();
+                return;
+            }
+
             if (menu != null)
             {
                 Destroy(menu);
@@ -7131,3 +7155,4 @@ jgs \_   _/ |Oo\
         };
     }
 }
+

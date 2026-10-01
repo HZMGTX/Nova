@@ -9,6 +9,8 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
+
+
 using UnityEngine.InputSystem;
 using static Poison.Menu.Main;
 using static Poison.Utilities.AssetUtilities;
@@ -20,17 +22,22 @@ namespace Poison.Menu
         public static UI Instance;
         public static Texture2D watermarkImage;
 
-        public static bool IsTyping => Instance != null && Instance.isActiveAndEnabled && Instance.isOpen &&
+        public static bool IsTyping => Hud.HasMouse ? Hud.Instance.IsTyping :
+            Instance != null && Instance.isActiveAndEnabled && Instance.isOpen &&
             (Instance.textFocused || CurrentPrompt?.IsText == true);
+
+        private static float ViewWidth => Screen.width;
+        private static float ViewHeight => Screen.height;
 
         public static bool HasMouse
         {
             get
             {
+                if (Hud.HasMouse) return true;
                 if (Instance == null || !Instance.isActiveAndEnabled || !Instance.isOpen || Mouse.current == null) return false;
                 float scale = ScreenScale();
                 Vector2 mouse = Mouse.current.position.ReadValue();
-                Vector2 point = new Vector2(mouse.x / scale, (Screen.height - mouse.y) / scale);
+                Vector2 point = new Vector2(mouse.x / scale, (ViewHeight - mouse.y) / scale);
                 foreach (Panel panel in Instance.panels)
                     if (panel.open && !panel.closing && panel.rect.Contains(point)) return true;
                 return false;
@@ -46,6 +53,17 @@ namespace Poison.Menu
         private Color bright = new Color32(235, 237, 245, 255);
         private Color muted = new Color32(144, 151, 169, 255);
         private static readonly Regex tags = new Regex("<[^>]*>", RegexOptions.Compiled);
+
+        internal Color BackgroundColor => background;
+        internal Color PanelColor => panel;
+        internal Color BorderColor => border;
+        internal Color AccentColor => accent;
+        internal Color BrightColor => bright;
+        internal Color MutedColor => muted;
+        internal float UiOpacity => options.uiOpacity;
+        internal float UiRounding => options.rounding;
+        internal float UiAccentAmount => options.accentAmount;
+        internal float UiRowHeight => options.rowHeight;
 
         private const int PanelLauncher = 0;
         private const int PanelCategory = 1;
@@ -177,7 +195,12 @@ namespace Poison.Menu
             }
 
             if (!textFocused && keyboard?.backslashKey.wasPressedThisFrame == true)
-                ToggleGUI();
+            {
+                if (Hud.InUse && Hud.Instance != null)
+                    Hud.Instance.SetOpen(!Hud.Instance.IsOpen);
+                else
+                    ToggleGUI();
+            }
             if (isOpen && !textFocused && keyboard?.backquoteKey.wasPressedThisFrame == true)
                 TogglePanel(PanelConsole, null);
             if (isOpen && keyboard != null && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed) && keyboard.fKey.wasPressedThisFrame)
@@ -194,6 +217,7 @@ namespace Poison.Menu
                         actions.Enqueue(() => { if (CurrentPrompt == prompt) Main.Toggle("Decline Prompt", true, true); });
                 }
                 else if (!string.IsNullOrEmpty(focusedInput) || textFocused) ClearInput();
+                else if (Hud.InUse && Hud.Instance != null) Hud.Instance.SetOpen(false);
                 else ToggleGUI();
             }
             UpdateTextInput(keyboard);
@@ -227,7 +251,7 @@ namespace Poison.Menu
                 }
                 refresh = true;
             }
-            if (isOpen && Application.isFocused)
+            if (isOpen && Application.isFocused && !Hud.HasMouse)
             {
                 if (!cursorHeld)
                 {
@@ -377,7 +401,7 @@ namespace Poison.Menu
             panel.appear = 0f;
             cascade++;
             if (kind == PanelLauncher) panel.rect.position = new Vector2(24, 60);
-            else if (kind == PanelFavorites) panel.rect.position = new Vector2(Mathf.Max(260, Screen.width / ScreenScale() - DefaultWidth(kind) - 24), 60);
+            else if (kind == PanelFavorites) panel.rect.position = new Vector2(Mathf.Max(260, ViewWidth / ScreenScale() - DefaultWidth(kind) - 24), 60);
             panels.Add(panel);
             panelMap[key] = panel;
             if (kind != PanelLauncher && (options.autoArrange || layoutManaged)) AutoSortPanels();
@@ -541,6 +565,11 @@ namespace Poison.Menu
 
         private void OnGUI()
         {
+            DrawUI();
+        }
+
+        internal void DrawUI()
+        {
             if (isOpen) PluginManager.ExecuteOnGUI();
             if (fade < 0.005f && !isOpen && !options.arraylist) return;
             Setup();
@@ -560,9 +589,14 @@ namespace Poison.Menu
                 if (fade < 0.005f && !isOpen) return;
 
                 float scale = ScreenScale();
-                float width = Screen.width / scale;
-                float height = Screen.height / scale;
+                float width = ViewWidth / scale;
+                float height = ViewHeight / scale;
                 GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
+                if (fade < 0.999f)
+                {
+                    float grow = Mathf.Lerp(0f, 1f, fade);
+                    GUIUtility.ScaleAroundPivot(new Vector2(grow, grow), new Vector2(width * 0.5f, height * 0.5f));
+                }
                 GUI.color = new Color(1, 1, 1, fade);
                 GUI.backgroundColor = Color.white;
                 GUI.enabled = isOpen;
@@ -629,8 +663,8 @@ namespace Poison.Menu
                 {
                     float alpha = Animate("status", Mathf.Clamp01((statusUntil - Time.unscaledTime) * 3));
                     float toastWidth = Mathf.Min(600, smallStyle.CalcSize(new GUIContent(status)).x + 32);
-                    float screenWidth = Screen.width / scale;
-                    float screenHeight = Screen.height / scale;
+                    float screenWidth = ViewWidth / scale;
+                    float screenHeight = ViewHeight / scale;
                     Box(new Rect((screenWidth - toastWidth) / 2, screenHeight - 42, toastWidth, 28), Alpha(this.panel, alpha), 4);
                     Label(new Rect((screenWidth - toastWidth) / 2 + 16, screenHeight - 42, toastWidth - 32, 28), status, smallStyle, Alpha(bright, alpha));
                 }
@@ -750,7 +784,7 @@ namespace Poison.Menu
             if (mouse == null) return;
             float scale = ScreenScale();
             Vector2 read = mouse.position.ReadValue();
-            Vector2 point = new Vector2(read.x / scale, (Screen.height - read.y) / scale);
+            Vector2 point = new Vector2(read.x / scale, (ViewHeight - read.y) / scale);
 
             if (mouse.leftButton.wasPressedThisFrame && current.type == EventType.MouseDown && current.button == 0)
                 gridShownAt = Time.unscaledTime;
@@ -780,7 +814,7 @@ namespace Poison.Menu
                 if (!mouse.leftButton.isPressed) { SnapPanel(draggingPanel); draggingPanel = null; return; }
                 float scaleDrag = ScreenScale();
                 Vector2 readDrag = mouse.position.ReadValue();
-                Vector2 pointDrag = new Vector2(readDrag.x / scaleDrag, (Screen.height - readDrag.y) / scaleDrag);
+                Vector2 pointDrag = new Vector2(readDrag.x / scaleDrag, (ViewHeight - readDrag.y) / scaleDrag);
                 draggingPanel.rect.x = pointDrag.x - draggingOffset.x;
                 draggingPanel.rect.y = pointDrag.y - draggingOffset.y;
                 gridShownAt = Time.unscaledTime;
@@ -1073,8 +1107,8 @@ namespace Poison.Menu
         {
             layoutManaged = true;
             float scale = ScreenScale();
-            float sw = Screen.width / scale;
-            float sh = Screen.height / scale;
+            float sw = ViewWidth / scale;
+            float sh = ViewHeight / scale;
             float margin = SnapSize;
             float gap = Mathf.Max(4f, SnapSize);
             var order = panels.Where(p => p.open && !p.closing)
@@ -1279,8 +1313,8 @@ namespace Poison.Menu
                 ClearInput();
             }
             float scale = ScreenScale();
-            float sx = (Screen.width / scale - 560) / 2f;
-            float sy = (Screen.height / scale - 365) / 2f;
+            float sx = (ViewWidth / scale - 560) / 2f;
+            float sy = (ViewHeight / scale - 365) / 2f;
             Box(new Rect(sx - 260, sy - 165, 1080, 700), new Color(0, 0, 0, 0.6f), 0);
             Box(new Rect(sx, sy, 560, 365), border, 8);
             Box(new Rect(sx + 1, sy + 1, 558, 363), panel, 7);
@@ -1495,7 +1529,7 @@ namespace Poison.Menu
             GUI.color = previous;
         }
 
-        private static float ScreenScale() => Mathf.Max(0.1f, Mathf.Min(Instance?.options.scale ?? 1, Mathf.Min(Screen.width / 1120f, Screen.height / 726f)));
+        private static float ScreenScale() => Mathf.Max(0.1f, Mathf.Min(Instance?.options.scale ?? 1, Mathf.Min(ViewWidth / 1120f, ViewHeight / 726f)));
 
         private void Label(Rect rect, string text, GUIStyle style, Color? color = null)
         {

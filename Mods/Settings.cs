@@ -57,6 +57,12 @@ namespace Poison.Mods
     {
         public static void Search() // This took me like 4 hours
         {
+            if (Hud.InUse)
+            {
+                Hud.Instance.Search();
+                return;
+            }
+
             isSearching = !isSearching;
 
             pageNumber = 0;
@@ -70,6 +76,12 @@ namespace Poison.Mods
 
         public static void SpawnKeyboard()
         {
+            if (Hud.InUse)
+            {
+                Hud.Instance.Edit();
+                return;
+            }
+
             isKeyboardPc = isOnPC || toggleButtonActive && keyboardWithToggleButton;
             inTextInput = true;
             keyboardInput = "";
@@ -1015,6 +1027,12 @@ exit 0";
         }
         public static void CheckWatchMenu()
         {
+            if (Hud.InUse)
+            {
+                watchTimer = 0;
+                return;
+            }
+
             if (watchTimer == 0)
                 watchTimer = Time.time + 7f;
 

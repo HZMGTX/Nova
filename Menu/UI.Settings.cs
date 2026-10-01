@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using UnityEngine;
 
+
+
 namespace Poison.Menu
 {
     public partial class UI
@@ -334,7 +336,11 @@ namespace Poison.Menu
                     value = Mathf.Clamp(parsed, min, max);
                 }
                 Label(rect, inputText, numberStyle);
-                Caret(rect, inputText);
+                if (Mathf.Repeat(Time.unscaledTime, 1f) < 0.5f)
+                {
+                    float textWidth = Mathf.Min(numberStyle.CalcSize(new GUIContent(inputText)).x, rect.width - 4);
+                    Box(new Rect(rect.center.x + textWidth * 0.5f, rect.y + 4, 1, rect.height - 8), bright, 0);
+                }
                 return value;
             }
 
