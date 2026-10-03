@@ -304,6 +304,8 @@ namespace Poison.Menu
         {
             Graphic graphic = target.GetComponent<Graphic>();
             if (graphic != null) graphic.material = overlayMaterial;
+            TMP_Text text = target.GetComponent<TMP_Text>();
+            if (text != null) text.fontSharedMaterial = overlayMaterial;
             for (int i = 0; i < target.childCount; i++) SetOverlay(target.GetChild(i));
         }
 
