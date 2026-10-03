@@ -103,8 +103,9 @@ namespace Poison.Menu
             return Color.magenta;
         }
 
-        private void BeginScroll(Rect area, Scroll state, float height)
+        private void BeginScroll(Rect area, Scroll state, float height, Color? scrollColor = null)
         {
+            bool showScrollbar = !options.classicUI;
             state.SetBounds(height - area.height);
             Event current = Event.current;
             int id = GUIUtility.GetControlID(state.GetHashCode(), FocusType.Passive);
@@ -120,7 +121,7 @@ namespace Poison.Menu
                 if (!options.smoothScroll) state.value = state.target;
                 current.Use();
             }
-            if (GUI.enabled && hover && state.max > 0 && type == EventType.MouseDown && current.button == 0 && track.Contains(current.mousePosition))
+            if (showScrollbar && GUI.enabled && hover && state.max > 0 && type == EventType.MouseDown && current.button == 0 && track.Contains(current.mousePosition))
             {
                 GUIUtility.hotControl = id;
                 ClearInput();
@@ -141,13 +142,14 @@ namespace Poison.Menu
                     if (type == EventType.MouseUp) current.Use();
                 }
             }
-            if (state.max > 0)
+            if (showScrollbar && state.max > 0)
             {
                 float amount = Animate("scroll-" + state.GetHashCode(), track.Contains(current.mousePosition) || GUIUtility.hotControl == id ? 1 : 0);
                 float width = Mathf.Lerp(4, 8, amount);
-                Box(new Rect(track.center.x - 2, track.y, 4, track.height), Alpha(border, 0.45f), 2);
+                Color ink = scrollColor ?? accent;
+                Box(new Rect(track.center.x - 2, track.y, 4, track.height), Alpha(scrollColor ?? border, 0.45f), 2);
                 thumb.y = track.y + state.value / state.max * travel;
-                Box(new Rect(track.center.x - width / 2, thumb.y, width, thumb.height), Color.Lerp(Alpha(accent, 0.45f), accent, amount), width / 2);
+                Box(new Rect(track.center.x - width / 2, thumb.y, width, thumb.height), Color.Lerp(Alpha(ink, 0.45f), ink, amount), width / 2);
             }
             scrollClips.Push(pointerInside);
             pointerInside = hover;

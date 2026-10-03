@@ -30,6 +30,8 @@ namespace Poison.Menu
         const float SideYaw = -20f * Mathf.Deg2Rad;
         const float SidePitch = 0f;
         const string SidebarKey = "\u0001sidebar";
+        const string ResultsKey = "\u0001results";
+        const string KeyboardKey = "\u0001keyboard";
         const string FontPath = "Environment Objects/LocalObjects_Prefab/TreeRoom/Text (14)";
 
         static TMP_FontAsset font;
@@ -145,6 +147,15 @@ namespace Poison.Menu
         bool dragging;
         Window dragWindow;
         Window scrollWindow;
+        Camera hudCamera;
+        int hudLayer = -1;
+
+        string search = "";
+        bool keyboardOpen;
+        bool disconnectShown;
+        Window keyboardWindow;
+        Window resultsWindow;
+        TMP_Text searchLabel;
 
         public static bool ShowFps = true;
         public static bool ShowClock = true;
@@ -165,6 +176,9 @@ namespace Poison.Menu
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            if (hudCamera != null) Destroy(hudCamera.gameObject);
+            Camera main = Camera.main;
+            if (main != null && hudLayer >= 0) main.cullingMask |= 1 << hudLayer;
             if (pointer != null) Destroy(pointer);
             if (laser != null) Destroy(laser.gameObject);
             if (root != null) Destroy(root);
@@ -233,10 +247,14 @@ namespace Poison.Menu
             if (root != null) return;
             root = new GameObject("PoisonHud");
             root.transform.SetParent(transform, false);
+            hudLayer = PickLayer();
             BuildWatermark();
             BuildLaser();
             BuildWindows();
             themeStamp = CurrentTheme();
+            disconnectShown = DisconnectEnabled();
+            ApplyLayer();
+            BuildCamera();
             SetAllActive(false);
         }
 
@@ -252,6 +270,8 @@ namespace Poison.Menu
             BuildWatermark();
             BuildWindows();
             themeStamp = CurrentTheme();
+            disconnectShown = DisconnectEnabled();
+            ApplyLayer();
             SetAllActive(visible && open);
         }
 
@@ -262,6 +282,62 @@ namespace Poison.Menu
             if (pointer != null) pointer.SetActive(false);
             if (!on)
                 for (int i = 0; i < windows.Count; i++) if (windows[i].root != null) windows[i].root.SetActive(false);
+        }
+
+        static int PickLayer()
+        {
+            for (int i = 31; i >= 8; i--)
+                if (string.IsNullOrEmpty(LayerMask.LayerToName(i))) return i;
+            return 31;
+        }
+
+        void ApplyLayer()
+        {
+            if (root == null || hudLayer < 0) return;
+            SetLayer(root.transform);
+        }
+
+        void SetLayer(Transform target)
+        {
+            target.gameObject.layer = hudLayer;
+            for (int i = 0; i < target.childCount; i++) SetLayer(target.GetChild(i));
+        }
+
+        void BuildCamera()
+        {
+            if (hudCamera != null || root == null) return;
+            GameObject go = new GameObject("PoisonHudCamera");
+            go.transform.SetParent(root.transform, false);
+            hudCamera = go.AddComponent<Camera>();
+            hudCamera.clearFlags = CameraClearFlags.Depth;
+            hudCamera.cullingMask = 1 << hudLayer;
+            hudCamera.depth = 100f;
+            hudCamera.nearClipPlane = 0.01f;
+            hudCamera.farClipPlane = 5000f;
+            hudCamera.allowHDR = false;
+            hudCamera.allowMSAA = false;
+            hudCamera.useOcclusionCulling = false;
+            hudCamera.stereoTargetEye = StereoTargetEyeMask.None;
+            hudCamera.enabled = false;
+            SetLayer(hudCamera.transform);
+        }
+
+        void UpdateCamera()
+        {
+            if (hudCamera == null) return;
+            Camera main = Camera.main;
+            bool show = InUse && visible;
+            if (hudCamera.enabled != show) hudCamera.enabled = show;
+            if (main == null) return;
+            int mask = main.cullingMask & ~(1 << hudLayer);
+            if (main.cullingMask != mask) main.cullingMask = mask;
+            if (!show) return;
+            hudCamera.transform.position = main.transform.position;
+            hudCamera.transform.rotation = main.transform.rotation;
+            hudCamera.fieldOfView = main.fieldOfView;
+            hudCamera.aspect = main.aspect;
+            hudCamera.nearClipPlane = Mathf.Max(0.01f, main.nearClipPlane);
+            hudCamera.farClipPlane = Mathf.Max(100f, main.farClipPlane);
         }
 
         static bool CanSee(string name) =>
@@ -283,7 +359,7 @@ namespace Poison.Menu
             for (int i = 0; i < count; i++)
             {
                 string name = names[i];
-                if (string.IsNullOrEmpty(name) || !CanSee(name)) continue;
+                if (string.IsNullOrEmpty(name) || name == "Main" || !CanSee(name)) continue;
                 ButtonInfo[] group = groups[i];
                 if (group == null || group.Length == 0) continue;
                 list.Add(new Leaf { title = name, group = group });
@@ -298,12 +374,7 @@ namespace Poison.Menu
 
             bool anyOpen = false;
             for (int i = 0; i < leaves.Count; i++) if (GetState(leaves[i].title).openWindow) anyOpen = true;
-            if (!anyOpen)
-            {
-                int start = 0;
-                for (int i = 0; i < leaves.Count; i++) if (leaves[i].title == "Main") start = i;
-                GetState(leaves[start].title).openWindow = true;
-            }
+            if (!anyOpen) GetState(leaves[0].title).openWindow = true;
             List<State> open = OpenList(leaves);
             for (int i = 0; i < open.Count; i++)
             {
@@ -320,7 +391,6 @@ namespace Poison.Menu
             sidebar.pitch = sidebar.state.pitch;
             windows.Add(sidebar);
 
-            OpenList(leaves);
             for (int i = 0; i < leaves.Count; i++)
             {
                 Leaf leaf = leaves[i];
@@ -331,6 +401,23 @@ namespace Poison.Menu
                 window.pitch = state.pitch;
                 windows.Add(window);
             }
+
+            keyboardWindow = BuildKeyboard();
+            keyboardWindow.yaw = keyboardWindow.state.yaw;
+            keyboardWindow.pitch = keyboardWindow.state.pitch;
+            windows.Add(keyboardWindow);
+
+            State resultsState = GetState(ResultsKey);
+            if (!resultsState.placed)
+            {
+                resultsState.yaw = 10f * Mathf.Deg2Rad;
+                resultsState.pitch = 0f;
+                resultsState.placed = true;
+            }
+            resultsWindow = BuildWindow("Search", SearchResults().ToArray(), resultsState);
+            resultsWindow.yaw = resultsState.yaw;
+            resultsWindow.pitch = resultsState.pitch;
+            windows.Add(resultsWindow);
         }
 
         List<State> OpenList(List<Leaf> leaves)
@@ -413,6 +500,7 @@ namespace Poison.Menu
             if (index >= 0) windows[index] = next;
             else windows.Insert(0, next);
             sidebar = next;
+            ApplyLayer();
         }
 
         struct Theme
@@ -601,7 +689,7 @@ namespace Poison.Menu
             watermark.transform.localScale = Vector3.one * WindowScale;
 
             watermarkTitle = WatermarkText(rect, "Poison", new Vector2(-250f, 6f), new Vector2(440f, 34f), 30, TextAlignmentOptions.Left, theme.bright);
-            watermarkSub = WatermarkText(rect, "v" + PluginInfo.Version + "  \u00b7  GORILLA TAG", new Vector2(-250f, -16f), new Vector2(440f, 14f), 11, TextAlignmentOptions.Left, theme.muted);
+            watermarkSub = WatermarkText(rect, "v" + PluginInfo.Version, new Vector2(-250f, -16f), new Vector2(440f, 14f), 11, TextAlignmentOptions.Left, theme.muted);
             watermarkStat = WatermarkText(rect, "", new Vector2(230f, 0f), new Vector2(220f, 34f), 16, TextAlignmentOptions.Right, theme.muted);
         }
 
@@ -646,6 +734,7 @@ namespace Poison.Menu
             rect.sizeDelta = new Vector2(WindowWidth, expanded);
             root.transform.localScale = Vector3.one * WindowScale;
 
+            Stretch(rect, -3f, Alpha(Color.black, 0.35f * theme.opacity), Radius(7f));
             Stretch(rect, 0f, Alpha(theme.border, theme.opacity), Radius(6f));
             Stretch(rect, 1f, Alpha(theme.background, theme.opacity), Radius(5f));
 
@@ -725,9 +814,9 @@ namespace Poison.Menu
             {
                 state.collapsed = !state.collapsed;
                 window.collapseTarget = state.collapsed ? 1f : 0f;
-                if (icon != null) icon.text = state.collapsed ? "+" : "\u2212";
+                if (icon != null) icon.text = state.collapsed ? "+" : "-";
             });
-            icon = Label(collapse.rectTransform, state.collapsed ? "+" : "\u2212", 14, TextAlignmentOptions.Center, theme.bright);
+            icon = Label(collapse.rectTransform, state.collapsed ? "+" : "-", 14, TextAlignmentOptions.Center, theme.bright);
 
             if (group != null)
             {
@@ -772,11 +861,49 @@ namespace Poison.Menu
             float buttonSize = TitleHeight - 8f;
             float x = WindowWidth * 0.5f - 8f - buttonSize * 0.5f;
             Image auto = TitleSquare(window, x, buttonSize, theme, AutoSort);
-            Label(auto.rectTransform, "\u21bb", 14, TextAlignmentOptions.Center, theme.muted);
+            Label(auto.rectTransform, "A", 13, TextAlignmentOptions.Center, theme.muted);
+
+            float fieldTop = TitleHeight + 4f;
+            float fieldHeight = 22f;
+            Image fieldBorder = Edge(window.rect, fieldTop, WindowWidth - 20f, fieldHeight, Alpha(theme.border, theme.opacity), Radius(4f));
+            Image fieldFill = Edge(window.rect, fieldTop + 1f, WindowWidth - 22f, fieldHeight - 2f, Alpha(theme.background, theme.opacity), Radius(3f));
+            searchLabel = Label(fieldFill.rectTransform, "", 11, TextAlignmentOptions.Left, theme.muted);
+            searchLabel.margin = new Vector4(8f, 0, 8f, 0);
+            items.Add(new Item
+            {
+                rect = fieldFill.rectTransform,
+                fill = fieldFill,
+                baseColor = fieldFill.color,
+                hoverColor = Alpha(theme.accent, 0.12f),
+                act = () => { keyboardOpen = !keyboardOpen; }
+            });
+
+            window.body.anchoredPosition = new Vector2(0, -(fieldTop + fieldHeight + 4f));
+            window.expanded += fieldHeight + 4f;
+            window.rect.sizeDelta = new Vector2(WindowWidth, window.expanded);
 
             float rowHeight = theme.rowHeight;
             for (int i = 0; i < leaves.Count; i++)
                 BuildSidebarRow(theme, leaves[i].title, content, -i * (rowHeight + RowGap), rowHeight, window.body);
+
+            if (DisconnectEnabled())
+            {
+                float bottom = fieldTop + fieldHeight + 4f + window.bodyFull + 6f;
+                float discHeight = 24f;
+                Edge(window.rect, bottom, WindowWidth - 20f, discHeight, Alpha(theme.border, theme.opacity), Radius(4f));
+                Image discFill = Edge(window.rect, bottom + 1f, WindowWidth - 22f, discHeight - 2f, Alpha(theme.panel, theme.opacity), Radius(3f));
+                Label(discFill.rectTransform, "Disconnect", 12, TextAlignmentOptions.Center, theme.bright);
+                items.Add(new Item
+                {
+                    rect = discFill.rectTransform,
+                    fill = discFill,
+                    baseColor = discFill.color,
+                    hoverColor = Alpha(theme.accent, 0.25f),
+                    act = Disconnect
+                });
+                window.expanded = bottom + discHeight + 6f;
+                window.rect.sizeDelta = new Vector2(WindowWidth, window.expanded);
+            }
             return window;
         }
 
@@ -888,13 +1015,13 @@ namespace Poison.Menu
                 left.anchorMin = left.anchorMax = left.pivot = new Vector2(0.5f, 0.5f);
                 left.anchoredPosition = new Vector2(-half * 0.5f, 0);
                 left.sizeDelta = new Vector2(half, rowHeight - 6f);
-                Label(left, "\u2039", 13, TextAlignmentOptions.Center, ink);
+                Label(left, "<", 13, TextAlignmentOptions.Center, ink);
 
                 RectTransform right = NewObject("r", back.rectTransform).GetComponent<RectTransform>();
                 right.anchorMin = right.anchorMax = right.pivot = new Vector2(0.5f, 0.5f);
                 right.anchoredPosition = new Vector2(half * 0.5f, 0);
                 right.sizeDelta = new Vector2(half, rowHeight - 6f);
-                Label(right, "\u203A", 13, TextAlignmentOptions.Center, ink);
+                Label(right, ">", 13, TextAlignmentOptions.Center, ink);
 
                 if (blocked) return;
                 items.Add(new Item
@@ -929,7 +1056,7 @@ namespace Poison.Menu
 
             TMP_Text buttonLabel = Label(rect, Text(button), 11, TextAlignmentOptions.Left, blocked ? theme.muted : theme.bright);
             buttonLabel.margin = new Vector4(10f, 0, 18f, 0);
-            TMP_Text arrow = Label(rect, "\u203A", 13, TextAlignmentOptions.Right, blocked ? theme.muted : theme.accent);
+            TMP_Text arrow = Label(rect, ">", 13, TextAlignmentOptions.Right, blocked ? theme.muted : theme.accent);
             arrow.margin = new Vector4(6f, 0, 10f, 0);
 
             if (blocked) return;
@@ -947,6 +1074,164 @@ namespace Poison.Menu
 
         static string Text(ButtonInfo button) =>
             string.IsNullOrEmpty(button.overlapText) ? button.buttonText : button.overlapText;
+
+        static string Match(string value, string query) =>
+            value != null && value.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0 ? value : null;
+
+        bool Matches(ButtonInfo button, string category, string query)
+        {
+            if (Match(Text(button), query) != null) return true;
+            if (Match(button.buttonText, query) != null) return true;
+            if (Match(category, query) != null) return true;
+            if (button.aliases != null)
+                for (int i = 0; i < button.aliases.Length; i++)
+                    if (Match(button.aliases[i], query) != null) return true;
+            return false;
+        }
+
+        List<ButtonInfo> SearchResults()
+        {
+            List<ButtonInfo> list = new List<ButtonInfo>();
+            string query = search.Trim();
+            if (query.Length == 0) return list;
+            string[] names = Buttons.categoryNames;
+            ButtonInfo[][] groups = Buttons.buttons;
+            if (names == null || groups == null) return list;
+            HashSet<ButtonInfo> seen = new HashSet<ButtonInfo>();
+            int count = Math.Min(names.Length, groups.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (!CanSee(names[i]) || groups[i] == null) continue;
+                for (int j = 0; j < groups[i].Length; j++)
+                {
+                    ButtonInfo button = groups[i][j];
+                    if (button == null || button.label || !seen.Add(button)) continue;
+                    if (Matches(button, names[i], query)) list.Add(button);
+                }
+            }
+            return list;
+        }
+
+        void Append(char character)
+        {
+            if (search.Length < 32) search += character;
+            RefreshResults();
+        }
+
+        void Backspace()
+        {
+            if (search.Length > 0) search = search.Substring(0, search.Length - 1);
+            RefreshResults();
+        }
+
+        void ClearSearch()
+        {
+            search = "";
+            RefreshResults();
+        }
+
+        void RefreshResults()
+        {
+            if (resultsWindow != null)
+            {
+                Transform old = resultsWindow.root != null ? resultsWindow.root.transform : null;
+                for (int i = items.Count - 1; i >= 0; i--)
+                {
+                    RectTransform rect = items[i].rect;
+                    if (rect == null || (old != null && rect.IsChildOf(old))) items.RemoveAt(i);
+                }
+                for (int i = titles.Count - 1; i >= 0; i--) if (titles[i].window == resultsWindow) titles.RemoveAt(i);
+                if (resultsWindow.root != null) Destroy(resultsWindow.root);
+                windows.Remove(resultsWindow);
+            }
+            State state = GetState(ResultsKey);
+            if (state.yaw == 0f && state.pitch == 0f)
+            {
+                state.yaw = 10f * Mathf.Deg2Rad;
+                state.pitch = 0f;
+                state.placed = true;
+            }
+            List<ButtonInfo> found = SearchResults();
+            resultsWindow = BuildWindow("Search", found.ToArray(), state);
+            resultsWindow.show = 1f;
+            resultsWindow.showTarget = 1f;
+            resultsWindow.yaw = state.yaw;
+            resultsWindow.pitch = state.pitch;
+            windows.Add(resultsWindow);
+            ApplyLayer();
+        }
+
+        Window BuildKeyboard()
+        {
+            Theme theme = CurrentTheme();
+            State state = GetState(KeyboardKey);
+            if (!state.placed)
+            {
+                state.yaw = 10f * Mathf.Deg2Rad;
+                state.pitch = -34f * Mathf.Deg2Rad;
+                state.placed = true;
+            }
+            Window window = BuildShell("Keyboard", false, state, 0, theme.rowHeight, theme, out RectTransform content);
+            window.yaw = state.yaw;
+            window.pitch = state.pitch;
+
+            const float keyWidth = 22f;
+            const float keyHeight = 22f;
+            const float gap = 2f;
+            string[] rows = { "1234567890", "qwertyuiop", "asdfghjkl", "zxcvbnm" };
+            for (int r = 0; r < rows.Length; r++)
+                for (int c = 0; c < rows[r].Length; c++)
+                {
+                    char key = rows[r][c];
+                    AddKey(window, content, theme, key.ToString(), c * (keyWidth + gap), r * (keyHeight + gap), keyWidth, keyHeight, () => Append(key));
+                }
+
+            float specialY = rows.Length * (keyHeight + gap);
+            AddKey(window, content, theme, "Space", 0f, specialY, 142f, keyHeight, () => Append(' '));
+            AddKey(window, content, theme, "Del", 146f, specialY, 44f, keyHeight, Backspace);
+            AddKey(window, content, theme, "Done", 192f, specialY, 46f, keyHeight, () => { keyboardOpen = false; });
+
+            float height = specialY + keyHeight;
+            window.body.sizeDelta = new Vector2(WindowWidth - 10f, height);
+            window.bodyFull = height;
+            window.contentFull = height;
+            window.expanded = TitleHeight + 4f + height + 6f;
+            window.rect.sizeDelta = new Vector2(WindowWidth, window.expanded);
+            return window;
+        }
+
+        void AddKey(Window window, RectTransform content, Theme theme, string label, float x, float y, float width, float height, Action act)
+        {
+            GameObject go = NewObject("key", content);
+            RectTransform rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0, 1); rect.anchorMax = new Vector2(0, 1); rect.pivot = new Vector2(0, 1);
+            rect.anchoredPosition = new Vector2(x, -y);
+            rect.sizeDelta = new Vector2(width, height);
+            Image fill = go.AddComponent<Image>();
+            fill.sprite = Rounded(Radius(3f));
+            fill.type = Image.Type.Sliced;
+            fill.color = Alpha(theme.panel, theme.opacity);
+            Label(rect, label, 11, TextAlignmentOptions.Center, theme.bright);
+            items.Add(new Item
+            {
+                rect = rect,
+                clip = window.body,
+                fill = fill,
+                baseColor = fill.color,
+                hoverColor = Alpha(theme.accent, 0.25f),
+                act = act
+            });
+        }
+
+        static bool DisconnectEnabled() => !Main.disableDisconnectButton;
+
+        void Disconnect()
+        {
+            ButtonInfo button = Buttons.GetIndex("Disconnect");
+            if (button == null) return;
+            if (button.incremental) Main.ToggleIncremental(button.buttonText, true, true, true);
+            else Main.Toggle(button, true, true);
+        }
 
         void BuildLaser()
         {
@@ -1190,9 +1475,9 @@ namespace Poison.Menu
 
         float StickY()
         {
-            InputDevice device = InputDevices.GetDeviceAtXRNode(RightHand ? XRNode.RightHand : XRNode.LeftHand);
-            if (device.isValid && device.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 axis)) return axis.y;
-            return 0f;
+            Vector2 left = Main.leftJoystick;
+            Vector2 right = Main.rightJoystick;
+            return Mathf.Abs(left.y) >= Mathf.Abs(right.y) ? left.y : right.y;
         }
 
         void HandleInput()
@@ -1247,7 +1532,7 @@ namespace Poison.Menu
                 grip = GripPressed();
                 gripNow = GripHeld();
                 float stick = StickY();
-                if (Mathf.Abs(stick) > 0.4f) wheel = -stick * Time.unscaledDeltaTime * 220f;
+                if (Mathf.Abs(stick) > 0.25f) wheel = -stick * Time.unscaledDeltaTime * 260f;
             }
 
             if (scrollWindow != null)
@@ -1306,10 +1591,11 @@ namespace Poison.Menu
             if (dragging && dragWindow != null)
             {
                 Window window = dragWindow;
-                if (!gripNow)
+                if (!gripNow || window.root == null)
                 {
                     dragging = false;
-                    if (window.state != null) { window.state.yaw = window.yaw; window.state.pitch = window.pitch; window.state.placed = true; }
+                    window.dragging = false;
+                    if (window.root != null && window.state != null) { window.state.yaw = window.yaw; window.state.pitch = window.pitch; window.state.placed = true; }
                     dragWindow = null;
                 }
                 else
@@ -1363,6 +1649,7 @@ namespace Poison.Menu
             if (target == null) return;
             dragging = true;
             dragWindow = target;
+            target.dragging = true;
             Vector3 pointer = PointerDirection(direction);
             if (pointer.sqrMagnitude > 1e-4f)
             {
@@ -1504,6 +1791,7 @@ namespace Poison.Menu
             }
             if (!visible)
             {
+                UpdateCamera();
                 ReleaseCursor();
                 return;
             }
@@ -1516,7 +1804,18 @@ namespace Poison.Menu
                 if (ThemeDiff(CurrentTheme(), themeStamp) > 0.02f) Rebuild();
             }
 
+            bool nowDisconnect = DisconnectEnabled();
+            if (nowDisconnect != disconnectShown && sidebar != null) { disconnectShown = nowDisconnect; RebuildSidebar(); }
+
+            if (searchLabel != null)
+            {
+                bool empty = string.IsNullOrEmpty(search);
+                searchLabel.text = empty ? "Search..." : search;
+                searchLabel.color = empty ? themeStamp.muted : themeStamp.bright;
+            }
+
             UpdateCursor();
+            UpdateCamera();
 
             float now = Time.unscaledTime;
             float delta = Time.unscaledDeltaTime;
@@ -1525,7 +1824,10 @@ namespace Poison.Menu
                 Window window = windows[i];
                 if (window.root == null) continue;
 
-                bool want = open && (window.sidebar || window.state.openWindow);
+                bool want;
+                if (window == keyboardWindow) want = open && keyboardOpen;
+                else if (window == resultsWindow) want = open && search.Trim().Length > 0;
+                else want = open && (window.sidebar || window.state.openWindow);
                 window.showTarget = want ? 1f : 0f;
                 if (window.showTarget > 0f && !window.root.activeSelf)
                 {
@@ -1586,7 +1888,7 @@ namespace Poison.Menu
             {
                 string status = "";
                 if (ShowFps) status += Mathf.RoundToInt(fps) + " FPS";
-                if (ShowClock) { if (status.Length > 0) status += "  \u00b7  "; status += DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture); }
+                if (ShowClock) { if (status.Length > 0) status += "  |  "; status += DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture); }
                 watermarkStat.text = status;
             }
         }

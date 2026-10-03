@@ -38,6 +38,9 @@ namespace Poison.Menu
                 float scale = ScreenScale();
                 Vector2 mouse = Mouse.current.position.ReadValue();
                 Vector2 point = new Vector2(mouse.x / scale, (ViewHeight - mouse.y) / scale);
+                if (CurrentPrompt != null) return true;
+                if (Instance.options.classicUI)
+                    return Instance.draggingWindow || Instance.WindowRect(ViewWidth / scale, ViewHeight / scale).Contains(point);
                 foreach (Panel panel in Instance.panels)
                     if (panel.open && !panel.closing && panel.rect.Contains(point)) return true;
                 return false;
@@ -201,11 +204,12 @@ namespace Poison.Menu
                 else
                     ToggleGUI();
             }
-            if (isOpen && !textFocused && keyboard?.backquoteKey.wasPressedThisFrame == true)
+            if (isOpen && !options.classicUI && !textFocused && keyboard?.backquoteKey.wasPressedThisFrame == true)
                 TogglePanel(PanelConsole, null);
             if (isOpen && keyboard != null && (keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed) && keyboard.fKey.wasPressedThisFrame)
             {
-                OpenPanel(PanelLauncher, null);
+                if (options.classicUI) tab = 0;
+                else OpenPanel(PanelLauncher, null);
                 focusSearch = true;
             }
             if (isOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
@@ -227,6 +231,8 @@ namespace Poison.Menu
             UpdateTheme();
             foreach (Panel panel in panels)
                 panel.scroll.Step(Time.unscaledDeltaTime, options.smoothScroll, options.scrollSmoothing);
+            cardScroll.Step(Time.unscaledDeltaTime, options.smoothScroll, options.scrollSmoothing);
+            categoryScroll.Step(Time.unscaledDeltaTime, options.smoothScroll, options.scrollSmoothing);
             promptScroll.Step(Time.unscaledDeltaTime, options.smoothScroll, options.scrollSmoothing);
             if ((isOpen || options.arraylist) && (refresh || Time.unscaledTime >= nextRefresh)) Refresh();
             if (saveAt > 0 && Time.unscaledTime >= saveAt) SaveOptions();
@@ -276,11 +282,14 @@ namespace Poison.Menu
             foreach (Texture2D icon in icons.Values)
                 if (icon != null) Destroy(icon);
             if (logoRecolor != null) Destroy(logoRecolor);
+            if (monoFont != null) Destroy(monoFont);
+            if (rainbow != null) Destroy(rainbow);
             if (Instance == this) Instance = null;
         }
 
         private void ReleaseCursor()
         {
+            draggingWindow = false;
             if (!cursorHeld) return;
             Cursor.lockState = oldCursorLock;
             Cursor.visible = oldCursorVisible;
@@ -434,6 +443,12 @@ namespace Poison.Menu
         private void CategoryChanged()
         {
             refresh = true;
+            if (options.classicUI)
+            {
+                tab = 0;
+                category = Buttons.CurrentCategoryName;
+                cardScroll.Reset();
+            }
         }
 
         private static bool CanSee(string name) =>
@@ -602,60 +617,10 @@ namespace Poison.Menu
                 GUI.enabled = isOpen;
                 tip = "";
                 pointerInside = true;
-                if (isOpen) EnsurePanels();
-
                 bool mouseDown = Event.current.type == EventType.MouseDown;
                 if (mouseDown) inputClicked = false;
-                UpdatePanelInteraction(panels, width, height);
-                DrawGrid(width, height);
-                bool closedOne = false;
-                for (int i = panels.Count - 1; i >= 0; i--)
-                {
-                    Panel deck = panels[i];
-                    if (!deck.open && !deck.closing) continue;
-                    if (Event.current.type == EventType.Repaint)
-                    {
-                        float target = deck.collapsed ? 1f : 0f;
-                        deck.collapse = options.animations ? Mathf.Lerp(deck.collapse, target, Ease(18)) : target;
-                        float appearTarget = deck.closing ? 0f : 1f;
-                        deck.appear = options.animations ? Mathf.Lerp(deck.appear, appearTarget, Ease(22)) : appearTarget;
-                        if (deck.hasTarget)
-                        {
-                            float move = options.animations ? Ease(14) : 1f;
-                            deck.rect.x = Mathf.Lerp(deck.rect.x, deck.target.x, move);
-                            deck.rect.y = Mathf.Lerp(deck.rect.y, deck.target.y, move);
-                            deck.rect.width = Mathf.Lerp(deck.rect.width, deck.target.width, move);
-                            deck.height = Mathf.Lerp(deck.height, deck.target.height, move);
-                            if (Mathf.Abs(deck.rect.x - deck.target.x) < 0.5f && Mathf.Abs(deck.rect.y - deck.target.y) < 0.5f &&
-                                Mathf.Abs(deck.rect.width - deck.target.width) < 0.5f && Mathf.Abs(deck.height - deck.target.height) < 0.5f)
-                            {
-                                deck.rect.x = deck.target.x;
-                                deck.rect.y = deck.target.y;
-                                deck.rect.width = deck.target.width;
-                                deck.height = deck.target.height;
-                                deck.hasTarget = false;
-                            }
-                        }
-                    }
-                    else if (!options.animations)
-                    {
-                        deck.appear = deck.closing ? 0f : 1f;
-                    }
-                    if (deck.closing && deck.appear < 0.02f)
-                    {
-                        deck.appear = 0f;
-                        deck.open = false;
-                        deck.closing = false;
-                        closedOne = true;
-                        continue;
-                    }
-                    if (!deck.open && !deck.closing) continue;
-                    deck.rect.height = Mathf.Lerp(deck.height, 26f, deck.collapse);
-                    deck.rect.x = Mathf.Clamp(deck.rect.x, 4f, Mathf.Max(4f, width - deck.rect.width - 4f));
-                    deck.rect.y = Mathf.Clamp(deck.rect.y, 4f, Mathf.Max(4f, height - deck.rect.height - 4f));
-                    DrawPanelBody(deck);
-                }
-                if (closedOne && (options.autoArrange || layoutManaged)) AutoSortPanels();
+                if (options.classicUI) DrawClassic(width, height);
+                else DrawPanels(width, height);
 
                 if (CurrentPrompt != null) DrawPrompt();
                 else DrawTip();
@@ -685,6 +650,61 @@ namespace Poison.Menu
                 GUI.enabled = oldEnabled;
                 GUI.depth = oldDepth;
             }
+        }
+
+        private void DrawPanels(float width, float height)
+        {
+            if (isOpen) EnsurePanels();
+            UpdatePanelInteraction(panels, width, height);
+            DrawGrid(width, height);
+            bool closedOne = false;
+            for (int i = panels.Count - 1; i >= 0; i--)
+            {
+                Panel deck = panels[i];
+                if (!deck.open && !deck.closing) continue;
+                if (Event.current.type == EventType.Repaint)
+                {
+                    float target = deck.collapsed ? 1f : 0f;
+                    deck.collapse = options.animations ? Mathf.Lerp(deck.collapse, target, Ease(18)) : target;
+                    float appearTarget = deck.closing ? 0f : 1f;
+                    deck.appear = options.animations ? Mathf.Lerp(deck.appear, appearTarget, Ease(22)) : appearTarget;
+                    if (deck.hasTarget)
+                    {
+                        float move = options.animations ? Ease(14) : 1f;
+                        deck.rect.x = Mathf.Lerp(deck.rect.x, deck.target.x, move);
+                        deck.rect.y = Mathf.Lerp(deck.rect.y, deck.target.y, move);
+                        deck.rect.width = Mathf.Lerp(deck.rect.width, deck.target.width, move);
+                        deck.height = Mathf.Lerp(deck.height, deck.target.height, move);
+                        if (Mathf.Abs(deck.rect.x - deck.target.x) < 0.5f && Mathf.Abs(deck.rect.y - deck.target.y) < 0.5f &&
+                            Mathf.Abs(deck.rect.width - deck.target.width) < 0.5f && Mathf.Abs(deck.height - deck.target.height) < 0.5f)
+                        {
+                            deck.rect.x = deck.target.x;
+                            deck.rect.y = deck.target.y;
+                            deck.rect.width = deck.target.width;
+                            deck.height = deck.target.height;
+                            deck.hasTarget = false;
+                        }
+                    }
+                }
+                else if (!options.animations)
+                {
+                    deck.appear = deck.closing ? 0f : 1f;
+                }
+                if (deck.closing && deck.appear < 0.02f)
+                {
+                    deck.appear = 0f;
+                    deck.open = false;
+                    deck.closing = false;
+                    closedOne = true;
+                    continue;
+                }
+                if (!deck.open && !deck.closing) continue;
+                deck.rect.height = Mathf.Lerp(deck.height, 26f, deck.collapse);
+                deck.rect.x = Mathf.Clamp(deck.rect.x, 4f, Mathf.Max(4f, width - deck.rect.width - 4f));
+                deck.rect.y = Mathf.Clamp(deck.rect.y, 4f, Mathf.Max(4f, height - deck.rect.height - 4f));
+                DrawPanelBody(deck);
+            }
+            if (closedOne && (options.autoArrange || layoutManaged)) AutoSortPanels();
         }
 
         private float SnapSize => Mathf.Max(4f, options.snapSize);
@@ -964,7 +984,7 @@ namespace Poison.Menu
                 refresh = true;
             }
 
-            float footer = 30f;
+            float footer = 56f;
             int rowCount = 3 + categories.Count;
             BeginScroll(new Rect(8, 72, w - 16, h - 72 - footer), panel.scroll, rowCount * 24f);
             LauncherRow(panel, "Search all", PanelSearch, null, 0);
@@ -974,6 +994,7 @@ namespace Poison.Menu
                 LauncherRow(panel, categories[i], PanelCategory, categories[i], i + 3);
             EndScroll();
 
+            if (TextButton(new Rect(8, h - 48, w - 16, 22), "WYVERN WARNING")) SetClassic(true);
             float bw = (w - 16 - 8) / 3f;
             if (TextButton(new Rect(8, h - 22, bw, 18), "Controls")) TogglePanel(PanelControls, null);
             if (TextButton(new Rect(12 + bw, h - 22, bw, 18), "Console")) TogglePanel(PanelConsole, null);
@@ -1529,7 +1550,8 @@ namespace Poison.Menu
             GUI.color = previous;
         }
 
-        private static float ScreenScale() => Mathf.Max(0.1f, Mathf.Min(Instance?.options.scale ?? 1, Mathf.Min(ViewWidth / 1120f, ViewHeight / 726f)));
+        private static float ScreenScale() => Mathf.Max(0.1f, Mathf.Min(Instance?.options.scale ?? 1,
+            Mathf.Min(ViewWidth / 1120f, ViewHeight / (Instance?.options.classicUI == true ? 552f : 726f))));
 
         private void Label(Rect rect, string text, GUIStyle style, Color? color = null)
         {

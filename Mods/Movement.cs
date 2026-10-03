@@ -347,19 +347,13 @@ namespace Poison.Mods
         public static void Fly()
         {
             if (rightPrimary)
-            {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
         }
 
         public static void TriggerFly()
         {
             if (rightTrigger > 0.5f)
-            {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
         }
 
         public static bool noclip;
@@ -367,8 +361,7 @@ namespace Poison.Mods
         {
             if (rightPrimary)
             {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
                 if (!noclip)
                 {
                     noclip = true;
@@ -391,8 +384,8 @@ namespace Poison.Mods
 
             if (Mathf.Abs(joy.x) > 0.3 || Mathf.Abs(joy.y) > 0.3)
             {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * (joy.y * FlySpeed)) + GorillaTagger.Instance.headCollider.transform.right * (Time.deltaTime * (joy.x * FlySpeed));
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
+                Vector3 move = GorillaTagger.Instance.headCollider.transform.forward * joy.y + GorillaTagger.Instance.headCollider.transform.right * joy.x;
+                GorillaTagger.Instance.rigidbody.linearVelocity = move.normalized * FlySpeed;
             }
         }
 
@@ -420,10 +413,7 @@ namespace Poison.Mods
         public static void HandFly()
         {
             if (rightPrimary)
-            {
-                GTPlayer.Instance.transform.position += ControllerUtilities.GetTrueRightHand().forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = ControllerUtilities.GetTrueRightHand().forward * FlySpeed;
         }
 
         public static void FlyTowardsGun()
@@ -434,10 +424,7 @@ namespace Poison.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                {
-                    GTPlayer.Instance.transform.position += (lockTarget.transform.position - GorillaTagger.Instance.bodyCollider.transform.position) * (Time.deltaTime * FlySpeed);
-                    GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-                }
+                    GorillaTagger.Instance.rigidbody.linearVelocity = (lockTarget.transform.position - GorillaTagger.Instance.bodyCollider.transform.position).normalized * FlySpeed;
 
                 if (GetGunInput(true))
                 {

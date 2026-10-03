@@ -13,6 +13,9 @@ namespace Poison.Menu
         [Serializable]
         private sealed class Options
         {
+            public bool classicUI;
+            public float classicWindowX = 0.5f;
+            public float classicWindowY = 0.5f;
             public bool syncTheme = true;
             public float scale = 1;
             public float rounding = 1;
@@ -76,6 +79,8 @@ namespace Poison.Menu
                     options = loaded;
                 }
                 options.scale = Limit(options.scale, 0.75f, 1.3f, 1);
+                options.classicWindowX = Limit(options.classicWindowX, 0, 1, 0.5f);
+                options.classicWindowY = Limit(options.classicWindowY, 0, 1, 0.5f);
                 options.rounding = Limit(options.rounding, 0, 1.5f, 1);
                 options.effectStrength = Limit(options.effectStrength, 0, 2, 1);
                 options.animationSpeed = Limit(options.animationSpeed, 0.35f, 2.5f, 1);
