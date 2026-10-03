@@ -313,6 +313,7 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Backup Preferences", enableMethod =() => backupPreferences = true, disableMethod =() => backupPreferences = false, toolTip = "Automatically saves a copy of your preferences every minute.", legal = true},
                 new ButtonInfo { buttonText = "Save Preferences", method = Preferences.Save, isTogglable = false, toolTip = "Saves your preferences to a file.", legal = true},
                 new ButtonInfo { buttonText = "Load Preferences", method = Preferences.Load, isTogglable = false, toolTip = "Loads your preferences from a file.", legal = true},
+                new ButtonInfo { buttonText = "Import Seralyth Settings", aliases = new[] { "Import Untitled", "Import Seralyth" }, method = Preferences.ImportSeralyth, isTogglable = false, toolTip = "Copies your enabled mods and UI settings from SeralythMenu (Untitled) in your Gorilla Tag folder.", legal = true},
                 new ButtonInfo { buttonText = "Disable Autosave", enableMethod = () => Preferences.DisableAutoSave = true, disableMethod = () => Preferences.DisableAutoSave = false, toolTip = "Disables the auto save mechanism.", legal = true},
                 new ButtonInfo { buttonText = "Panic", method = Settings.Panic, isTogglable = false, toolTip = "Disables every single active mod.", legal = true},
             },

@@ -273,6 +273,57 @@ namespace Poison.Classes.Menu
             catch (Exception e) { LogManager.Log("Error importing preferences from text: " + e.Message); }
         }
 
+        public static void ImportSeralyth()
+        {
+            try
+            {
+                string path = Path.Combine(Poison.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
+                if (!File.Exists(path))
+                {
+                    LogManager.Log($"Seralyth preferences not found at '{path}'.");
+                    return;
+                }
+
+                var data = JsonConvert.DeserializeObject<PreferencesData>(File.ReadAllText(path));
+                if (data == null)
+                {
+                    LogManager.Log("Failed to parse Seralyth preferences.");
+                    return;
+                }
+
+                int applied = 0;
+                RunWithoutSaving(() =>
+                {
+                    try
+                    {
+                        if (data.misc != null)
+                        {
+                            if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
+                            if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
+                            if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
+                            if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
+                        }
+                    }
+                    catch (Exception e) { LogManager.Log("Error restoring Seralyth misc: " + e.Message); }
+
+                    foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons ?? new Dictionary<string, SavedButtonState>())
+                    {
+                        ButtonInfo button = Buttons.GetIndex(kv.Key);
+                        if (button == null || button.label || !button.isTogglable) continue;
+                        if (kv.Value.enabled == true && !button.enabled)
+                        {
+                            Toggle(button.buttonText);
+                            applied++;
+                        }
+                    }
+                });
+
+                Save();
+                LogManager.Log($"Imported {applied} settings from Seralyth.");
+            }
+            catch (Exception e) { LogManager.Log("Error importing Seralyth settings: " + e.Message); }
+        }
+
         public static void Load()
         {
             try
