@@ -198,7 +198,6 @@ namespace Poison.Managers
             GameObject root = GetObject(rootPath);
             if (root == null)
             {
-                LogManager.Log($"[Boards] root not found: {rootPath}");
                 return null;
             }
 
@@ -208,12 +207,10 @@ namespace Poison.Managers
 
             if (anchor == null)
             {
-                LogManager.Log($"[Boards] anchor '{anchorName}' not found under {rootPath}; children: {string.Join(", ", root.transform.Children().Select(x => x.name).ToArray())}");
                 return null;
             }
 
             Renderer[] renderers = anchor.GetComponentsInChildren<Renderer>(true);
-            LogManager.Log($"[Boards] {anchorName} renderers: {string.Join(", ", renderers.Select(x => x.gameObject.name).ToArray())}");
 
             Renderer result = null;
             for (int i = 0; i < renderers.Length; i++)
@@ -232,10 +229,6 @@ namespace Poison.Managers
                     string n = renderers[i].gameObject.name;
                     if (!n.Contains("Text") && !n.Contains("Offline")) { result = renderers[i]; break; }
                 }
-
-            if (result != null)
-                LogManager.Log($"[Boards] {anchorName} -> {result.gameObject.name} mat={(result.sharedMaterial != null ? result.sharedMaterial.name : "none")}");
-            else LogManager.Log($"[Boards] {anchorName} no board renderer under anchor");
             return result != null ? result.gameObject : null;
         }
 
