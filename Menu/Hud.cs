@@ -147,8 +147,7 @@ namespace Poison.Menu
         bool dragging;
         Window dragWindow;
         Window scrollWindow;
-        Camera hudCamera;
-        int hudLayer = -1;
+        Material overlayMaterial;
 
         string search = "";
         bool keyboardOpen;
@@ -176,9 +175,7 @@ namespace Poison.Menu
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
-            if (hudCamera != null) Destroy(hudCamera.gameObject);
-            Camera main = Camera.main;
-            if (main != null && hudLayer >= 0) main.cullingMask |= 1 << hudLayer;
+            if (overlayMaterial != null) Destroy(overlayMaterial);
             if (pointer != null) Destroy(pointer);
             if (laser != null) Destroy(laser.gameObject);
             if (root != null) Destroy(root);
@@ -247,14 +244,13 @@ namespace Poison.Menu
             if (root != null) return;
             root = new GameObject("PoisonHud");
             root.transform.SetParent(transform, false);
-            hudLayer = PickLayer();
+            overlayMaterial = BuildOverlayMaterial();
             BuildWatermark();
             BuildLaser();
             BuildWindows();
             themeStamp = CurrentTheme();
             disconnectShown = DisconnectEnabled();
-            ApplyLayer();
-            BuildCamera();
+            ApplyOverlay();
             SetAllActive(false);
         }
 
@@ -271,7 +267,7 @@ namespace Poison.Menu
             BuildWindows();
             themeStamp = CurrentTheme();
             disconnectShown = DisconnectEnabled();
-            ApplyLayer();
+            ApplyOverlay();
             SetAllActive(visible && open);
         }
 
@@ -284,60 +280,31 @@ namespace Poison.Menu
                 for (int i = 0; i < windows.Count; i++) if (windows[i].root != null) windows[i].root.SetActive(false);
         }
 
-        static int PickLayer()
+        Material BuildOverlayMaterial()
         {
-            for (int i = 31; i >= 8; i--)
-                if (string.IsNullOrEmpty(LayerMask.LayerToName(i))) return i;
-            return 31;
+            Shader shader = Shader.Find("UI/Overlay")
+                ?? Shader.Find("GUI/Text Shader")
+                ?? Shader.Find("Sprites/Default")
+                ?? Shader.Find("UI/Default");
+            if (shader == null) return null;
+            Material material = new Material(shader)
+            {
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            return material;
         }
 
-        void ApplyLayer()
+        void ApplyOverlay()
         {
-            if (root == null || hudLayer < 0) return;
-            SetLayer(root.transform);
+            if (root == null || overlayMaterial == null) return;
+            SetOverlay(root.transform);
         }
 
-        void SetLayer(Transform target)
+        void SetOverlay(Transform target)
         {
-            target.gameObject.layer = hudLayer;
-            for (int i = 0; i < target.childCount; i++) SetLayer(target.GetChild(i));
-        }
-
-        void BuildCamera()
-        {
-            if (hudCamera != null || root == null) return;
-            GameObject go = new GameObject("PoisonHudCamera");
-            go.transform.SetParent(root.transform, false);
-            hudCamera = go.AddComponent<Camera>();
-            hudCamera.clearFlags = CameraClearFlags.Depth;
-            hudCamera.cullingMask = 1 << hudLayer;
-            hudCamera.depth = 100f;
-            hudCamera.nearClipPlane = 0.01f;
-            hudCamera.farClipPlane = 5000f;
-            hudCamera.allowHDR = false;
-            hudCamera.allowMSAA = false;
-            hudCamera.useOcclusionCulling = false;
-            hudCamera.stereoTargetEye = StereoTargetEyeMask.None;
-            hudCamera.enabled = false;
-            SetLayer(hudCamera.transform);
-        }
-
-        void UpdateCamera()
-        {
-            if (hudCamera == null) return;
-            Camera main = Camera.main;
-            bool show = InUse && visible;
-            if (hudCamera.enabled != show) hudCamera.enabled = show;
-            if (main == null) return;
-            int mask = main.cullingMask & ~(1 << hudLayer);
-            if (main.cullingMask != mask) main.cullingMask = mask;
-            if (!show) return;
-            hudCamera.transform.position = main.transform.position;
-            hudCamera.transform.rotation = main.transform.rotation;
-            hudCamera.fieldOfView = main.fieldOfView;
-            hudCamera.aspect = main.aspect;
-            hudCamera.nearClipPlane = Mathf.Max(0.01f, main.nearClipPlane);
-            hudCamera.farClipPlane = Mathf.Max(100f, main.farClipPlane);
+            Graphic graphic = target.GetComponent<Graphic>();
+            if (graphic != null) graphic.material = overlayMaterial;
+            for (int i = 0; i < target.childCount; i++) SetOverlay(target.GetChild(i));
         }
 
         static bool CanSee(string name) =>
@@ -500,7 +467,7 @@ namespace Poison.Menu
             if (index >= 0) windows[index] = next;
             else windows.Insert(0, next);
             sidebar = next;
-            ApplyLayer();
+            ApplyOverlay();
         }
 
         struct Theme
@@ -734,7 +701,6 @@ namespace Poison.Menu
             rect.sizeDelta = new Vector2(WindowWidth, expanded);
             root.transform.localScale = Vector3.one * WindowScale;
 
-            Stretch(rect, -3f, Alpha(Color.black, 0.35f * theme.opacity), Radius(7f));
             Stretch(rect, 0f, Alpha(theme.border, theme.opacity), Radius(6f));
             Stretch(rect, 1f, Alpha(theme.background, theme.opacity), Radius(5f));
 
@@ -1158,7 +1124,7 @@ namespace Poison.Menu
             resultsWindow.yaw = state.yaw;
             resultsWindow.pitch = state.pitch;
             windows.Add(resultsWindow);
-            ApplyLayer();
+            ApplyOverlay();
         }
 
         Window BuildKeyboard()
@@ -1791,7 +1757,6 @@ namespace Poison.Menu
             }
             if (!visible)
             {
-                UpdateCamera();
                 ReleaseCursor();
                 return;
             }
@@ -1815,7 +1780,6 @@ namespace Poison.Menu
             }
 
             UpdateCursor();
-            UpdateCamera();
 
             float now = Time.unscaledTime;
             float delta = Time.unscaledDeltaTime;
