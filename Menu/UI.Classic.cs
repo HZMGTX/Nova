@@ -8,7 +8,7 @@ namespace Poison.Menu
 {
     public partial class UI
     {
-        private static readonly string[] tabNames = { "Modules", "Config", "Main Settings", "Quality Settings" };
+        private static readonly string[] tabNames = { "Modules", "Config", "Main Settings", "Quality Settings", "Input" };
         private static readonly Color textColor = new Color32(224, 224, 224, 255);
         private static readonly Color dimColor = new Color32(146, 146, 146, 255);
         private static readonly Color cardColor = new Color32(13, 13, 13, 255);
@@ -44,7 +44,7 @@ namespace Poison.Menu
             focusSearch = false;
             activePanel = null;
             draggingWindow = false;
-            GUIUtility.hotControl = 0;
+            PointerControl = 0;
             GUIUtility.keyboardControl = 0;
             refresh = true;
             if (!enabled) EnsurePanels();
@@ -66,10 +66,10 @@ namespace Poison.Menu
 
         private bool Button(Rect rect, string caption, bool flat = false)
         {
-            bool hovered = GUI.enabled && pointerInside && rect.Contains(Event.current.mousePosition);
+            bool hovered = GUI.enabled && pointerInside && rect.Contains(GuiPoint);
             Color fill = !flat && hovered ? (Color)new Color32(31, 31, 31, 255) : cardColor;
             Fill(rect, fill, 2);
-            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            bool clicked = MenuButton(rect, GUIContent.none, GUIStyle.none);
             FitLabel(rect, caption, centerStyle, GUI.enabled ? textColor : dimColor);
             return clicked;
         }
@@ -125,7 +125,7 @@ namespace Poison.Menu
             Fill(window, Color.black, 2);
 
             bool inside = pointerInside;
-            pointerInside = window.Contains(Event.current.mousePosition);
+            pointerInside = window.Contains(GuiPoint);
             GUI.BeginGroup(window);
             try
             {
@@ -173,30 +173,30 @@ namespace Poison.Menu
         private void DragWindow(ref Rect window, float width, float height)
         {
             int id = GUIUtility.GetControlID("classic-window-drag".GetHashCode(), FocusType.Passive);
-            Event current = Event.current;
-            EventType type = current.GetTypeForControl(id);
+            Event current = InputEvent;
+            EventType type = InputType(id);
             if (!GUI.enabled || CurrentPrompt != null || !Application.isFocused)
             {
-                if (GUIUtility.hotControl == id) GUIUtility.hotControl = 0;
+                if (PointerControl == id) PointerControl = 0;
                 draggingWindow = false;
                 return;
             }
             float tabsEnd = ContentLeft + tabNames.Length * TabStep;
-            bool overDragArea = new Rect(window.x, window.y, SidebarWidth, 78).Contains(current.mousePosition) ||
-                new Rect(window.x + tabsEnd, window.y, window.width - tabsEnd, 40).Contains(current.mousePosition);
+            bool overDragArea = new Rect(window.x, window.y, SidebarWidth, 78).Contains(GuiPoint) ||
+                new Rect(window.x + tabsEnd, window.y, window.width - tabsEnd, 40).Contains(GuiPoint);
             if (type == EventType.MouseDown && current.button == 0 && overDragArea)
             {
-                GUIUtility.hotControl = id;
+                PointerControl = id;
                 draggingWindow = true;
-                dragOffset = current.mousePosition - window.position;
+                dragOffset = GuiPoint - window.position;
                 ClearInput();
                 current.Use();
             }
-            if (GUIUtility.hotControl != id) { draggingWindow = false; return; }
-            if (!draggingWindow) { GUIUtility.hotControl = 0; return; }
+            if (PointerControl != id) { draggingWindow = false; return; }
+            if (!draggingWindow) { PointerControl = 0; return; }
             if (type == EventType.MouseDrag)
             {
-                Vector2 position = current.mousePosition - dragOffset;
+                Vector2 position = GuiPoint - dragOffset;
                 float travelX = Mathf.Max(0, width - window.width - 32);
                 float travelY = Mathf.Max(0, height - window.height - 32);
                 options.classicWindowX = travelX > 0 ? Mathf.Clamp01((position.x - 16) / travelX) : 0.5f;
@@ -207,7 +207,7 @@ namespace Poison.Menu
             }
             if (type == EventType.MouseUp || type == EventType.Ignore)
             {
-                GUIUtility.hotControl = 0;
+                PointerControl = 0;
                 draggingWindow = false;
                 if (type == EventType.MouseUp) current.Use();
             }
@@ -244,7 +244,8 @@ namespace Poison.Menu
             }
             else if (tab == 1) DrawConfig(left, width, height);
             else if (tab == 2) DrawCards(new Rect(left, 54, width - left - 24, height - 68));
-            else DrawQuality(left, width);
+            else if (tab == 3) DrawQuality(left, width);
+            else DrawInputSettings(new Rect(left, 54, width - left - 24, height - 68), true);
             GUI.enabled = enabled;
         }
 
@@ -282,10 +283,10 @@ namespace Poison.Menu
 
         private bool CategoryRow(Rect rect, string caption, bool selected)
         {
-            bool hovered = GUI.enabled && pointerInside && rect.Contains(Event.current.mousePosition);
+            bool hovered = GUI.enabled && pointerInside && rect.Contains(GuiPoint);
             if (selected)
                 FitLabel(new Rect(rect.x, rect.y, 10, rect.height), ">", categoryStyle, textColor);
-            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            bool clicked = MenuButton(rect, GUIContent.none, GUIStyle.none);
             float labelWidth = rect.width - 12;
             FitLabel(new Rect(rect.x + 10, rect.y, labelWidth, rect.height), caption,
                 categoryStyle, GUI.enabled && (selected || hovered) ? textColor : dimColor);
@@ -297,13 +298,13 @@ namespace Poison.Menu
         {
             const string id = "ui-classic-search";
             bool focused = focusedInput == id;
-            if (GUI.enabled && Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
+            if (Pressed(rect))
             {
                 focusedInput = id;
                 inputText = query;
                 inputClicked = true;
                 focused = true;
-                Event.current.Use();
+                InputEvent.Use();
             }
             Fill(rect, lineColor, 2);
             Fill(new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2), cardColor, 1);
@@ -383,7 +384,7 @@ namespace Poison.Menu
             GUI.enabled = enabled;
             if (options.descriptions)
                 FitLabel(new Rect(rect.x + 5, rect.y + 55, rect.width - 10, 17), entry.description, descriptionStyle, textColor);
-            if (pointerInside && rect.Contains(Event.current.mousePosition))
+            if (pointerInside && rect.Contains(GuiPoint))
                 tip = entry.title + "\n" + entry.description;
         }
 
@@ -426,7 +427,7 @@ namespace Poison.Menu
 
         private bool Checkbox(Rect rect, string caption, bool value)
         {
-            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            bool clicked = MenuButton(rect, GUIContent.none, GUIStyle.none);
             Rect square = new Rect(rect.x + 3, rect.center.y - 6, 12, 12);
             Color fill = value ? (GUI.enabled ? textColor : dimColor) : lineColor;
             Fill(square, fill, 2);

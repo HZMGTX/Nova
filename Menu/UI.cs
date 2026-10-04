@@ -34,10 +34,10 @@ namespace Poison.Menu
             get
             {
                 if (Hud.HasMouse) return true;
-                if (Instance == null || !Instance.isActiveAndEnabled || !Instance.isOpen || Mouse.current == null) return false;
+                if (Instance == null || !Instance.isActiveAndEnabled || !Instance.isOpen) return false;
+                if (Mouse.current == null && !Instance.padCursor) return false;
                 float scale = ScreenScale();
-                Vector2 mouse = Mouse.current.position.ReadValue();
-                Vector2 point = new Vector2(mouse.x / scale, (ViewHeight - mouse.y) / scale);
+                Vector2 point = Instance.PointerPosition / scale;
                 if (CurrentPrompt != null) return true;
                 if (Instance.options.classicUI)
                     return Instance.draggingWindow || Instance.WindowRect(ViewWidth / scale, ViewHeight / scale).Contains(point);
@@ -77,6 +77,7 @@ namespace Poison.Menu
         private const int PanelConsole = 6;
         private const int PanelSettings = 7;
         private const int PanelLayout = 8;
+        private const int PanelInput = 9;
 
         private sealed class Entry
         {
@@ -189,6 +190,7 @@ namespace Poison.Menu
 
         private void Update()
         {
+            ReadPad();
             Keyboard keyboard = Keyboard.current;
             if (keyboard != textKeyboard)
             {
@@ -197,7 +199,8 @@ namespace Poison.Menu
                 if (textKeyboard != null) textKeyboard.onTextInput += OnTextInput;
             }
 
-            if (!textFocused && keyboard?.backslashKey.wasPressedThisFrame == true)
+            if (!textFocused && (keyboard?.backslashKey.wasPressedThisFrame == true ||
+                options.remoteMouse && keyboard?.homeKey.wasPressedThisFrame == true))
             {
                 if (Hud.InUse && Hud.Instance != null)
                     Hud.Instance.SetOpen(!Hud.Instance.IsOpen);
@@ -212,7 +215,7 @@ namespace Poison.Menu
                 else OpenPanel(PanelLauncher, null);
                 focusSearch = true;
             }
-            if (isOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            if (isOpen && keyboard != null && keyboard.escapeKey.wasPressedThisFrame && !bindCancelled)
             {
                 if (CurrentPrompt != null)
                 {
@@ -271,10 +274,15 @@ namespace Poison.Menu
             else ReleaseCursor();
         }
 
-        private void OnDisable() => ReleaseCursor();
+        private void OnDisable()
+        {
+            StopWii();
+            ReleaseCursor();
+        }
 
         private void OnDestroy()
         {
+            StopWii();
             if (saveAt > 0) SaveOptions();
             Buttons.OnCategoryChanged -= CategoryChanged;
             if (textKeyboard != null) textKeyboard.onTextInput -= OnTextInput;
@@ -289,6 +297,7 @@ namespace Poison.Menu
 
         private void ReleaseCursor()
         {
+            ResetPointer();
             draggingWindow = false;
             if (!cursorHeld) return;
             Cursor.lockState = oldCursorLock;
@@ -349,6 +358,7 @@ namespace Poison.Menu
                 case PanelControls: return 560;
                 case PanelConsole: return 560;
                 case PanelSettings: return 620;
+                case PanelInput: return 620;
                 case PanelLayout: return 380;
                 default: return 268;
             }
@@ -362,6 +372,7 @@ namespace Poison.Menu
                 case PanelControls: return 300;
                 case PanelConsole: return 340;
                 case PanelSettings: return 520;
+                case PanelInput: return 520;
                 case PanelLayout: return 440;
                 default: return 400;
             }
@@ -380,6 +391,7 @@ namespace Poison.Menu
                 case PanelConsole: return "Console";
                 case PanelSettings: return "Settings";
                 case PanelLayout: return "Layout editor";
+                case PanelInput: return "Controller input";
                 default: return "Panel";
             }
         }
@@ -580,12 +592,13 @@ namespace Poison.Menu
 
         private void OnGUI()
         {
-            DrawUI();
+            Event pad = DrawInputUIPrepare();
+            if (isOpen) PluginManager.ExecuteOnGUI(pad);
+            DrawInputUIDraw();
         }
 
         internal void DrawUI()
         {
-            if (isOpen) PluginManager.ExecuteOnGUI();
             if (fade < 0.005f && !isOpen && !options.arraylist) return;
             Setup();
             Matrix4x4 oldMatrix = GUI.matrix;
@@ -617,10 +630,12 @@ namespace Poison.Menu
                 GUI.enabled = isOpen;
                 tip = "";
                 pointerInside = true;
-                bool mouseDown = Event.current.type == EventType.MouseDown;
+                bool mouseDown = InputEvent.type == EventType.MouseDown;
                 if (mouseDown) inputClicked = false;
+                GUI.enabled = isOpen && CurrentPrompt == null;
                 if (options.classicUI) DrawClassic(width, height);
                 else DrawPanels(width, height);
+                GUI.enabled = isOpen;
 
                 if (CurrentPrompt != null) DrawPrompt();
                 else DrawTip();
@@ -635,6 +650,7 @@ namespace Poison.Menu
                 }
 
                 if (options.listOverMenu && isOpen) DrawArraylist();
+                DrawCursor();
                 if (mouseDown && !inputClicked && !string.IsNullOrEmpty(focusedInput)) ClearInput();
                 textFocused = isOpen && !string.IsNullOrEmpty(focusedInput);
                 if (Event.current.type == EventType.Repaint) snapAnimations = false;
@@ -799,19 +815,16 @@ namespace Poison.Menu
 
         private void UpdatePanelInteraction(List<Panel> list, float screenWidth, float screenHeight)
         {
-            Event current = Event.current;
-            Mouse mouse = Mouse.current;
-            if (mouse == null) return;
-            float scale = ScreenScale();
-            Vector2 read = mouse.position.ReadValue();
-            Vector2 point = new Vector2(read.x / scale, (ViewHeight - read.y) / scale);
+            if (!GUI.enabled) return;
+            Event current = InputEvent;
+            Vector2 point = GuiPoint;
 
-            if (mouse.leftButton.wasPressedThisFrame && current.type == EventType.MouseDown && current.button == 0)
+            if (current.type == EventType.MouseDown && current.button == 0)
                 gridShownAt = Time.unscaledTime;
 
             if (resizingPanel != null)
             {
-                if (!mouse.leftButton.isPressed) { resizingPanel = null; return; }
+                if (!PointerHeld) { resizingPanel = null; return; }
                 Vector2 delta = point - resizeStart;
                 float minW = 150f, minH = 40f;
                 resizingPanel.rect.width = Mathf.Max(minW, resizeOrigin.x + delta.x);
@@ -831,12 +844,9 @@ namespace Poison.Menu
 
             if (draggingPanel != null)
             {
-                if (!mouse.leftButton.isPressed) { SnapPanel(draggingPanel); draggingPanel = null; return; }
-                float scaleDrag = ScreenScale();
-                Vector2 readDrag = mouse.position.ReadValue();
-                Vector2 pointDrag = new Vector2(readDrag.x / scaleDrag, (ViewHeight - readDrag.y) / scaleDrag);
-                draggingPanel.rect.x = pointDrag.x - draggingOffset.x;
-                draggingPanel.rect.y = pointDrag.y - draggingOffset.y;
+                if (!PointerHeld) { SnapPanel(draggingPanel); draggingPanel = null; return; }
+                draggingPanel.rect.x = point.x - draggingOffset.x;
+                draggingPanel.rect.y = point.y - draggingOffset.y;
                 gridShownAt = Time.unscaledTime;
                 if (options.snapGrid)
                 {
@@ -925,6 +935,7 @@ namespace Poison.Menu
                     case PanelControls: DrawControlsBody(deck, w, full); break;
                     case PanelConsole: DrawConsoleBody(deck, w, full); break;
                     case PanelSettings: DrawSettingsBody(deck, w, full); break;
+                    case PanelInput: DrawInputSettings(new Rect(8, 32, w - 16, full - 40), false); break;
                     case PanelLayout: DrawLayoutBody(deck, w, full); break;
                     default: DrawModulesBody(deck, w, full); break;
                 }
@@ -933,7 +944,7 @@ namespace Poison.Menu
 
             if (bodyFade > 0.5f && options.showGrips)
             {
-                bool gripHover = pointerInside && new Rect(w - 18, h - 18, 18, 18).Contains(Event.current.mousePosition);
+                bool gripHover = pointerInside && new Rect(w - 18, h - 18, 18, 18).Contains(GuiPoint);
                 float glow = Animate("grip-" + deck.key, gripHover ? 1 : 0);
                 Color grip = Alpha(Color.Lerp(muted, accent, glow), 0.35f + glow * 0.65f);
                 for (int r = 0; r < 3; r++)
@@ -1007,7 +1018,7 @@ namespace Poison.Menu
             float hover = Hover("launch-" + kind + category, row);
             bool open = panelMap.TryGetValue(kind + ":" + (category ?? ""), out Panel existing) && existing.open;
             Box(row, Alpha(accent, (open ? 0.2f : 0f) + hover * 0.08f), 3);
-            if (GUI.Button(row, new GUIContent("", label), GUIStyle.none)) TogglePanel(kind, category);
+            if (MenuButton(row, new GUIContent("", label), GUIStyle.none)) TogglePanel(kind, category);
             Label(new Rect(row.x + 12, row.y, row.width - 16, row.height), label, smallStyle, open ? bright : Color.Lerp(muted, bright, hover * 0.6f));
         }
 
@@ -1055,7 +1066,7 @@ namespace Poison.Menu
         private void DrawModuleRow(Entry entry, Panel deck, Rect rect)
         {
             ButtonInfo button = entry.button;
-            bool hover = pointerInside && rect.Contains(Event.current.mousePosition);
+            bool hover = pointerInside && rect.Contains(GuiPoint);
             bool blocked = button.detected && !allowDetected;
             if (!switches.TryGetValue(button, out float amount)) amount = button.enabled ? 1 : 0;
             if (Event.current.type == EventType.Repaint)
@@ -1086,9 +1097,9 @@ namespace Poison.Menu
             bool enabled = GUI.enabled;
             GUI.enabled = enabled && !blocked;
             Rect hit = new Rect(rect.x, rect.y, rect.width - 30, rect.height);
-            Event current = Event.current;
-            bool leftClick = current.type == EventType.MouseDown && current.button == 0 && pointerInside && hit.Contains(current.mousePosition);
-            bool rightClick = current.type == EventType.MouseDown && current.button == 1 && pointerInside && hit.Contains(current.mousePosition);
+            Event current = InputEvent;
+            bool leftClick = Pressed(hit);
+            bool rightClick = Pressed(hit, 1);
             if (leftClick) { Activate(button, true); current.Use(); }
             else if (rightClick && button.incremental) { Activate(button, false); current.Use(); }
             GUI.enabled = enabled;
@@ -1314,7 +1325,7 @@ namespace Poison.Menu
             Color before = GUI.color;
             GUI.color = new Color(1, 1, 1, before.a * opacity);
             float height = Mathf.Min(360, wrapStyle.CalcHeight(new GUIContent(tip), 366) + 24);
-            Vector2 mouse = Event.current.mousePosition;
+            Vector2 mouse = GuiPoint;
             float x = Mathf.Clamp(mouse.x + 16, 12, 658);
             float y = Mathf.Clamp(mouse.y + 20 + (1 - opacity) * 6, 12, 634 - height);
             Box(new Rect(x, y, 390, height), border, 7);
@@ -1354,7 +1365,7 @@ namespace Poison.Menu
                 actions.Enqueue(() => { if (CurrentPrompt == prompt) Main.Toggle("Accept Prompt", true, true); });
             if (prompt.DeclineText != null && TextButton(new Rect(sx + 286, sy + 301, 248, 38), Plain(prompt.DeclineText)))
                 actions.Enqueue(() => { if (CurrentPrompt == prompt) Main.Toggle("Decline Prompt", true, true); });
-            if (Event.current.isMouse || Event.current.type == EventType.ScrollWheel) Event.current.Use();
+            if (InputEvent.isMouse || InputEvent.type == EventType.ScrollWheel) InputEvent.Use();
         }
 
         private string Input(Rect rect, string value, string name, string placeholder)
@@ -1365,13 +1376,13 @@ namespace Poison.Menu
             Box(rect, Color.Lerp(border, accent, amount), 4);
             Box(new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2), background, 3);
 
-            if (GUI.enabled && Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
+            if (Pressed(rect))
             {
                 focusedInput = id;
                 inputText = value;
                 inputClicked = true;
                 focused = true;
-                Event.current.Use();
+                InputEvent.Use();
             }
 
             Rect inner = new Rect(rect.x + 8, rect.y, rect.width - 16, rect.height);
@@ -1418,19 +1429,31 @@ namespace Poison.Menu
             if (inputText.Length < 256) inputText += character;
         }
 
+        private int padPressFrame = -1;
+        private int padPressButton;
+        private Vector2 padPressPoint;
+
+        private bool Pressed(Rect rect, int button = 0)
+        {
+            Event current = InputEvent;
+            bool hit = rect.Contains(GuiPoint);
+            bool fired = current.type == EventType.MouseDown && current.button == button;
+            if (!fired && padPressFrame == Time.frameCount && padPressButton == button) fired = true;
+            return fired && PointerControl == 0 && GUI.enabled && pointerInside && hit;
+        }
+
         private bool Clicked(Rect rect)
         {
-            Event current = Event.current;
-            if (current.type != EventType.MouseDown || current.button != 0) return false;
-            if (!GUI.enabled || !pointerInside || !rect.Contains(current.mousePosition)) return false;
-            current.Use();
+            if (!guiPad) return Pressed(rect);
+            if (!Pressed(rect)) return false;
+            padPressFrame = -1;
             return true;
         }
 
         private bool TextButton(Rect rect, string text)
         {
             float hover = Hover("button-" + text + rect.x, rect);
-            float pressed = Animate("press-" + text + rect.x, GUI.enabled && pointerInside && rect.Contains(Event.current.mousePosition) && Mouse.current?.leftButton.isPressed == true ? 1 : 0, 24);
+            float pressed = Animate("press-" + text + rect.x, GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
             Rect drawn = new Rect(rect.x + pressed, rect.y + pressed, rect.width - pressed * 2, rect.height - pressed * 2);
             Box(drawn, Color.Lerp(border, accent, hover * 0.4f), 4);
             Box(new Rect(drawn.x + 1, drawn.y + 1, drawn.width - 2, drawn.height - 2), Color.Lerp(panel, accent, hover * 0.12f), 3);
@@ -1442,11 +1465,11 @@ namespace Poison.Menu
         private bool IconButton(Rect rect, string name, string tooltip, Color? color = null)
         {
             float hover = Hover("icon-" + name + rect.x + rect.y, rect);
-            float pressed = Animate("icon-press-" + name + rect.x + rect.y, GUI.enabled && pointerInside && rect.Contains(Event.current.mousePosition) && Mouse.current?.leftButton.isPressed == true ? 1 : 0, 24);
+            float pressed = Animate("icon-press-" + name + rect.x + rect.y, GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
             Rect drawn = new Rect(rect.x + pressed, rect.y + pressed, rect.width - pressed * 2, rect.height - pressed * 2);
             float amount = Mathf.Max(hover, pressed);
             if (amount > 0.01f) Box(drawn, Alpha(accent, amount * 0.18f), 3);
-            if (pointerInside && rect.Contains(Event.current.mousePosition)) tip = tooltip;
+            if (pointerInside && rect.Contains(GuiPoint)) tip = tooltip;
             bool clicked = Clicked(rect);
             float size = 14 + hover * 2;
             Icon(name, new Rect(drawn.x + (drawn.width - size) / 2, drawn.y + (drawn.height - size) / 2, size, size), color ?? Color.Lerp(muted, accent, hover));

@@ -365,3 +365,6 @@ FodyWeavers.xsd
 .vscode
 .idea
 /Tests/*
+!/Tests/Wii/
+CONTROLLERS.md
+/Tests

@@ -16,6 +16,15 @@ namespace Poison.Menu
             public bool classicUI;
             public float classicWindowX = 0.5f;
             public float classicWindowY = 0.5f;
+            public bool controllerInput = true;
+            public bool wiiInput = true;
+            public float wiiX;
+            public float wiiY;
+            public bool remoteMouse;
+            public int inputMode;
+            public int joystick;
+            public float cursorSpeed = 700;
+            public string[] joyButtons = { "trigger", "button2", "button3", "button8", "button4", "button5" };
             public bool syncTheme = true;
             public float scale = 1;
             public float rounding = 1;
@@ -81,6 +90,13 @@ namespace Poison.Menu
                 options.scale = Limit(options.scale, 0.75f, 1.3f, 1);
                 options.classicWindowX = Limit(options.classicWindowX, 0, 1, 0.5f);
                 options.classicWindowY = Limit(options.classicWindowY, 0, 1, 0.5f);
+                options.inputMode = Mathf.Clamp(options.inputMode, 0, 2);
+                options.joystick = Mathf.Max(0, options.joystick);
+                options.cursorSpeed = Limit(options.cursorSpeed, 100, 1600, 700);
+                options.wiiX = Limit(options.wiiX, -1, 1, 0);
+                options.wiiY = Limit(options.wiiY, -1, 1, 0);
+                if (options.joyButtons == null || options.joyButtons.Length != 6)
+                    options.joyButtons = new Options().joyButtons;
                 options.rounding = Limit(options.rounding, 0, 1.5f, 1);
                 options.effectStrength = Limit(options.effectStrength, 0, 2, 1);
                 options.animationSpeed = Limit(options.animationSpeed, 0.35f, 2.5f, 1);
@@ -135,6 +151,7 @@ namespace Poison.Menu
             rowY = 0f;
             float x = 0f;
 
+            if (TextButton(Next(x, col, 30), "Controller / Wiimote input")) TogglePanel(PanelInput, null);
             Header(x, col, "Appearance");
             Setting(Next(x, col, SettingHeight), "Sync menu theme", ref options.syncTheme);
             Slider(Next(x, col, SliderHeight), "UI scale", ref options.scale, 0.75f, 1.3f, "P0");
@@ -258,7 +275,7 @@ namespace Poison.Menu
         {
             float hover = Hover("setting-" + label, rect);
             Box(rect, Alpha(accent, hover * 0.07f), 5);
-            bool clicked = GUI.Button(rect, GUIContent.none, GUIStyle.none);
+            bool clicked = MenuButton(rect, GUIContent.none, GUIStyle.none);
             Label(new Rect(rect.x + 8, rect.y, rect.width - 76, rect.height), label, textStyle);
             float amount = Animate("setting-value-" + label, value ? 1 : 0);
             Rect track = new Rect(rect.xMax - 52, rect.center.y - 11, 44, 22);
@@ -275,26 +292,26 @@ namespace Poison.Menu
 
             Rect track = new Rect(rect.x + 12, rect.y + 35, rect.width - 24, 4);
             int id = GUIUtility.GetControlID(label.GetHashCode(), FocusType.Keyboard);
-            Event current = Event.current;
-            EventType type = current.GetTypeForControl(id);
+            Event current = InputEvent;
+            EventType type = InputType(id);
             float next = value;
-            if (GUI.enabled && pointerInside && type == EventType.MouseDown && current.button == 0 && new Rect(rect.x, rect.y + 22, rect.width, 26).Contains(current.mousePosition))
+            if (GUI.enabled && pointerInside && type == EventType.MouseDown && current.button == 0 && new Rect(rect.x, rect.y + 22, rect.width, 26).Contains(GuiPoint))
             {
-                GUIUtility.hotControl = id;
+                PointerControl = id;
                 GUIUtility.keyboardControl = id;
-                next = Mathf.Lerp(min, max, Mathf.InverseLerp(track.x, track.xMax, current.mousePosition.x));
+                next = Mathf.Lerp(min, max, Mathf.InverseLerp(track.x, track.xMax, GuiPoint.x));
                 current.Use();
             }
-            if (GUIUtility.hotControl == id)
+            if (PointerControl == id)
             {
                 if (type == EventType.MouseDrag)
                 {
-                    next = Mathf.Lerp(min, max, Mathf.InverseLerp(track.x, track.xMax, current.mousePosition.x));
+                    next = Mathf.Lerp(min, max, Mathf.InverseLerp(track.x, track.xMax, GuiPoint.x));
                     current.Use();
                 }
                 if (type == EventType.MouseUp || type == EventType.Ignore)
                 {
-                    GUIUtility.hotControl = 0;
+                    PointerControl = 0;
                     if (type == EventType.MouseUp) current.Use();
                 }
             }
@@ -318,7 +335,7 @@ namespace Poison.Menu
             string id = "ui-num-" + label;
             bool focused = focusedInput == id;
 
-            if (GUI.enabled && !focused && Event.current.type == EventType.MouseDown && rect.Contains(Event.current.mousePosition))
+            if (!focused && Pressed(rect))
             {
                 focusedInput = id;
                 inputText = format.IndexOf('P') >= 0
@@ -326,7 +343,7 @@ namespace Poison.Menu
                     : value.ToString(format, CultureInfo.InvariantCulture);
                 inputClicked = true;
                 focused = true;
-                Event.current.Use();
+                InputEvent.Use();
             }
 
             float hover = Hover("num-hover-" + label, rect);

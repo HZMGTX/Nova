@@ -43,7 +43,7 @@ namespace Poison.Menu
 
         private void SnapAnimations() => snapAnimations = true;
 
-        private float Hover(string key, Rect rect) => Animate(key, options.hoverEffects && GUI.enabled && pointerInside && rect.Contains(Event.current.mousePosition) ? 1 : 0);
+        private float Hover(string key, Rect rect) => Animate(key, options.hoverEffects && GUI.enabled && pointerInside && rect.Contains(GuiPoint) ? 1 : 0);
 
         private static Color Alpha(Color color, float alpha)
         {
@@ -107,44 +107,44 @@ namespace Poison.Menu
         {
             bool showScrollbar = !options.classicUI;
             state.SetBounds(height - area.height);
-            Event current = Event.current;
+            Event current = InputEvent;
             int id = GUIUtility.GetControlID(state.GetHashCode(), FocusType.Passive);
             Rect track = new Rect(area.xMax - 10, area.y + 2, 8, area.height - 4);
             float thumbHeight = Mathf.Min(track.height, Mathf.Max(28, track.height * area.height / Mathf.Max(height, area.height)));
             float travel = track.height - thumbHeight;
             Rect thumb = new Rect(track.x, track.y + (state.max > 0 ? state.value / state.max * travel : 0), 8, thumbHeight);
-            bool hover = pointerInside && area.Contains(current.mousePosition);
-            EventType type = current.GetTypeForControl(id);
+            bool hover = pointerInside && area.Contains(GuiPoint);
+            EventType type = InputType(id);
             if (GUI.enabled && type == EventType.ScrollWheel && hover)
             {
                 state.target = Mathf.Clamp(state.target + current.delta.y * options.scrollSpeed, 0, state.max);
                 if (!options.smoothScroll) state.value = state.target;
                 current.Use();
             }
-            if (showScrollbar && GUI.enabled && hover && state.max > 0 && type == EventType.MouseDown && current.button == 0 && track.Contains(current.mousePosition))
+            if (showScrollbar && GUI.enabled && hover && state.max > 0 && type == EventType.MouseDown && current.button == 0 && track.Contains(GuiPoint))
             {
-                GUIUtility.hotControl = id;
+                PointerControl = id;
                 ClearInput();
-                state.grab = thumb.Contains(current.mousePosition) ? current.mousePosition.y - thumb.y : thumbHeight / 2;
-                state.target = state.value = Mathf.Clamp01((current.mousePosition.y - track.y - state.grab) / travel) * state.max;
+                state.grab = thumb.Contains(GuiPoint) ? GuiPoint.y - thumb.y : thumbHeight / 2;
+                state.target = state.value = Mathf.Clamp01((GuiPoint.y - track.y - state.grab) / travel) * state.max;
                 current.Use();
             }
-            if (GUIUtility.hotControl == id)
+            if (PointerControl == id)
             {
                 if (type == EventType.MouseDrag)
                 {
-                    state.target = state.value = Mathf.Clamp01((current.mousePosition.y - track.y - state.grab) / Mathf.Max(1, travel)) * state.max;
+                    state.target = state.value = Mathf.Clamp01((GuiPoint.y - track.y - state.grab) / Mathf.Max(1, travel)) * state.max;
                     current.Use();
                 }
                 if (type == EventType.MouseUp || type == EventType.Ignore)
                 {
-                    GUIUtility.hotControl = 0;
+                    PointerControl = 0;
                     if (type == EventType.MouseUp) current.Use();
                 }
             }
             if (showScrollbar && state.max > 0)
             {
-                float amount = Animate("scroll-" + state.GetHashCode(), track.Contains(current.mousePosition) || GUIUtility.hotControl == id ? 1 : 0);
+                float amount = Animate("scroll-" + state.GetHashCode(), track.Contains(GuiPoint) || PointerControl == id ? 1 : 0);
                 float width = Mathf.Lerp(4, 8, amount);
                 Color ink = scrollColor ?? accent;
                 Box(new Rect(track.center.x - 2, track.y, 4, track.height), Alpha(scrollColor ?? border, 0.45f), 2);
