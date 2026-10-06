@@ -6495,11 +6495,18 @@ namespace Poison.Menu
             Terminal ??= LoadAsset<TMP_FontAsset>("Terminal");
             Utopium ??= LoadAsset<TMP_FontAsset>("Utopium");
             DejaVuSans ??= LoadAsset<TMP_FontAsset>("DejaVuSans");
+            LiberationSans ??= Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
 
             foreach (TMP_FontAsset font in new[] { AgencyFB, FreeSans, Candara, ComicSans,
                 CascadiaMono, Anton, Minecraft, MSGothic, OpenDyslexic, SimSun, Taiko,
                 Terminal, Utopium, DejaVuSans })
-                font.fallbackFontAssetTable.Add(LiberationSans);
+            {
+                if (font == null || LiberationSans == null) continue;
+                if (font.fallbackFontAssetTable == null) font.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset>();
+                if (!font.fallbackFontAssetTable.Contains(LiberationSans))
+                    font.fallbackFontAssetTable.Add(LiberationSans);
+            }
+            if (activeFont == null) activeFont = AgencyFB ?? LiberationSans;
         }
 
         // ReSharper disable once StaticMemberInitializerReferesToMemberBelow

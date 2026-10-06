@@ -3762,22 +3762,49 @@ exit 0";
         }
 
         private static TMP_FontAsset chosenFont;
+        private static Font customFontSource;
         public static void CustomFontType()
         {
             string filePath = $"{PluginInfo.BaseDirectory}/CustomFont.ttf";
             if (!File.Exists(filePath))
             {
                 LogManager.Log("Downloading CustomFont.ttf");
-                WebClient stream = new WebClient();
-                stream.DownloadFile($"{PluginInfo.ServerResourcePath}/Fonts/LiberationSans.ttf", filePath);
+                try
+                {
+                    WebClient stream = new WebClient();
+                    stream.DownloadFile($"{PluginInfo.ServerResourcePath}/Fonts/LiberationSans.ttf", filePath);
+                }
+                catch (Exception error)
+                {
+                    LogManager.Log("Failed to download CustomFont.ttf: " + error.Message);
+                    return;
+                }
             }
 
-            chosenFont = TMP_FontAsset.CreateFontAsset(new Font($"{FileUtilities.GetGamePath()}/{filePath}"));
+            try
+            {
+                if (customFontSource == null)
+                    customFontSource = new Font($"{FileUtilities.GetGamePath()}/{filePath}");
+                TMP_FontAsset font = TMP_FontAsset.CreateFontAsset(customFontSource);
+                if (font == null)
+                {
+                    LogManager.Log("Failed to create a font asset from CustomFont.ttf");
+                    return;
+                }
+                chosenFont = font;
+            }
+            catch (Exception error)
+            {
+                LogManager.Log("Failed to load CustomFont.ttf: " + error.Message);
+                return;
+            }
             PersistCustomFont();
         }
 
         public static void PersistCustomFont()
         {
+            if (chosenFont == null)
+                return;
             if (activeFont != chosenFont)
                 activeFont = chosenFont;
         }

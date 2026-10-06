@@ -277,7 +277,7 @@ namespace Poison.Classes.Menu
         {
             try
             {
-                string path = Path.Combine(Poison.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
+                string path = SeralythPath;
                 if (!File.Exists(path))
                 {
                     LogManager.Log($"Seralyth preferences not found at '{path}'.");
@@ -348,10 +348,41 @@ namespace Poison.Classes.Menu
             catch (Exception e) { LogManager.Log("Error loading preferences: " + e.Message); }
 
             hasLoadedPreferences = true;
+            MaybePromptSeralythMigration();
         }
 
-        private static void Apply(PreferencesData data)
+        private static string SeralythPath => Path.Combine(Poison.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
+
+        public static bool HasSeralythSettings()
         {
+            try { return File.Exists(SeralythPath); }
+            catch { return false; }
+        }
+
+        private static void MaybePromptSeralythMigration()
+        {
+            try
+            {
+                string marker = Path.Combine(PluginInfo.BaseDirectory, "Seralyth_Migrated.txt");
+                if (!HasSeralythSettings() || File.Exists(marker)) return;
+                Prompt("Seralyth settings detected in your Gorilla Tag folder.\n\nImport your settings from Seralyth?",
+                    Accept: () =>
+                    {
+                        try { File.WriteAllText(marker, DateTime.Now.ToString("F")); } catch { }
+                        ImportSeralyth();
+                    },
+                    Decline: () =>
+                    {
+                        try { File.WriteAllText(marker, DateTime.Now.ToString("F")); } catch { }
+                        LogManager.Log("Skipped Seralyth migration; you can still use Settings > Import Seralyth Settings.");
+                    },
+                    AcceptButton: "Migrate",
+                    DeclineButton: "Skip");
+            }
+            catch (Exception e) { LogManager.Log("Error checking for Seralyth settings: " + e.Message); }
+        }
+
+        private static void Apply(PreferencesData data)        {
             if (data == null)
             {
                 LogManager.Log("preferences not found!");
