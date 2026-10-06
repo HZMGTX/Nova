@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Project>
   <PropertyGroup>
-    <IsMainProject Condition="'$(MSBuildProjectName)' == 'NovaMenu'">true</IsMainProject>
+    <IsMainProject Condition="'$(MSBuildProjectName)' == 'NovaMenu' Or '$(MSBuildProjectName)' == 'PoisonMenu'">true</IsMainProject>
   </PropertyGroup>
 
   <!-- Update Game References -->

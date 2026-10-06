@@ -73,7 +73,8 @@ using Random = UnityEngine.Random;
 
 namespace Nova.Menu
 {
-    [HarmonyPatch(typeof(GTPlayer), nameof(GTPlayer.LateUpdate))]
+    // [HarmonyPatch(typeof(GTPlayer), nameof(GTPlayer.LateUpdate))]
+    // GTPlayer.LateUpdate does not exist in current game version; patch disabled
     public class Main : MonoBehaviour
     {
         /// <summary>

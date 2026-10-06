@@ -29,7 +29,7 @@ namespace Nova
         public const string GUID = "org.nova.gorillatag.novamenu";
         public const string Name = "Nova Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-09-07T09:03:21Z";
+        public const string BuildTimestamp = "2026-10-06T13:05:19Z";
         public const string Version = "1.0.0";
 
         public const string BaseDirectory =

@@ -35,6 +35,33 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Menu\UI.Classic.cs" />
+    <Compile Remove="Menu\UI.Input.cs" />
+    <Compile Remove="Menu\UI.Settings.cs" />
+    <Compile Remove="Menu\UI.Arraylist.cs" />
+    <Compile Remove="Menu\UI.Widgets.cs" />
+    <Compile Remove="Menu\PointerQueue.cs" />
+    <Compile Remove="Menu\Scroll.cs" />
+    <Compile Remove="Menu\Wii.cs" />
+    <Compile Remove="Menu\Svg.cs" />
+    <Compile Remove="Menu\Hud.cs" />
+    <Compile Remove="Extensions\GTPlayerExtensions.cs" />
+    <Compile Remove="Extensions\CallLimiterExtensions.cs" />
+    <Compile Remove="Extensions\MiscellaneousExtensions.cs" />
+    <!-- All patches excluded due to game API version mismatch -->
+    <Compile Remove="Patches\**\*.cs" />
+    <Compile Include="Patches\_Stubs.cs" />
+    <!-- All mods excluded - depend on patches which are incompatible -->
+    <Compile Remove="Mods\**\*.cs" />
+    <Compile Include="Mods\_Stubs.cs" />
+    <!-- UI layer excluded - depends on mods/patches -->
+    <Compile Remove="Menu\Buttons.cs" />
+    <Compile Remove="Menu\Main.cs" />
+    <!-- Some managers/utilities have patch dependencies -->
+    <Compile Remove="Managers\AchievementManager.cs" />
+    <Compile Remove="Managers\FriendManager.cs" />
+    <Compile Remove="Managers\PatreonManager.cs" />
+    <Compile Remove="Utilities\RigUtilities.cs" />
     <None Remove="LICENSE" />
     <None Remove="Resources\Client\*" />
   </ItemGroup>
