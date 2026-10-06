@@ -85,7 +85,7 @@ namespace Nova.Menu
                 LogManager.LogError("CoroutineManager instance is null on menu launch. Features may not function properly.");
 
             if (NotificationManager.Instance == null)
-                LogManager.LogError("CoroutineManager instance is null on menu launch. Features may not function properly.");
+                LogManager.LogError("NotificationManager instance is null on menu launch. Features may not function properly.");
 
             timeMenuStarted = Time.time;
             IsSteam = PlayFabAuthenticator.instance.platform;
