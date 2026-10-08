@@ -1,4 +1,4 @@
-using Nova.Classes.Menu;
+using Poison.Classes.Menu;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.XR;
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
     public class Hud : MonoBehaviour
     {
@@ -1203,8 +1203,8 @@ namespace Nova.Menu
 
         void BuildLaser()
         {
-            laser = NewLaser("NovaLaser");
-            pointer = NewPointer("NovaPointer", out pointerOuter, out pointerInner, out pointerPulse);
+            laser = NewLaser("PoisonLaser");
+            pointer = NewPointer("PoisonPointer", out pointerOuter, out pointerInner, out pointerPulse);
             pointer.SetActive(false);
         }
 

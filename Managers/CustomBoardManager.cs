@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Managers/CustomBoardManager.cs
+ * Poison Menu  Managers/CustomBoardManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,16 +20,16 @@
  */
 
 using GorillaNetworking;
-using Nova.Extensions;
+using Poison.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using static Nova.Menu.Main;
+using static Poison.Menu.Main;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class CustomBoardManager : MonoBehaviour
     {
@@ -92,27 +89,9 @@ namespace Nova.Managers
                         catch { }
                     }
 
-                    var stumpChildren = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom").transform.Children()
-                                   .Where(x => x.name.Contains("UnityTempFile"))
-                                   .ToList();
-
-                    if (StumpLeaderboardIndex >= 0 && StumpLeaderboardIndex < stumpChildren.Count)
-                    {
-                        var stumpBoard = stumpChildren[StumpLeaderboardIndex];
-                        if (stumpBoard != null && instance.stumpMaterial != null)
-                            stumpBoard.GetComponent<Renderer>().material = instance.stumpMaterial;
-                    }
-
-                    var forestChildren = GetObject("Environment Objects/LocalObjects_Prefab/Forest").transform.Children()
-                        .Where(x => x.name.Contains("UnityTempFile"))
-                        .ToList();
-
-                    if (ForestLeaderboardIndex >= 0 && ForestLeaderboardIndex < forestChildren.Count)
-                    {
-                        var forestBoard = forestChildren[ForestLeaderboardIndex];
-                        if (forestBoard != null && instance.forestMaterial != null)
-                            forestBoard.GetComponent<Renderer>().material = instance.forestMaterial;
-                    }
+                    GameObject forestBoard = FindBoard("Environment Objects/LocalObjects_Prefab/Forest", "ForestScoreboardAnchor");
+                    if (forestBoard != null && instance.forestMaterial != null)
+                        forestBoard.GetComponent<Renderer>().material = instance.forestMaterial;
 
                     foreach (GameObject board in instance.objectBoards.Values)
                         Destroy(board);
@@ -158,18 +137,35 @@ namespace Nova.Managers
         private static Material _screenBlack;
 
         public static bool CustomBoardTextEnabled = true;
-        private static Material _boardMaterial = new Material(Shader.Find("GorillaTag/UberShader"));
+        private static Shader BoardShader =>
+            Shader.Find("Universal Render Pipeline/Unlit")
+            ?? Shader.Find("Unlit/Color")
+            ?? Shader.Find("GorillaTag/UberShader")
+            ?? Shader.Find("Standard");
+
+        private static Material _boardMaterial;
         public static Material BoardMaterial
         {
-            get => _boardMaterial;
+            get
+            {
+                if (_boardMaterial == null) _boardMaterial = NewBoardMaterial();
+                return _boardMaterial;
+            }
             set
             {
-                if (value == null)
-                    value = new Material(Shader.Find("GorillaTag/UberShader"));
-
-                _boardMaterial = value;
-                instance.ReloadBoards();
+                _boardMaterial = value ?? NewBoardMaterial();
+                if (instance != null) instance.ReloadBoards();
             }
+        }
+
+        public static Material NewBoardMaterial(Material source = null)
+        {
+            Material material = source != null ? new Material(source) : new Material(BoardShader);
+            Color tint = CustomBoardsEnabled ? backgroundColor.GetCurrentColor() : (Color)new Color32(0, 59, 4, 255);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", tint);
+            if (material.HasProperty("_Color")) material.SetColor("_Color", tint);
+            material.color = tint;
+            return material;
         }
 
         #region Game Boards
@@ -177,10 +173,10 @@ namespace Nova.Managers
         public const int ForestLeaderboardIndex = 6;
 
         public static bool motdTextDirty = true;
-        public static string motdTemplate = "You are using build {0}. This menu was created by Nova Software. " +
+        public static string motdTemplate = "You are using build {0}. This menu was created by Poison Software. " +
         "This menu is completely free and open sourced, if you paid for this menu you have been scammed. " +
         "There are a total of <b>{1}</b> mods on this menu. " +
-        "<color=red>Nova is not responsible for any bans using this menu.</color> " +
+        "<color=red>Poison is not responsible for any bans using this menu.</color> " +
         "If you get banned while using this, it's your responsibility.\n\nCurrent menu status: <b>Loading...</b>\nMade with <3 by the community.\n\n<alpha=128>{2} {0} {3}<alpha=255>";
 
         public Material forestMaterial;
@@ -196,6 +192,45 @@ namespace Nova.Managers
         private bool hasFoundAllBoards;
         public void ReloadBoards() =>
             hasFoundAllBoards = false;
+
+        private static GameObject FindBoard(string rootPath, string anchorName)
+        {
+            GameObject root = GetObject(rootPath);
+            if (root == null)
+            {
+                return null;
+            }
+
+            Transform anchor = null;
+            foreach (GameObject child in root.transform.Children())
+                if (child.name.Contains(anchorName)) { anchor = child.transform; break; }
+
+            if (anchor == null)
+            {
+                return null;
+            }
+
+            Renderer[] renderers = anchor.GetComponentsInChildren<Renderer>(true);
+
+            Renderer result = null;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                string n = renderers[i].gameObject.name;
+                if (n.Contains("Text") || n.Contains("Offline")) continue;
+                if (n.Contains("GorillaScoreBoard") || n.Contains("ScoreBoard") || n.Contains("Scoreboard"))
+                {
+                    result = renderers[i];
+                    break;
+                }
+            }
+            if (result == null)
+                for (int i = 0; i < renderers.Length; i++)
+                {
+                    string n = renderers[i].gameObject.name;
+                    if (!n.Contains("Text") && !n.Contains("Offline")) { result = renderers[i]; break; }
+                }
+            return result != null ? result.gameObject : null;
+        }
 
         private void RebuildMotdText()
         {
@@ -215,36 +250,13 @@ namespace Nova.Managers
 
                     objectBoards.Clear();
 
-                    var stumpChildren = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom").transform.Children()
-                       .Where(x => x.name.Contains("UnityTempFile"))
-                       .ToList();
-
-                    if (StumpLeaderboardIndex >= 0 && StumpLeaderboardIndex < stumpChildren.Count)
+                    GameObject forestBoard = FindBoard("Environment Objects/LocalObjects_Prefab/Forest", "ForestScoreboardAnchor");
+                    if (forestBoard != null)
                     {
-                        var stumpBoard = stumpChildren[StumpLeaderboardIndex];
-                        if (stumpBoard != null)
-                        {
-                            if (stumpMaterial == null)
-                                stumpMaterial = stumpBoard.GetComponent<Renderer>().material;
+                        if (forestMaterial == null)
+                            forestMaterial = forestBoard.GetComponent<Renderer>().sharedMaterial;
 
-                            stumpBoard.GetComponent<Renderer>().material = BoardMaterial;
-                        }
-                    }
-
-                    var forestChildren = GetObject("Environment Objects/LocalObjects_Prefab/Forest").transform.Children()
-                        .Where(x => x.name.Contains("UnityTempFile"))
-                        .ToList();
-
-                    if (ForestLeaderboardIndex >= 0 && ForestLeaderboardIndex < forestChildren.Count)
-                    {
-                        var forestBoard = forestChildren[ForestLeaderboardIndex];
-                        if (forestBoard != null)
-                        {
-                            if (forestMaterial == null)
-                                forestMaterial = forestBoard.GetComponent<Renderer>().material;
-
-                            forestBoard.GetComponent<Renderer>().material = BoardMaterial;
-                        }
+                        forestBoard.GetComponent<Renderer>().material = NewBoardMaterial(forestMaterial);
                     }
 
                     foreach (GorillaNetworkJoinTrigger joinTrigger in PhotonNetworkController.Instance.allJoinTriggers)
@@ -254,14 +266,14 @@ namespace Nova.Managers
                             JoinTriggerUI ui = joinTrigger.ui;
                             JoinTriggerUITemplate temp = ui.template;
 
-                            temp.ScreenBG_AbandonPartyAndSoloJoin = BoardMaterial;
-                            temp.ScreenBG_AlreadyInRoom = BoardMaterial;
-                            temp.ScreenBG_ChangingGameModeSoloJoin = BoardMaterial;
-                            temp.ScreenBG_Error = BoardMaterial;
-                            temp.ScreenBG_InPrivateRoom = BoardMaterial;
-                            temp.ScreenBG_LeaveRoomAndGroupJoin = BoardMaterial;
-                            temp.ScreenBG_LeaveRoomAndSoloJoin = BoardMaterial;
-                            temp.ScreenBG_NotConnectedSoloJoin = BoardMaterial;
+                            temp.ScreenBG_AbandonPartyAndSoloJoin = NewBoardMaterial(temp.ScreenBG_AbandonPartyAndSoloJoin);
+                            temp.ScreenBG_AlreadyInRoom = NewBoardMaterial(temp.ScreenBG_AlreadyInRoom);
+                            temp.ScreenBG_ChangingGameModeSoloJoin = NewBoardMaterial(temp.ScreenBG_ChangingGameModeSoloJoin);
+                            temp.ScreenBG_Error = NewBoardMaterial(temp.ScreenBG_Error);
+                            temp.ScreenBG_InPrivateRoom = NewBoardMaterial(temp.ScreenBG_InPrivateRoom);
+                            temp.ScreenBG_LeaveRoomAndGroupJoin = NewBoardMaterial(temp.ScreenBG_LeaveRoomAndGroupJoin);
+                            temp.ScreenBG_LeaveRoomAndSoloJoin = NewBoardMaterial(temp.ScreenBG_LeaveRoomAndSoloJoin);
+                            temp.ScreenBG_NotConnectedSoloJoin = NewBoardMaterial(temp.ScreenBG_NotConnectedSoloJoin);
 
                             TextMeshPro text = ui.screenText;
                             if (!textMeshPro.Contains(text))
@@ -314,7 +326,7 @@ namespace Nova.Managers
                 computerMonitor = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/TreeRoomInteractables/GorillaComputerObject/ComputerUI/monitor/monitorScreen");
 
             if (computerMonitor != null)
-                computerMonitor.GetComponent<Renderer>().material = BoardMaterial;
+                computerMonitor.GetComponent<Renderer>().material = NewBoardMaterial(computerMonitor.GetComponent<Renderer>().sharedMaterial);
 
             try
             {
@@ -432,7 +444,7 @@ namespace Nova.Managers
                 board.transform.localScale = scale ?? new Vector3(21.6f, 2.4f, 22f);
 
                 Destroy(board.GetComponent<Collider>());
-                board.GetComponent<Renderer>().material = BoardMaterial;
+                board.GetComponent<Renderer>().material = NewBoardMaterial();
 
                 objectBoards.Add(scene, board);
             }

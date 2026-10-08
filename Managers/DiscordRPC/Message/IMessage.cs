@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace Nova.Managers.DiscordRPC.Message
+namespace Poison.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Messages received from discord.

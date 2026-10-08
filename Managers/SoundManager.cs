@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Managers/SoundManager.cs
+﻿/*
+ * Poison Menu  Managers/SoundManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,14 +19,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using Photon.Pun;
-using Nova.Menu;
+using Poison.Menu;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class SoundManager
     {

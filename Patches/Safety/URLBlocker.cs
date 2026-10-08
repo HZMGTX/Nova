@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Managers/URLBlocker.cs
+﻿/*
+ * Poison Menu  Managers/URLBlocker.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +21,7 @@
 
 // The purpose of this class is to block known malicious URLs from being accessed by the game or mods
 using HarmonyLib;
-using Nova.Managers;
+using Poison.Managers;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -36,7 +33,7 @@ using System.Threading.Tasks;
 using UnityEngine.Networking;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Patches.Safety
+namespace Poison.Patches.Safety
 {
     public class URLBlocker
     {
@@ -59,7 +56,7 @@ namespace Nova.Patches.Safety
                 {
                     using (HttpClient client = new HttpClient())
                     {
-                        string json = await client.GetStringAsync("https://www.menu.management/banned_urls");
+                        string json = await client.GetStringAsync("https://menu.poisons.men/banned_urls");
                         var parsed = JsonConvert.DeserializeObject<BanResponse>(json);
 
                         if (parsed?.banned != null)
@@ -123,7 +120,7 @@ namespace Nova.Patches.Safety
                 shouldLog = notifiedAssemblies.Add(assemblyName);
 
             if (shouldLog)
-                LogManager.Log($"HEY!! Nova Menu blocked a potentionally DANGEROUS REQUEST to: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
+                LogManager.Log($"HEY!! Poison Menu blocked a potentionally DANGEROUS REQUEST to: {url} | Reason: {reason} | Assumed Assembly: {assemblyName} | Assumed File: {fileName}");
         }
 
         private static string NormalizeHost(string host)
@@ -332,7 +329,7 @@ namespace Nova.Patches.Safety
 
                     var response = new HttpResponseMessage(HttpStatusCode.Forbidden)
                     {
-                        Content = new StringContent("This request has been blocked by Nova Menu, as it has been marked as a unsafe site.")
+                        Content = new StringContent("This request has been blocked by Poison Menu, as it has been marked as a unsafe site.")
                     };
 
                     __result = Task.FromResult(response);

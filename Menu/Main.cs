@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Menu/Main.cs
+ * Poison Menu  Menu/Main.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +18,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 using ExitGames.Client.Photon;
 using GorillaExtensions;
 using GorillaLocomotion;
@@ -31,14 +27,14 @@ using GorillaTagScripts;
 using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Classes.Menu;
-using Nova.Classes.Mods;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Mods;
-using Nova.Patches;
-using Nova.Patches.Menu;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Classes.Mods;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Mods;
+using Poison.Patches;
+using Poison.Patches.Menu;
+using Poison.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -61,20 +57,19 @@ using UnityEngine.XR;
 using Valve.Newtonsoft.Json;
 using Valve.VR;
 using WebSocketSharp;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.FileUtilities;
-using static Nova.Utilities.RandomUtilities;
-using ButtonCollider = Nova.Classes.Menu.ButtonCollider;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.FileUtilities;
+using static Poison.Utilities.RandomUtilities;
+using ButtonCollider = Poison.Classes.Menu.ButtonCollider;
 using CommonUsages = UnityEngine.XR.CommonUsages;
-using Console = Nova.Classes.Menu.Console;
+using Console = Poison.Classes.Menu.Console;
 using JoinType = GorillaNetworking.JoinType;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
-    // [HarmonyPatch(typeof(GTPlayer), nameof(GTPlayer.LateUpdate))]
-    // GTPlayer.LateUpdate does not exist in current game version; patch disabled
+    [HarmonyPatch(typeof(GTPlayer), nameof(GTPlayer.LateUpdate))]
     public class Main : MonoBehaviour
     {
         /// <summary>
@@ -97,9 +92,9 @@ namespace Nova.Menu
             //if (Plugin.FirstLaunch)
             //    Prompt("It seems like this is your first time using the menu. Would you like to watch a quick tutorial to get to know how to use it?", Settings.ShowTutorial);
             //else
-            //    acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt");
+            //    acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt");
             if (!Bootstrapper.FirstLaunch)
-                acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt");
+                acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt");
 
             NetworkSystem.Instance.OnJoinedRoomEvent += OnJoinRoom;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += OnLeaveRoom;
@@ -125,9 +120,8 @@ namespace Nova.Menu
                 ConsoleObject.AddComponent<FriendManager>();
                 ConsoleObject.AddComponent<PatreonManager>();
 
-                // Picks up bundles added to ServerData since this build. The browser
-                // falls back to the list it shipped with, so this failing costs
-                // nothing but the newest additions.
+                // Picks up bundles added to Console since this build, with their Unity
+                // versions. The browser falls back to the list it shipped with.
                 Console.instance.StartCoroutine(ConsoleAssets.RefreshManifest());
             }
 
@@ -198,6 +192,17 @@ namespace Nova.Menu
                 $"Error with Settings.LoadPreferences() at {exc.StackTrace}: {exc.Message}");
 
                 CoroutineManager.instance.StartCoroutine(DelayLoadPreferences());
+            }
+
+            try
+            {
+                ButtonInfo customTheme = Buttons.GetIndex("Custom Menu Theme");
+                if (customTheme == null || !customTheme.enabled)
+                    Settings.ApplyMenuTheme(themeType);
+            }
+            catch (Exception exc)
+            {
+                LogManager.LogError($"Error re-applying menu theme: {exc.Message}");
             }
 
             try
@@ -431,6 +436,13 @@ namespace Nova.Menu
                 if (barkMenu)
                     buttonCondition = isKeyboardCondition || barkMenuOpen;
 
+                if (Hud.InUse)
+                {
+                    if (Hud.Instance != null && buttonCondition != Hud.Instance.IsOpen)
+                        Hud.Instance.SetOpen(buttonCondition);
+                    buttonCondition = false;
+                }
+
                 isMenuButtonHeld = buttonCondition;
                 switch (buttonCondition)
                 {
@@ -535,7 +547,7 @@ namespace Nova.Menu
 
                 if (animatedTitle && title != null)
                 {
-                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
+                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Poison Menu";
                     int length = (int)Mathf.PingPong(Time.time / 0.25f, targetString.Length + 1);
                     title.text = length > 0 ? targetString[..length] : "";
                 }
@@ -707,7 +719,8 @@ namespace Nova.Menu
 
                 GunSpawned = false;
 
-                UpdateKeyboard();
+                if (VRKeyboard != null) VRKeyboard.SetActive(!Hud.InUse);
+                if (!Hud.InUse) UpdateKeyboard();
 
                 if (annoyingMode)
                 {
@@ -793,7 +806,7 @@ namespace Nova.Menu
                 }
                 catch { }
 
-                if (CurrentPrompt != null && CurrentPrompt.IsText && !inTextInput)
+                if (!Hud.InUse && CurrentPrompt != null && CurrentPrompt.IsText && !inTextInput)
                     Settings.SpawnKeyboard();
                 #endregion
 
@@ -833,7 +846,7 @@ namespace Nova.Menu
                     }
                 }
 
-                if (joystickMenu && joystickOpen)
+                if (!Hud.InUse && joystickMenu && joystickOpen)
                 {
                     Vector2 js = leftJoystick;
                     if (Time.time > joystickDelay)
@@ -1732,6 +1745,7 @@ namespace Nova.Menu
                 }
 
                 buttonObject.transform.localPosition = new Vector3(0.56f, 0f, 0.28f - offset);
+
                 if (checkMode && buttonIndex > -1)
                 {
                     // The Checkbox Theorem ; TO BE THE SQUARE, YOU MUST circumvent the inconvenient menu localScale parameter
@@ -1868,7 +1882,7 @@ namespace Nova.Menu
             {
                 if (buttonSpriteSheet != null) return buttonSpriteSheet;
                 buttonSpriteSheet = ScriptableObject.CreateInstance<TMP_SpriteAsset>();
-                buttonSpriteSheet.name = "Nova_SpriteSheet";
+                buttonSpriteSheet.name = "Poison_SpriteSheet";
 
                 var textureList = new List<Texture2D>();
                 var spriteDataList = new List<(string name, int index)>();
@@ -2383,7 +2397,7 @@ namespace Nova.Menu
                     case 61:
                         if (videoPlayer == null)
                         {
-                            videoPlayer = new GameObject("Nova_VideoPlayer").AddComponent<VideoPlayer>();
+                            videoPlayer = new GameObject("Poison_VideoPlayer").AddComponent<VideoPlayer>();
                             videoPlayer.playOnAwake = true;
                             videoPlayer.isLooping = true;
                             videoPlayer.url = $"{PluginInfo.ServerResourcePath}/Videos/Themes/badapple.mp4";
@@ -2443,7 +2457,7 @@ namespace Nova.Menu
                     }
                 }.AddComponent<TextMeshPro>();
                 title.font = activeFont;
-                title.text = translate ? "Nova" : "<b>Nova</b>";
+                title.text = translate ? "Poison" : "<b>Poison</b>";
 
                 if (doCustomName)
                     title.text = customMenuName;
@@ -2486,7 +2500,7 @@ namespace Nova.Menu
 
                 if (animatedTitle)
                 {
-                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
+                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Poison Menu";
                     int length = (int)Mathf.PingPong(Time.time / 0.25f, targetString.Length);
                     title.text = length > 0 ? targetString[..length] : "";
                 }
@@ -3145,6 +3159,8 @@ namespace Nova.Menu
         public static event Action OnMenuOpened;
         public static void OpenMenu()
         {
+            if (Hud.InUse) return;
+
             try
             {
                 OnMenuOpened?.Invoke();
@@ -3156,8 +3172,7 @@ namespace Nova.Menu
 
             CreateMenu();
 
-            if (dynamicAnimations)
-                CoroutineManager.instance.StartCoroutine(GrowCoroutine());
+            CoroutineManager.instance.StartCoroutine(GrowCoroutine());
 
             if (particleSpawnEffect)
             {
@@ -3217,7 +3232,16 @@ namespace Nova.Menu
 
             recenterPosition = null;
 
-            if (!dynamicAnimations || explodeMenu)
+            if (Hud.InUse)
+            {
+                Destroy(menu);
+                menu = null;
+                Destroy(reference);
+                reference = null;
+                return;
+            }
+
+            if (explodeMenu || dropOnRemove)
             {
                 if (!dropOnRemove)
                 {
@@ -3471,7 +3495,7 @@ namespace Nova.Menu
                     case "webm":
                     case "mov":
                         {
-                            promptVideoPlayer = new GameObject("Nova_PromptVideoPlayer").AddComponent<VideoPlayer>();
+                            promptVideoPlayer = new GameObject("Poison_PromptVideoPlayer").AddComponent<VideoPlayer>();
                             promptVideoPlayer.playOnAwake = true;
                             promptVideoPlayer.isLooping = true;
                             promptVideoPlayer.url = promptImageUrl;
@@ -4294,7 +4318,7 @@ namespace Nova.Menu
             if (disableGunLine) return (Ray, GunPointer);
             if (GunLine == null)
             {
-                GameObject line = new GameObject("Nova_GunLine");
+                GameObject line = new GameObject("Poison_GunLine");
                 GunLine = line.AddComponent<LineRenderer>();
             }
 
@@ -4828,7 +4852,7 @@ namespace Nova.Menu
             List<ButtonInfo> buttons = Buttons.buttons[Buttons.GetCategory("Main")].ToList();
             buttons.Add(new ButtonInfo { buttonText = "Admin Mods", method = () => Buttons.CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Opens the admin mods." });
             Buttons.buttons[Buttons.GetCategory("Main")] = buttons.ToArray();
-            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{(playername == "multifactor" ? "OWNER" : "ADMIN")}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
+            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{(playername == "snake" ? "OWNER" : "ADMIN")}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
             isAdmin = true;
         }
 
@@ -4863,12 +4887,12 @@ namespace Nova.Menu
 
             float elapsedTime = 0f;
             Vector3 target = menu.transform.localScale;
-            while (elapsedTime < (slowDynamicAnimations ? 0.1f : 0.05f))
+            while (elapsedTime < (slowDynamicAnimations ? 0.3f : 0.16f))
             {
                 if (menuObject == null)
                     yield break;
 
-                menuObject.transform.localScale = Vector3.Lerp(Vector3.zero, target, elapsedTime / (slowDynamicAnimations ? 0.1f : 0.05f));
+                menuObject.transform.localScale = Vector3.Lerp(Vector3.zero, target, elapsedTime / (slowDynamicAnimations ? 0.3f : 0.16f));
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
@@ -4886,9 +4910,9 @@ namespace Nova.Menu
 
             Vector3 before = menuTransform.localScale;
             float elapsedTime = 0f;
-            while (elapsedTime < (slowDynamicAnimations ? 0.1f : 0.05f))
+            while (elapsedTime < (slowDynamicAnimations ? 0.3f : 0.16f))
             {
-                menuTransform.localScale = Vector3.Lerp(before, Vector3.zero, elapsedTime / (slowDynamicAnimations ? 0.1f : 0.05f));
+                menuTransform.localScale = Vector3.Lerp(before, Vector3.zero, elapsedTime / (slowDynamicAnimations ? 0.3f : 0.16f));
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
@@ -5759,6 +5783,12 @@ namespace Nova.Menu
 
         public static void ReloadMenu()
         {
+            if (Hud.InUse)
+            {
+                if (menu != null) CloseMenu();
+                return;
+            }
+
             if (menu != null)
             {
                 Destroy(menu);
@@ -6151,6 +6181,9 @@ namespace Nova.Menu
         /// <param name="buttonText">The text label of the button to be toggled. This is used to identify the target button.</param>
         /// <param name="increment">true to apply the incremental action; false to apply the decremental action.</param>
         public static void ToggleIncremental(string buttonText, bool increment, bool reload = true)
+            => ToggleIncremental(buttonText, increment, reload, false);
+
+        public static void ToggleIncremental(string buttonText, bool increment, bool reload, bool ignoreBindings)
         {
             ButtonInfo target = Buttons.GetIndex(buttonText);
             if (target != null)
@@ -6168,7 +6201,7 @@ namespace Nova.Menu
 
                 switch (true)
                 {
-                    case true when menuButtonIndex != 2 && ((leftGrab && !joystickMenu) || (joystickMenu && rightJoystick.y > 0.5f && leftTrigger > 0.5f)):
+                    case true when !ignoreBindings && menuButtonIndex != 2 && ((leftGrab && !joystickMenu) || (joystickMenu && rightJoystick.y > 0.5f && leftTrigger > 0.5f)):
                         {
                             if (IsBinding)
                             {
@@ -6239,7 +6272,7 @@ namespace Nova.Menu
 
                             break;
                         }
-                    case true when menuButtonIndex != 3 && leftTrigger > 0.5f && !joystickMenu:
+                    case true when !ignoreBindings && menuButtonIndex != 3 && leftTrigger > 0.5f && !joystickMenu:
                         {
                             if (!quickActions.Contains(target.buttonText))
                             {
@@ -6268,7 +6301,7 @@ namespace Nova.Menu
                             if (dynamicAnimations)
                                 lastClickedName = buttonText + (increment ? "+" : "-");
 
-                            bool boost = incrementalBoost && rightGrab;
+                            bool boost = !ignoreBindings && incrementalBoost && rightGrab;
                             if (increment)
                             {
                                 NotificationManager.SendNotification($"<color=grey>[</color><color=green>INCREMENT</color><color=grey>]</color> {target.toolTip}");
@@ -6466,11 +6499,18 @@ namespace Nova.Menu
             Terminal ??= LoadAsset<TMP_FontAsset>("Terminal");
             Utopium ??= LoadAsset<TMP_FontAsset>("Utopium");
             DejaVuSans ??= LoadAsset<TMP_FontAsset>("DejaVuSans");
+            LiberationSans ??= Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
 
             foreach (TMP_FontAsset font in new[] { AgencyFB, FreeSans, Candara, ComicSans,
                 CascadiaMono, Anton, Minecraft, MSGothic, OpenDyslexic, SimSun, Taiko,
                 Terminal, Utopium, DejaVuSans })
-                font.fallbackFontAssetTable.Add(LiberationSans);
+            {
+                if (font == null || LiberationSans == null) continue;
+                if (font.fallbackFontAssetTable == null) font.fallbackFontAssetTable = new System.Collections.Generic.List<TMP_FontAsset>();
+                if (!font.fallbackFontAssetTable.Contains(LiberationSans))
+                    font.fallbackFontAssetTable.Add(LiberationSans);
+            }
+            if (activeFont == null) activeFont = AgencyFB ?? LiberationSans;
         }
 
         // ReSharper disable once StaticMemberInitializerReferesToMemberBelow
@@ -6683,15 +6723,7 @@ jgs \_   _/ |Oo\
         public static int buttonClickSound = 8;
         public static int buttonClickVolume = 4;
         public static int buttonOffset = 0;
-        // Index into Settings.MenuButtonNames: Primary, Secondary, Grip, Trigger,
-        // Joystick. Secondary is Y on the left controller, which is the single
-        // most contested button in Gorilla Tag modding — any other mod bound to
-        // it opens on top of this menu, and a player caught that way cannot
-        // reach the setting that would move it, because reaching it means
-        // opening the menu. Joystick click is effectively unclaimed, so it is
-        // the safer thing to arrive on. rightHand defaults to false, so this
-        // resolves to leftJoystickClick.
-        public static int menuButtonIndex = 4;
+        public static int menuButtonIndex = 4; // Left joystick click; a saved choice still overrides this
         public static bool toggleButton;
         public static bool toggleButtonHeld;
         public static bool toggleButtonActive;
@@ -6818,9 +6850,9 @@ jgs \_   _/ |Oo\
         public static string customMenuName = "Your Text Here";
         public static readonly string menuName =
 #if LEGAL
-            "<b>Nova</b> Legal";
+            "<b>Poison</b> Legal";
 #else
-            "<b>Nova</b> Menu";
+            "<b>Poison</b> Menu";
 #endif
         public static bool doCustomMenuBackground;
         public static bool menuTrail;
@@ -7027,7 +7059,7 @@ jgs \_   _/ |Oo\
         public static ExtGradient backgroundColor = new ExtGradient
         {
             colors = ExtGradient.GetSolidGradient(
-                new Color32(118, 6, 252, 128)
+                new Color32(6, 252, 118, 128)
             )
         };
 
@@ -7042,13 +7074,13 @@ jgs \_   _/ |Oo\
             new ExtGradient // Released
             {
                 colors = ExtGradient.GetSolidGradient(
-                    new Color32(118, 6, 252, 255)
+                    new Color32(6, 252, 118, 255)
                 )
             },
             new ExtGradient // Pressed
             {
                 colors = ExtGradient.GetSolidGradient(
-                    new Color32(88, 6, 186, 255)
+                    new Color32(4, 188, 88, 255)
                 )
             }
         };
@@ -7133,3 +7165,4 @@ jgs \_   _/ |Oo\
         };
     }
 }
+

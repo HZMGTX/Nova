@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Mods/Presets.cs
+ * Poison Menu  Mods/Presets.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,12 +19,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Nova.Managers;
+using Poison.Managers;
 using System;
 using System.IO;
-using static Nova.Menu.Main;
+using static Poison.Menu.Main;
 
-namespace Nova.Mods
+namespace Poison.Mods
 {
     public static class Presets
     {
@@ -53,9 +50,9 @@ namespace Nova.Mods
             pageButtonType = 1;
             fontCycle = -1;
 
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -147,9 +144,9 @@ namespace Nova.Mods
             pageButtonType = 1;
             fontCycle = 0;
 
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -175,9 +172,9 @@ namespace Nova.Mods
             pageButtonType = 1;
             fontCycle = 0;
 
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
 
             Settings.Panic();
 
@@ -197,7 +194,7 @@ namespace Nova.Mods
             };
 
             pageButtonType = 2;
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            Poison.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
 
             foreach (string mod in presetMods)
                 Toggle(mod);

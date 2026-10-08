@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Bootstrapper.cs
+ * Poison Menu  Bootstrapper.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,17 +18,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-using Nova.Classes.Menu;
-using Nova.Managers;
-using Nova.Menu;
-using Nova.Patches;
-using Nova.Patches.Menu;
+using Poison.Classes.Menu;
+using Poison.Managers;
+using Poison.Menu;
+using Poison.Patches;
+using Poison.Patches.Menu;
 using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-namespace Nova
+
+namespace Poison
 {
     internal static class Bootstrapper
     {
@@ -67,27 +65,28 @@ namespace Nova
                     Directory.CreateDirectory(target);
             }
             PatchHandler.PatchAll(true);
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt"))
+            if (File.Exists($"{PluginInfo.BaseDirectory}/Poison_Preferences.txt"))
             {
-                if (File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt")[0]
+                if (File.ReadAllLines($"{PluginInfo.BaseDirectory}/Poison_Preferences.txt")[0]
                     .Split(";;")
                     .Contains("Accept TOS"))
                 {
                     TOSPatches.enabled = true;
                 }
             }
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Nova_DisableTelemetry.txt"))
+            if (File.Exists($"{PluginInfo.BaseDirectory}/Poison_DisableTelemetry.txt"))
                 ServerData.DisableTelemetry = true;
             GorillaTagger.OnPlayerSpawned(LoadMenu);
         }
         private static void LoadMenu()
         {
             PatchHandler.PatchAll();
-            Loader = new GameObject("Nova_Loader");
+            Loader = new GameObject("Poison_Loader");
             CoroutineManager coroutineManager = Loader.AddComponent<CoroutineManager>();
             Loader.AddComponent<NotificationManager>();
             Loader.AddComponent<CustomBoardManager>();
             Loader.AddComponent<UI>();
+            Loader.AddComponent<Hud>();
             UnityEngine.Object.DontDestroyOnLoad(Loader);
             coroutineManager.StartCoroutine(PatchIntegrityLoop());
         }

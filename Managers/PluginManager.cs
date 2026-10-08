@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Managers/PluginManager.cs
+ * Poison Menu  Managers/PluginManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,8 +19,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Nova.Classes.Menu;
-using Nova.Menu;
+using Poison.Classes.Menu;
+using Poison.Menu;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -31,10 +28,11 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using static Nova.Menu.Main;
-using static Nova.Utilities.FileUtilities;
+using UnityEngine;
+using static Poison.Menu.Main;
+using static Poison.Utilities.FileUtilities;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class PluginManager
     {
@@ -211,14 +209,23 @@ namespace Nova.Managers
             }
         }
 
-        public static void ExecuteOnGUI()
+        public static void ExecuteOnGUI(Event pad)
         {
             foreach (Plugin plugin in Plugins.Where(plugin => plugin.Enabled))
             {
                 try
                 {
                     foreach (MethodInfo method in ResolveHooks(plugin.Assembly).OnGUI)
-                        method.Invoke(null, null);
+                    {
+                        if (pad == null) { method.Invoke(null, null); continue; }
+                        Event original = Event.current;
+                        try
+                        {
+                            Event.current = pad;
+                            method.Invoke(null, null);
+                        }
+                        finally { Event.current = original; }
+                    }
                 }
                 catch (Exception e) { LogManager.Log("Error with OnGUI() with plugin " + plugin.Name + ": " + e); }
             }

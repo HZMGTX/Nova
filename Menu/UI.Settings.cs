@@ -6,7 +6,7 @@ using UnityEngine;
 
 
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
     public partial class UI
     {

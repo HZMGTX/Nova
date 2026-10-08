@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Mods/Detected.cs
+﻿/*
+ * Poison Menu  Mods/Detected.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,18 +24,18 @@ using GorillaGameModes;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Menu;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.RigUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.RigUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 
-namespace Nova.Mods
+namespace Poison.Mods
 {
     public static class Detected
     {
@@ -47,7 +44,7 @@ namespace Nova.Mods
             if (!allowDetected)
             {
                 LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/danger.ogg", "Audio/Menu/danger.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
-                Prompt("The mods in this category are detected. <b>Unless you know what you're doing, you will get banned.</b> Are you sure you would like to continue?",
+                Prompt("The mods in this category are DETECTED. <b>Unless you know what you're doing, you will get banned, even in private codes. </b> Are you sure you would like to continue?",
                     () =>
                     {
                         allowDetected = true; Buttons.CurrentCategoryName = "Detected Mods";
@@ -804,7 +801,7 @@ namespace Nova.Mods
 
         }
 
-        public static string name = "NOVA";
+        public static string name = "Poison";
 
         public static void PromptNameChange() =>
             Prompt("Would you like to set a name?", () => PromptSingleText("Please enter the name you'd like to use:", () => name = keyboardInput, "Done"));

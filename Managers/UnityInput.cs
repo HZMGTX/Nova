@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Managers/UnityInput.cs
+﻿/*
+ * Poison Menu  Managers/UnityInput.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,29 +22,29 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     internal static class UnityInput
     {
         // Keyboard (KeyCode)
-        internal static bool GetKey(Key key) => Keyboard.current[key].isPressed;
-        internal static bool GetKeyDown(Key key) => Keyboard.current[key].wasPressedThisFrame;
-        internal static bool GetKeyUp(Key key) => Keyboard.current[key].wasReleasedThisFrame;
+        internal static bool GetKey(Key key) => !Menu.UI.IsTyping && Keyboard.current?[key].isPressed == true;
+        internal static bool GetKeyDown(Key key) => !Menu.UI.IsTyping && Keyboard.current?[key].wasPressedThisFrame == true;
+        internal static bool GetKeyUp(Key key) => !Menu.UI.IsTyping && Keyboard.current?[key].wasReleasedThisFrame == true;
 
         // Keyboard (string key names)
-        internal static bool GetKey(string keyName) => Input.GetKey(keyName);
-        internal static bool GetKeyDown(string keyName) => Input.GetKeyDown(keyName);
-        internal static bool GetKeyUp(string keyName) => Input.GetKeyUp(keyName);
+        internal static bool GetKey(string keyName) => !Menu.UI.IsTyping && Input.GetKey(keyName);
+        internal static bool GetKeyDown(string keyName) => !Menu.UI.IsTyping && Input.GetKeyDown(keyName);
+        internal static bool GetKeyUp(string keyName) => !Menu.UI.IsTyping && Input.GetKeyUp(keyName);
 
         // Mouse
         internal static Vector3 mousePosition => Input.mousePosition;
 
-        internal static bool GetMouseButton(int button) => Input.GetMouseButton(button);
+        internal static bool GetMouseButton(int button) => !Menu.UI.HasMouse && Input.GetMouseButton(button);
 
-        internal static bool GetMouseButtonDown(int button) => Input.GetMouseButtonDown(button);
+        internal static bool GetMouseButtonDown(int button) => !Menu.UI.HasMouse && Input.GetMouseButtonDown(button);
 
-        internal static bool GetMouseButtonUp(int button) => Input.GetMouseButtonUp(button);
+        internal static bool GetMouseButtonUp(int button) => !Menu.UI.HasMouse && Input.GetMouseButtonUp(button);
 
-        internal static Vector2 MouseScrollDelta => Input.mouseScrollDelta;
+        internal static Vector2 MouseScrollDelta => Menu.UI.HasMouse ? Vector2.zero : Input.mouseScrollDelta;
     }
 }

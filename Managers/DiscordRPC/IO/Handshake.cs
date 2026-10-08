@@ -1,6 +1,6 @@
-using Valve.Newtonsoft.Json;
+﻿using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC.IO
+namespace Poison.Managers.DiscordRPC.IO
 {
     internal class Handshake
     {

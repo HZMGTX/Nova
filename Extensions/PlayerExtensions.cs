@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Extensions/PlayerExtensions.cs
+﻿/*
+ * Poison Menu  Extensions/PlayerExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,11 +23,11 @@ using ExitGames.Client.Photon;
 using GorillaLocomotion;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Utilities;
+using Poison.Utilities;
 using System.Linq;
 using UnityEngine;
 
-namespace Nova.Extensions
+namespace Poison.Extensions
 {
     public static class PlayerExtensions
     {

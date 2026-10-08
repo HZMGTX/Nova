@@ -1,7 +1,7 @@
-using Valve.Newtonsoft.Json;
+﻿using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
 
-namespace Nova.Managers.DiscordRPC.RPC.Payload
+namespace Poison.Managers.DiscordRPC.RPC.Payload
 {
     /// <summary>
     /// The payload that is sent by the client to discord for events such as setting the rich presence.

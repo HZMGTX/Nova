@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC
+namespace Poison.Managers.DiscordRPC
 {
     /// <summary>
     /// Structure representing the start and endtimes of a match.

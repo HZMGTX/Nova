@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Menu/Buttons.cs
+ * Poison Menu  Menu/Buttons.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,13 +24,13 @@ using GorillaNetworking;
 using GorillaTagScripts;
 using GorillaTagScripts.ObstacleCourse;
 using Photon.Pun;
-using Nova.Classes.Menu;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Mods;
-using Nova.Patches.Menu;
-using Nova.Patches.Safety;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Mods;
+using Poison.Patches.Menu;
+using Poison.Patches.Safety;
+using Poison.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,13 +38,13 @@ using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using static Nova.Menu.Main;
-using static Nova.Utilities.RandomUtilities;
-using static Nova.Utilities.RigUtilities;
-using Console = Nova.Classes.Menu.Console;
+using static Poison.Menu.Main;
+using static Poison.Utilities.RandomUtilities;
+using static Poison.Utilities.RigUtilities;
+using Console = Poison.Classes.Menu.Console;
 using Random = UnityEngine.Random;
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
     public static class Buttons
     {
@@ -55,7 +52,7 @@ namespace Nova.Menu
         {
             new[] { // Main [0]
 
-                new ButtonInfo { buttonText = "Join Discord", method = Important.JoinDiscord, isTogglable = false, toolTip = "Invites you to join the <b>Nova</b> Discord server.", legal = true},
+                new ButtonInfo { buttonText = "Join Discord", method = Important.JoinDiscord, isTogglable = false, toolTip = "Invites you to join the <b>Poison</b> Discord server.", legal = true},
 
                 new ButtonInfo { buttonText = "Settings", method =() => CurrentCategoryName = "Settings", isTogglable = false, toolTip = "Opens the settings tab.", legal = true},
                 new ButtonInfo { buttonText = "Friends", method =() => CurrentCategoryName = "Friends", isTogglable = false, toolTip = "Opens the friends tab.", legal = true},
@@ -111,6 +108,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Both Hands", enableMethod =() => bothHands = true, disableMethod =() => bothHands = false, toolTip = "Puts the menu on your both of your hands.", legal = true},
 
                 new ButtonInfo { buttonText = "One Handed Menu", enableMethod =() => oneHand = true, disableMethod =() => oneHand = false, toolTip = "Makes the menu open in front of you, so you can use it with one hand.", legal = true},
+                new ButtonInfo { buttonText = "ClickUI", enableMethod =() => Hud.SetEnabled(true), disableMethod =() => Hud.SetEnabled(false), toolTip = "Replaces the menu on PC and VR. Use Q, your mouse, and keyboard on PC. In VR, use your menu button, point and release trigger to select, and use the stick to scroll.", legal = true},
                 new ButtonInfo { buttonText = "Joystick Menu", enableMethod =() => joystickMenu = true, disableMethod = Settings.JoystickMenuOff, toolTip = "Makes the menu into something like Colossal, click your joysticks to open, joysticks to move between mods and pages, and click your left joystick to toggle a mod.", legal = true},
                 new ButtonInfo { buttonText = "Physical Menu", enableMethod = Settings.PhysicalMenuOn, disableMethod = Settings.PhysicalMenuOff, toolTip = "Freezes the menu in world space.", legal = true},
                 new ButtonInfo { buttonText = "Bark Menu", enableMethod =() => barkMenu = true, disableMethod =() => barkMenu = false, toolTip = "Allows you to spawn the menu similar to bark by banging on your chest.", legal = true},
@@ -142,7 +140,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Menu Collisions", enableMethod =() => menuCollisions = true, disableMethod =() => menuCollisions = false, toolTip = "Gives the menu collisions when dropping it.", legal = true},
                 new ButtonInfo { buttonText = "Player Scale Menu", enableMethod =() => scaleWithPlayer = true, disableMethod =() => scaleWithPlayer = false, toolTip = "Scales the menu with your player scale.", legal = true},
                 new ButtonInfo { buttonText = "Alphabetize Menu", toolTip = "Alphabetizes the entire menu.", legal = true},
-                new ButtonInfo { buttonText = "Custom Menu Name", enableMethod = Settings.CustomMenuName, disableMethod =() => doCustomName = false, toolTip = $"Changes the name of the menu to whatever. You can change the text inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt).", legal = true},
+                new ButtonInfo { buttonText = "Custom Menu Name", enableMethod = Settings.CustomMenuName, disableMethod =() => doCustomName = false, toolTip = $"Changes the name of the menu to whatever. You can change the text inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt).", legal = true},
                 new ButtonInfo { buttonText = "Menu Trail", enableMethod =() => menuTrail = true, disableMethod =() => menuTrail = false, toolTip = "Gives the menu a trail when you drop.", legal = true},
 
                 new ButtonInfo { buttonText = "Dynamic Animations", enableMethod =() => dynamicAnimations = true, disableMethod =() => dynamicAnimations = false, toolTip = "Adds more animations to the menu, giving you a better sense of control.", legal = true},
@@ -202,7 +200,7 @@ namespace Nova.Menu
                 ButtonHelper.CreateNumeric("Change Arrow Type", 0, arrowTypes.Length - 1, arrowType, Settings.ApplyArrowType, toolTip: "Changes the type of arrows on the page buttons.", legal: true),
                 ButtonHelper.CreateNumeric("Change Font Type", 0, 14, fontCycle, Settings.ApplyFontType, toolTip: "Changes the type of font.", legal: true),
                 new ButtonInfo { buttonText = "Rapid Font Changer", method = Settings.ChangeFontRapid, toolTip = "Changes the type of font every menu refresh.", legal = true},
-                new ButtonInfo { buttonText = "Custom Font Type", enableMethod = Settings.CustomFontType, method = Settings.PersistCustomFont, disableMethod = Settings.DisableCustomFont, toolTip = $"Changes the font type on the menu to a custom font. You can change the photo inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Nova_CustomWatermark.txt).", legal = true},
+                new ButtonInfo { buttonText = "Custom Font Type", enableMethod = Settings.CustomFontType, method = Settings.PersistCustomFont, disableMethod = Settings.DisableCustomFont, toolTip = $"Changes the font type on the menu to a custom font. You can change the photo inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Poison_CustomWatermark.txt).", legal = true},
                 ButtonHelper.CreateNumeric("Change Font Style Type", 0, 3, Settings.fontStyleType, Settings.ApplyFontStyleType, toolTip: "Changes the style of the font.", legal: true),
                 ButtonHelper.Create("Change Input Text Color", () => Settings.InputColorNames, Settings.inputTextColorInt, Settings.ApplyInputTextColor, "Changes the color of the input indicator next to the buttons.", legal: true),
                 new ButtonInfo { buttonText = "Vibrant Text Colors", enableMethod =() => vibrantColors = true, disableMethod =() => vibrantColors = false, toolTip = "Makes certain green and purple colors more vibrant.", legal = true},
@@ -264,10 +262,10 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "No Prefix Narration", enableMethod =() => NotificationManager.noPrefix = true, disableMethod =() => NotificationManager.noPrefix = false, toolTip = "Stops the prefix on notifications from narrating itself.", legal = true},
                 new ButtonInfo { buttonText = "Hide Notification Brackets", enableMethod =() => hideBrackets = true, disableMethod =() => hideBrackets = false, toolTip = "Hides brackets on all notifications.", legal = true},
 
-                new ButtonInfo { buttonText = "Conduct Notifications", enableMethod =() => { GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/CodeOfConductHeadingText").GetComponent<TextMeshPro>().text = "Nova Menu"; GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().richText = true; }, method =() => GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().text = NotificationManager.notificationText.text, toolTip = "Shows notifications on the code of conduct instead.", legal = true},
+                new ButtonInfo { buttonText = "Conduct Notifications", enableMethod =() => { GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/CodeOfConductHeadingText").GetComponent<TextMeshPro>().text = "Poison Menu"; GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().richText = true; }, method =() => GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().text = NotificationManager.notificationText.text, toolTip = "Shows notifications on the code of conduct instead.", legal = true},
                 new ButtonInfo { buttonText = "Disable Notification Rich Text", enableMethod =() => NotificationManager.noRichText = true, disableMethod =() => NotificationManager.noRichText = false, toolTip = "Removes rich text from notifications.", legal = true},
 
-                new ButtonInfo { buttonText = "Disable RPC Protection", enableMethod =() => Nova.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = false, disableMethod =() => Nova.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = true, toolTip = "Disables the client-side protection limiting you to sending 500 RPCs a second.", legal = true},
+                new ButtonInfo { buttonText = "Disable RPC Protection", enableMethod =() => Poison.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = false, disableMethod =() => Poison.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = true, toolTip = "Disables the client-side protection limiting you to sending 500 RPCs a second.", legal = true},
                 new ButtonInfo { buttonText = "Disable Notifications", enableMethod =() => disableNotifications = true, disableMethod =() => disableNotifications = false, toolTip = "Disables all notifications.", legal = true},
                 new ButtonInfo { buttonText = "Disable Master Client Notifications", enableMethod =() => disableMasterClientNotifications = true, disableMethod =() => disableMasterClientNotifications = false, toolTip = "Disables all notifications regarding master client.", legal = true},
                 new ButtonInfo { buttonText = "Disable Room Notifications", enableMethod =() => disableRoomNotifications = true, disableMethod =() => disableRoomNotifications = false, toolTip = "Disables all notifications regarding the room.", legal = true},
@@ -315,6 +313,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Backup Preferences", enableMethod =() => backupPreferences = true, disableMethod =() => backupPreferences = false, toolTip = "Automatically saves a copy of your preferences every minute.", legal = true},
                 new ButtonInfo { buttonText = "Save Preferences", method = Preferences.Save, isTogglable = false, toolTip = "Saves your preferences to a file.", legal = true},
                 new ButtonInfo { buttonText = "Load Preferences", method = Preferences.Load, isTogglable = false, toolTip = "Loads your preferences from a file.", legal = true},
+                new ButtonInfo { buttonText = "Import Seralyth Settings", aliases = new[] { "Import Untitled", "Import Seralyth" }, method = Preferences.ImportSeralyth, isTogglable = false, toolTip = "Copies your enabled mods and UI settings from SeralythMenu (Untitled) in your Gorilla Tag folder.", legal = true},
                 new ButtonInfo { buttonText = "Disable Autosave", enableMethod = () => Preferences.DisableAutoSave = true, disableMethod = () => Preferences.DisableAutoSave = false, toolTip = "Disables the auto save mechanism.", legal = true},
                 new ButtonInfo { buttonText = "Panic", method = Settings.Panic, isTogglable = false, toolTip = "Disables every single active mod.", legal = true},
             },
@@ -440,7 +439,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Create Private", method =() => Important.CreateRoom(Important.RandomRoomName(), false), isTogglable = false, toolTip = "Creates a private room.", legal = true},
 
                 new ButtonInfo { buttonText = "Fast Disconnect", method =() => SinglePlayerPatch.enabled = true, disableMethod =() =>  SinglePlayerPatch.enabled = false, toolTip = "Uses the fastest method of disconnecting possible.", legal = true},
-                new ButtonInfo { buttonText = "Join Menu Room", method =() => PhotonNetworkController.Instance.AttemptToJoinSpecificRoom($"<$NOVA_{PluginInfo.Version}>", JoinType.Solo), isTogglable = false, toolTip = "Connects you to a room that is exclusive to <b>Nova Menu</b> users.", legal = true},
+                new ButtonInfo { buttonText = "Join Menu Room", method =() => PhotonNetworkController.Instance.AttemptToJoinSpecificRoom($"<$Poison_{PluginInfo.Version}>", JoinType.Solo), isTogglable = false, toolTip = "Connects you to a room that is exclusive to <b>Poison Menu</b> users.", legal = true},
 
                 new ButtonInfo { buttonText = "Bypass Join Room Type", enableMethod =() => JoinedRoomPatch.enabled = true, disableMethod =() => JoinedRoomPatch.enabled = false, toolTip = "Bypasses the immediate disconnection when trying to join a room that is in another map."},
 
@@ -489,7 +488,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Restart Gorilla Tag", aliases = new[] { "Restart Game", "Restart App" }, method = () => Prompt("Are you sure you want to restart Gorilla Tag?", Important.RestartGame), isTogglable = false, toolTip = "Restarts Gorilla Tag.", legal = true},
                 new ButtonInfo { buttonText = "Open Gorilla Tag Folder", method = Important.OpenGorillaTagFolder, isTogglable = false, toolTip = "Opens the folder in which your game is located.", legal = true},
 
-                new ButtonInfo { buttonText = "Discord RPC", aliases = new[] { "Self Tracker" }, method = Important.DiscordRPC, disableMethod = Important.DisableDiscordRPC, toolTip = "Gives you a indicator on Discord that you are using Nova Menu.", legal = true},
+                new ButtonInfo { buttonText = "Discord RPC", aliases = new[] { "Self Tracker" }, method = Important.DiscordRPC, disableMethod = Important.DisableDiscordRPC, toolTip = "Gives you a indicator on Discord that you are using Poison Menu.", legal = true},
                 new ButtonInfo { buttonText = "Media Integration", aliases = new[] { "Spotify" }, enableMethod = Important.EnsureIntegrationProgram, method = Important.MediaIntegration, disableMethod = Important.DisableMediaIntegration, toolTip = "Shows you what media you are watching/listening to in the top left. To switch media, open the menu and use your left joystick.", legal = true},
 
                 new ButtonInfo { buttonText = "Anti Hand Tap", enableMethod =() => HandTapPatch.enabled = true, disableMethod =() => HandTapPatch.enabled = false, toolTip = "Stops all hand tap sounds from being played."},
@@ -571,6 +570,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Flush RPCs", method = RPCProtection, isTogglable = false, toolTip = "Flushes all RPC calls, good after you stop spamming." },
                 new ButtonInfo { buttonText = "Anti Crash", overlapText = "Exploit Guard", aliases = new[] { "Anti Crash" }, enableMethod =() => AntiCrashPatches.enabled = true, disableMethod =() => AntiCrashPatches.enabled = false, toolTip = "Prevents crashers from completely annihilating your computer.", legal = true},
                 new ButtonInfo { buttonText = "Anti Ban Crash", enableMethod =() => BanPatches.AntiBanCrash1.enabled = true, disableMethod =() => BanPatches.AntiBanCrash1.enabled = false, toolTip = "Prevents your game from crashing when you are banned."},
+                // new ButtonInfo { buttonText = "Anti-Mothership Ban", enableMethod =() => NetworkPatch.enabled = true, disableMethod =() => NetworkPatch.enabled = false, toolTip = "Bypasses the mothership authentication failure, so you can still join rooms from a mothership ban."},
                 new ButtonInfo { buttonText = "Anti Kick", enableMethod = Experimental.OnlySerializeNecessary, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Only networks the necessities to prevent getting kicked."},
                 new ButtonInfo { buttonText = "Anti Name Ban", enableMethod =() => BanPatches.enabled = true, method = Safety.AntiNameBan, disableMethod =() => BanPatches.enabled = false, toolTip = "Prevents you from getting banned for setting your name to bad things."},
                 new ButtonInfo { buttonText = "Anti Stump Kick", enableMethod =() => GroupPatch.enabled = true, disableMethod =() => GroupPatch.enabled = false, toolTip = "Stops people from group kicking you.", legal = true},
@@ -842,7 +842,16 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Intercourse All", aliases = new[] { "Sex All" }, enableMethod = Movement.IntercourseAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, with sounds."},
 
                 new ButtonInfo { buttonText = "Head Gun", aliases = new[] { "Blowjob Gun" }, method = Movement.HeadGun, toolTip = "Makes you thrust whoever your hand desires, but lower, with sounds."},
-                new ButtonInfo { buttonText = "Head All", aliases = new[] { "Blowjob All" }, enableMethod = Movement.HeadAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, but lower, with sounds."}
+                new ButtonInfo { buttonText = "Head All", aliases = new[] { "Blowjob All" }, enableMethod = Movement.HeadAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, but lower, with sounds."},
+
+                new ButtonInfo { buttonText = "Double Jump <color=grey>[</color><color=green>B</color><color=grey>]</color>", method = Extras.DoubleJump, toolTip = "Press B in the air for one extra jump, refilled when you land."},
+                new ButtonInfo { buttonText = "Blink Forward <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Extras.BlinkForward, toolTip = "Press A to jump four metres the way you are looking, stopping short of walls."},
+                new ButtonInfo { buttonText = "Ground Pound <color=grey>[</color><color=green>LT</color><color=grey>]</color>", method = Extras.GroundPound, toolTip = "Pull your left trigger in the air to slam straight down."},
+                new ButtonInfo { buttonText = "Super Jump <color=grey>[</color><color=green>Y</color><color=grey>]</color>", method = Extras.SuperJump, toolTip = "Press Y while standing to launch far higher than a normal jump."},
+                new ButtonInfo { buttonText = "Rocket Hands <color=grey>[</color><color=green>RT</color><color=grey>]</color>", method = Extras.RocketHands, toolTip = "Hold your right trigger to be pushed the way your right hand points."},
+                new ButtonInfo { buttonText = "Wall Kick <color=grey>[</color><color=green>X</color><color=grey>]</color>", method = Extras.WallKick, toolTip = "Press X next to a wall to kick off it and upward."},
+                new ButtonInfo { buttonText = "Feather Fall", method = Extras.FeatherFall, toolTip = "Caps how fast you fall, so long drops end gently."},
+                new ButtonInfo { buttonText = "Air Brake <color=grey>[</color><color=green>LT+RT</color><color=grey>]</color>", method = Extras.AirBrake, toolTip = "Hold both triggers to bleed your speed away, down to a hover."}
             },
 
             new[] { // Advantage Mods [10]
@@ -881,9 +890,9 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Slingshot Helper", method = Fun.SlingshotHelper, toolTip = "Helps you grab the small paintball on your slingshot."},
                 new ButtonInfo { buttonText = "Slingshot Trigger Bot", method = Fun.SlingshotTriggerBot, toolTip = "Releases the small paintball on your slingshot when hovering over another player."},
 
-                new ButtonInfo { buttonText = "Paintbrawl Kill Self", method = Advantages.PaintbrawlKillSelf, toolTip = "Kills yourself in paintbrawl." },
-                new ButtonInfo { buttonText = "Paintbrawl Kill Gun", method = Advantages.PaintbrawlKillGun, toolTip = "Kills whoever your hand desires in paintbrawl." },
-                new ButtonInfo { buttonText = "Paintbrawl Kill All", method = Advantages.PaintbrawlKillAll, toolTip = "Kills everyone in the room in paintbrawl." }
+                // new ButtonInfo { buttonText = "Paintbrawl Kill Self", method = Advantages.PaintbrawlKillSelf, toolTip = "Kills yourself in paintbrawl." },
+                // new ButtonInfo { buttonText = "Paintbrawl Kill Gun", method = Advantages.PaintbrawlKillGun, toolTip = "Kills whoever your hand desires in paintbrawl." },
+                // new ButtonInfo { buttonText = "Paintbrawl Kill All", method = Advantages.PaintbrawlKillAll, toolTip = "Kills everyone in the room in paintbrawl." }
 
             },
 
@@ -903,6 +912,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Creature ESP", method = Visuals.CreatureESP, toolTip = "Puts dots on your screen at where all of the creatures are in forest and caves."},
                 new ButtonInfo { buttonText = "Enemy ESP", method = Visuals.EnemyESP, toolTip = "Puts dots on your screen at where all of the cores in the ghost reactor map are."},
                 new ButtonInfo { buttonText = "Resource ESP", method = Visuals.ResourceESP, toolTip = "Puts dots on your screen at where all of the resources are in the Super Infection gamemode."},
+                new ButtonInfo { buttonText = "Lucy ESP", method = Visuals.LucyESP, toolTip = "Puts a dot on your screen at where Lucy is, even when she's hiding underground.", legal = true},
 
                 new ButtonInfo { buttonText = "Enable Snow", aliases = new[] { "Winter" }, enableMethod =() => Visuals.ToggleSnow(true), disableMethod =() => Visuals.ToggleSnow(false), toolTip = "Forcibly enables the snow."},
                 new ButtonInfo { buttonText = "Rainy Weather", aliases = new[] { "Enable Rain" }, method =() => Visuals.WeatherChange(true), toolTip = "Forces the weather to rain."},
@@ -931,6 +941,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Clipboard Overlay", method =() => NotificationManager.information["Clip"] = GUIUtility.systemCopyBuffer.Length > 20 ? GUIUtility.systemCopyBuffer[..20] : GUIUtility.systemCopyBuffer, disableMethod =() => NotificationManager.information.Remove("Clip"), toolTip = "Displays your current clipboard on your screen.", legal = true},
                 new ButtonInfo { buttonText = "Velocity Overlay", method =() => NotificationManager.information["Velocity"] = $"{GorillaTagger.Instance.rigidbody.linearVelocity.magnitude:F1}m/s", disableMethod =() => NotificationManager.information.Remove("Velocity"), toolTip = "Displays your velocity on your screen.", legal = true},
                 new ButtonInfo { buttonText = "Nearby Overlay", method = Visuals.NearbyTaggerOverlay, disableMethod =() => NotificationManager.information.Remove("Nearby"), toolTip = "Displays the distance to the nearest tagger/target on your screen."},
+                new ButtonInfo { buttonText = "Lucy Overlay", method = Visuals.LucyOverlay, disableMethod =() => NotificationManager.information.Remove("Lucy"), toolTip = "Displays Lucy's current state, speed, and target on your screen.", legal = true},
                 new ButtonInfo { buttonText = "Info Overlay Gun", method = Visuals.InfoOverlayGun, toolTip = "Displays an overlay, showing the information of whoever your hand desires."},
 
                 new ButtonInfo { buttonText = "Debug HUD", aliases = new[] { "Developer HUD", "Debug UI", "Developer UI" }, enableMethod = Visuals.EnableDebugHUD, disableMethod = Visuals.DisableDebugHUD, toolTip = "Displays the developer debug HUD."},
@@ -1054,6 +1065,9 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Info Watch Time", enableMethod =() => Visuals.infoWatchTime = true, disableMethod =() => Visuals.infoWatchTime = false, toolTip = "Shows the current time on the Info Watch mod."},
                 new ButtonInfo { buttonText = "Info Watch Clipboard", enableMethod =() => Visuals.infoWatchClip = true, disableMethod =() => Visuals.infoWatchClip = false, toolTip = "Shows your clipboard on the Info Watch mod."},
                 new ButtonInfo { buttonText = "Info Watch Code", enableMethod =() => Visuals.infoWatchCode = true, disableMethod =() => Visuals.infoWatchCode = false, toolTip = "Shows the lobby code on the Info Watch mod."},
+
+                new ButtonInfo { buttonText = "Rainbow Fog", method = Extras.RainbowFog, disableMethod = Extras.DisableFog, toolTip = "Fog that drifts slowly through every colour. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Disco Fog", method = Extras.DiscoFog, disableMethod = Extras.DisableFog, toolTip = "Fog that snaps to a new colour four times a second. Only you see it.", legal = true}
             },
 
             new[] { // Fun Mods [12]
@@ -1064,7 +1078,6 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Upside Down Head", method = Fun.UpsideDownHead, disableMethod = Fun.FixHead, toolTip = "Flips your head upside down on the Z axis."},
                 new ButtonInfo { buttonText = "Backwards Head", method = Fun.BackwardsHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 180 degrees on the Y axis."},
                 new ButtonInfo { buttonText = "Sideways Head", method = Fun.SidewaysHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the Y axis."},
-                new ButtonInfo { buttonText = "Tilted Head", method = Fun.TiltedHead, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the X axis."},
 
                 new ButtonInfo { buttonText = "Broken Neck", method = Fun.BrokenNeck, disableMethod = Fun.FixHead, toolTip = "Rotates your head 90 degrees on the Z axis."},
 
@@ -1072,10 +1085,8 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Flip Hands", aliases = new[] { "Fish Arms" }, method = Fun.FlipHands, toolTip = "Swaps your hands, left is right and right is left."},
                 new ButtonInfo { buttonText = "Loud Hand Taps", method = Fun.LoudHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really loud."},
-                new ButtonInfo { buttonText = "Quiet Hand Taps", method = Fun.QuietHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps barely audible, without muting them entirely."},
                 new ButtonInfo { buttonText = "Silent Hand Taps", aliases = new[] { "No Hand Taps" }, method = Fun.SilentHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet."},
                 new ButtonInfo { buttonText = "Instant Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 0f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Removes the hand tap cooldown."},
-                new ButtonInfo { buttonText = "Slow Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 1f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Makes your hand taps trigger far less often."},
                 new ButtonInfo { buttonText = "Silent Hand Taps on Tag", aliases = new[] { "No Hand Taps on Tag" }, method = Fun.SilentHandTapsOnTag, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet when you're tagged, good for ambush."},
 
                 new ButtonInfo { buttonText = "Water Splash Hands <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.WaterSplashHands, toolTip = "Splashes water when holding <color=green>grip</color>."},
@@ -1086,8 +1097,6 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Orbit Water Splash", method = Fun.OrbitWaterSplash, toolTip = "Splashes water orbitally around you."},
                 new ButtonInfo { buttonText = "Water Splash Gun", method = Fun.WaterSplashGun, toolTip = "Splashes water wherever your hand desires."},
                 new ButtonInfo { buttonText = "Water Splash On Touch", method = Fun.WaterSplashOnTouch, toolTip = "Splashes water whoever your hand touches."},
-
-                new ButtonInfo { buttonText = "Halo", method = Fun.Halo, disableMethod = Fun.DisableHalo, toolTip = "Floats a small glowing halo above your head."},
 
                 new ButtonInfo { buttonText = "Confuse Player Gun", method = Movement.ConfusePlayerGun, toolTip = "Makes whoever your hand desires look like they're going crazy by splashing water on their screen."},
                 new ButtonInfo { buttonText = "Confuse All Players", enableMethod = Movement.ConfuseAllPlayers, method = Movement.ConfuseAllPlayersSplash, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Splashes water on everyone's screens, making them look like they're going crazy."},
@@ -1700,6 +1709,13 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Narrate Creation Date On Touch", method = Fun.NarrateCreationDateOnTouch, toolTip = "Gets the creation date of players you touch accounts and speaks it through your microphone." },
 
                 new ButtonInfo { buttonText = "Grab Player Info", method = Fun.GrabPlayerInfo, isTogglable = false, toolTip = "Saves every player's name, color, and player ID as a text file and opens it." },
+
+                new ButtonInfo { buttonText = "Halo", method = Extras.Halo, disableMethod = Extras.DisableHalo, toolTip = "A soft gold ring floats above your head. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Orbiting Orbs", method = Extras.OrbitingOrbs, disableMethod = Extras.DisableOrbitingOrbs, toolTip = "Three glowing orbs circle your head. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Hand Trails", method = Extras.HandTrails, disableMethod = Extras.DisableHandTrails, toolTip = "Fading streaks follow both hands in your colour. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Pulse Ring", method = Extras.PulseRing, disableMethod = Extras.DisablePulseRing, toolTip = "A ring ripples out from your feet every second. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Headlamp", method = Extras.Headlamp, disableMethod = Extras.DisableHeadlamp, toolTip = "A torch strapped to your head. Only you see the light.", legal = true},
+                new ButtonInfo { buttonText = "Tilted Head", method = Extras.TiltedHead, disableMethod = Extras.DisableTiltedHead, toolTip = "Tips your head on its side, as everyone sees it."}
             },
 
             new[] { // Rebind Settings [13]
@@ -1907,9 +1923,6 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "End Shift", method = Fun.EndShift, isTogglable = false, toolTip = "Ends the current ghost reactor shift."},
                 new ButtonInfo { buttonText = "Set Quota", method = Fun.SetQuota, toolTip = "Meets the quota for you."},
 
-                new ButtonInfo { buttonText = "Virtual Stump Kick Gun", method = Overpowered.VirtualStumpKickGun, toolTip = "Kicks whoever your hand desires in the virtual stump."},
-                new ButtonInfo { buttonText = "Virtual Stump Kick All", method = Overpowered.VirtualStumpKickAll, toolTip = "Kicks everyone in the virtual stump."},
-
                 new ButtonInfo { buttonText = "Virtual Stump Crash Gun", method = Overpowered.MasterVirtualStumpCrashGun, toolTip = "Crashes whoever your hand desires in the virtual stump."},
                 new ButtonInfo { buttonText = "Virtual Stump Crash All", method = Overpowered.MasterVirtualStumpCrashAll, toolTip = "Crashes everyone in the virtual stump."},
 
@@ -2001,14 +2014,6 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Tag Lag Gun", method = Advantages.TagLagGun, toolTip = "Forces tag lag on whoever your hand desires, letting them not be able to tag anyone."},
                 new ButtonInfo { buttonText = "Tag Lag", overlapText = "Tag Lag All", method =() => Advantages.SetTagCooldown(float.MaxValue), disableMethod =() => Advantages.SetTagCooldown(5f), toolTip = "Forces tag lag in the everyone in the room, letting no one get tagged."},
 
-                new ButtonInfo { buttonText = "Unlock Driver", method =() => Overpowered.DriverStatus(false), isTogglable = false, toolTip = "Unlocks the driver in the virtual stump."},
-                new ButtonInfo { buttonText = "Become Driver", method =() => Overpowered.DriverStatus(true), isTogglable = false, toolTip = "Makes you the driver in the virtual stump."},
-                new ButtonInfo { buttonText = "Spaz Driver", method = Overpowered.SpazDriver, isTogglable = true, toolTip = "Spaz makes and unmakes you the driver in the virtual stump."},
-
-                new ButtonInfo { buttonText = "Become Driver Gun", method =() => Overpowered.DriverStatusGun(true), isTogglable = true, toolTip = "Makes whoever your hand desires the driver in the virtual stump."},
-                new ButtonInfo { buttonText = "Unlock Driver Gun", method =() => Overpowered.DriverStatusGun(false), isTogglable = true, toolTip = "Unlocks the driver for whoever your hand desires in the virtual stump."},
-                new ButtonInfo { buttonText = "Spaz Driver Gun", method = Overpowered.SpazDriverStatusGun, isTogglable = true, toolTip = "Spaz makes and unmakes whoever your hand desires the driver in the virtual stump."},
-
                 new ButtonInfo { buttonText = "Bonk Sound Spam <color=grey>[</color><color=green>G</color><color=grey>]</color>", method =() => Sound.BetaSoundSpam(4), toolTip = "Plays the bonk sound when holding <color=green>grip</color>." },
                 new ButtonInfo { buttonText = "Count Sound Spam <color=grey>[</color><color=green>G</color><color=grey>]</color>", method =() => Sound.BetaSoundSpam(1), toolTip = "Plays the count sound when holding <color=green>grip</color>." },
                 new ButtonInfo { buttonText = "Brawl Count Sound Spam <color=grey>[</color><color=green>G</color><color=grey>]</color>", method =() => Sound.BetaSoundSpam(6), toolTip = "Plays the brawl count sound when holding <color=green>grip</color>." },
@@ -2048,6 +2053,34 @@ namespace Nova.Menu
 
             new[] { // Overpowered Mods [17]
                 new ButtonInfo { buttonText = "Exit Overpowered Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
+
+                new ButtonInfo { buttonText = "Spawn Red Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.SpawnRedLucy, isTogglable = false, toolTip = "Summons the red Lucy in forest. Requires master client."},
+                new ButtonInfo { buttonText = "Spawn Blue Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.SpawnBlueLucy, isTogglable = false, toolTip = "Summons the blue Lucy in forest. Requires master client."},
+                new ButtonInfo { buttonText = "Despawn Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.DespawnLucy, isTogglable = false, toolTip = "Sends Lucy back into the ground in forest. Requires master client."},
+
+                new ButtonInfo { buttonText = "Lucy Chase Self <color=grey>[</color><color=red>M</color><color=grey>]</color>", method =() => Overpowered.LucyChase(NetworkSystem.Instance.LocalPlayer), isTogglable = false, toolTip = "Makes Lucy chase you. Requires master client."},
+                new ButtonInfo { buttonText = "Lucy Chase Gun <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.LucyChaseGun, toolTip = "Makes Lucy chase whoever your hand desires. Requires master client."},
+
+                new ButtonInfo { buttonText = "Lucy Attack Self <color=grey>[</color><color=red>M</color><color=grey>]</color>", method =() => Overpowered.LucyAttack(NetworkSystem.Instance.LocalPlayer), isTogglable = false, toolTip = "Makes Lucy grab you. Requires master client."},
+                new ButtonInfo { buttonText = "Lucy Attack Gun <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.LucyAttackGun, toolTip = "Makes Lucy grab whoever your hand desires. Requires master client."},
+                new ButtonInfo { buttonText = "Lucy Attack All <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.LucyAttackAll, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes Lucy grab everyone in the room. Requires master client."},
+
+                new ButtonInfo { buttonText = "Lucy Harass Gun <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.LucyHarassGun, toolTip = "Makes Lucy relentlessly harass whoever your hand desires. Requires master client."},
+                new ButtonInfo { buttonText = "Move Lucy Gun <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.MoveLucyGun, toolTip = "Moves Lucy to wherever your hand desires. Requires master client."},
+
+                new ButtonInfo { buttonText = "Spaz Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.SpazLucy, toolTip = "Gives Lucy a seizure. Requires master client."},
+                new ButtonInfo { buttonText = "Annoying Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.AnnoyingLucy, toolTip = "Makes Lucy really annoying, by attacking everyone and playing the sounds of the bells. Requires master client."},
+
+                new ButtonInfo { buttonText = "Become Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.BecomeLucy, disableMethod = Movement.EnableRig, toolTip = "Turns you into Lucy. Requires master client."},
+
+                new ButtonInfo { buttonText = "Fast Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.FastLucy, toolTip = "Makes Lucy become really fast. Requires master client."},
+                new ButtonInfo { buttonText = "Slow Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", method = Overpowered.SlowLucy, toolTip = "Makes Lucy become really slow. Requires master client."},
+                ButtonHelper.CreateNumeric("Lucy Speed <color=grey>[</color><color=red>M</color><color=grey>]</color>", 1, 30, Overpowered.lucySpeedIndex, Overpowered.ApplyLucySpeed, v => $"{v}m/s", "Sets Lucy's speed to whatever you want. Requires master client."),
+
+                new ButtonInfo { buttonText = "Restless Lucy <color=grey>[</color><color=red>M</color><color=grey>]</color>", enableMethod = Overpowered.RestlessLucy, disableMethod = Overpowered.CalmLucy, toolTip = "Makes Lucy rise way more often, never giving anyone a break. Requires master client."},
+
+                new ButtonInfo { buttonText = "Anti Lucy", enableMethod =() => RisePatch.enabled = true, disableMethod =() => RisePatch.enabled = false, toolTip = "Prevents Lucy from lifting you up when she grabs you.", legal = true},
+                new ButtonInfo { buttonText = "Disable Lucy", enableMethod =() => LucyPatch.enabled = true, disableMethod =() => LucyPatch.enabled = false, toolTip = "Freezes Lucy completely on your client, and stops her AI if you're master client.", legal = true},
 
                 new ButtonInfo { buttonText = "Always Guardian", method = Overpowered.AlwaysGuardian, disableMethod = Movement.EnableRig, toolTip = "Makes you always the guardian."},
                 new ButtonInfo { buttonText = "Guardian Protector", method = Overpowered.GuardianProtector, toolTip = "Pushes people away from the guardian moon if they try to approach it."},
@@ -2282,7 +2315,10 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Exit Admin Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
                 new ButtonInfo { buttonText = "Mod Givers", method =() => CurrentCategoryName = "Mod Givers", isTogglable = false, toolTip = "Opens the mod givers page.", legal = true},
-                new ButtonInfo { buttonText = "Console Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Browse the asset bundles Console hosts and spawn one into the room."},
+                new ButtonInfo { buttonText = "Console Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Browse the asset bundles Console hosts and spawn them into the room.", legal = true},
+                new ButtonInfo { buttonText = "Console Spawn Gun", method = ConsoleAssets.SpawnGun, toolTip = "Hold grip to aim, pull trigger to spawn your last Console asset where you point.", legal = true},
+                new ButtonInfo { buttonText = "Console Move Gun", method = ConsoleAssets.MoveGun, toolTip = "Hold grip to aim, pull trigger to move the selected Console asset where you point.", legal = true},
+                new ButtonInfo { buttonText = "Console Delete Gun", method = ConsoleAssets.DeleteGun, toolTip = "Hold grip to aim, pull trigger to remove the Console asset you point at.", legal = true},
 
                 new ButtonInfo { buttonText = "Get Menu Users", method = Experimental.GetMenuUsers, isTogglable = false, toolTip = "Detects who is using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Auto Get Menu Users", enableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent += Experimental.GetMenuUsers, disableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent -= Experimental.GetMenuUsers, isTogglable = true, toolTip = "Detects who is using the menu on room join.", legal = true},
@@ -2379,9 +2415,6 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Admin Vibrate Gun", method = Experimental.AdminVibrateGun, toolTip = "Vibrate whoever your hand desires if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Vibrate All", method = Experimental.AdminVibrateAll, isTogglable = false, toolTip = "Vibrates everyone using the menu.", legal = true},
 
-                new ButtonInfo { buttonText = "Admin Shake Gun", method = Experimental.AdminShakeGun, toolTip = "Shakes the view of whoever your hand desires if they're using the menu.", legal = true},
-                new ButtonInfo { buttonText = "Admin Shake All", method = Experimental.AdminShakeAll, isTogglable = false, toolTip = "Shakes the view of everyone using the menu.", legal = true},
-
                 new ButtonInfo { buttonText = "Admin Block Gun", method = Experimental.AdminBlockGun, toolTip = "Disables whoever your hand desires from joining servers for 5 minutes if they're using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Admin Announce Block Gun", method =() => Experimental.AdminABlockGun(false), toolTip = "Block gun, but it sends a notification to everyone using the menu that the target was blocked.", legal = true},
                 new ButtonInfo { buttonText = "Silent Announce Block Gun", method =() => Experimental.AdminABlockGun(true), toolTip = "Block gun, but it sends a notification to everyone using the menu that the target was blocked. Hides your name.", legal = true},
@@ -2398,6 +2431,14 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Admin Platform Exclude Gun", method =() => Experimental.AdminPlatToggleGun(true), toolTip = "Puts a player who is included for platform networking to be excluded.", legal = true},
                 new ButtonInfo { buttonText = "Admin Platform Include Gun", method =() => Experimental.AdminPlatToggleGun(false), toolTip = "Puts a player who is excluded for platform networking to be included.", legal = true},
+
+                new ButtonInfo { buttonText = "Admin World Controls", method =() => CurrentCategoryName = "Admin World Controls", isTogglable = false, toolTip = "Change the time, weather and fog for everyone, or send everyone to a map.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake Gun", method = ConsoleAdmin.ShakeGun, toolTip = "Shakes the camera of whoever your hand desires if they're using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake All", method = ConsoleAdmin.ShakeAll, isTogglable = false, toolTip = "Shakes the camera of everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Earthquake All", method = ConsoleAdmin.EarthquakeAll, isTogglable = false, toolTip = "Shakes everyone using Console hard for five seconds.", legal = true},
+                new ButtonInfo { buttonText = "Admin Smooth Bring Gun", method = ConsoleAdmin.SmoothBringGun, toolTip = "Glides whoever your hand desires over to you if they're using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Smooth Bring All", method = ConsoleAdmin.SmoothBringAll, isTogglable = false, toolTip = "Glides everyone using Console over to you.", legal = true},
+                new ButtonInfo { buttonText = "Admin Global Voice", enableMethod = ConsoleAdmin.GlobalVoiceOn, disableMethod = ConsoleAdmin.GlobalVoiceOff, toolTip = "Everyone using Console hears you from anywhere in the map.", legal = true}
             },
 
             new[] { // Enabled Mods [24]
@@ -2408,7 +2449,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Search", method = Settings.Search, isTogglable = false, toolTip = "Lets you search for specific mods.", legal = true},
                 new ButtonInfo { buttonText = "Global Return", method = Settings.GlobalReturn, isTogglable = false, toolTip = "Returns you to the previous category.", legal = true},
                 new ButtonInfo { buttonText = "Info Screen", method = Settings.Debug, enableMethod = Settings.ShowDebug, disableMethod = Settings.HideDebug, toolTip = "Shows game and modding related information.", legal = true},
-                new ButtonInfo { buttonText = "Donate Button", method =() => { NotificationManager.ClearAllNotifications(); acceptedDonations = true; File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt", "true"); Prompt($"If you like this menu and would like to support, you should join our Patreon! ", () => Process.Start("https://patreon.com/Nova")); }, isTogglable = false, toolTip = "An advertisement for Nova's Patreon.", legal = true},
+                new ButtonInfo { buttonText = "Donate Button", method =() => { NotificationManager.ClearAllNotifications(); acceptedDonations = true; File.WriteAllText($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt", "true"); Prompt($"If you like this menu and would like to support, you should join our Patreon! ", () => Process.Start("https://patreon.com/Poison")); }, isTogglable = false, toolTip = "An advertisement for Poison's Patreon.", legal = true},
                 new ButtonInfo { buttonText = "Update Button", method =() => UpdatePrompt(), isTogglable = false, toolTip = "Prompts you to update the menu.", legal = true },
 
                 new ButtonInfo { buttonText = "Accept Prompt", method =() => { NotificationManager.ClearAllNotifications(); if (inTextInput) Settings.DestroyKeyboard(); CurrentPrompt.AcceptAction?.Invoke(); Settings.StopCurrentPrompt(); }, isTogglable = false, legal = true},
@@ -2577,8 +2618,8 @@ namespace Nova.Menu
             new[] { // Credits [38]
                 new ButtonInfo { buttonText = "Exit Credits", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
-                new ButtonInfo { buttonText = "Multifactor", method =() => Process.Start("https://github.com/multifactorrr"), isTogglable = false, toolTip = "Multifactor is the current owner of Nova and Nova Menu, previously a developer of Nova." },
-                new ButtonInfo { buttonText = "Kingofnetflix", isTogglable = false, toolTip = "Kingofnetflix is the creator of <b>Nova (Menu)</b>, and was a developer for ii's <b>Stupid</b> Menu. Quit modding and the modding community August 2026." },
+                new ButtonInfo { buttonText = "Multifactor", method =() => Process.Start("https://github.com/multifactorrr"), isTogglable = false, toolTip = "Multifactor is the current owner of Poison and Poison Menu, previously a developer of Poison." },
+                new ButtonInfo { buttonText = "Kingofnetflix", isTogglable = false, toolTip = "Kingofnetflix is the creator of <b>Poison (Menu)</b>, and was a developer for ii's <b>Stupid</b> Menu. Quit modding and the modding community August 2026." },
                 new ButtonInfo { buttonText = "iiDk", method =() => Process.Start("https://github.com/iiDk-the-actual"), isTogglable = false, toolTip = "iiDk is the creator of ii's <b>Stupid</b> Menu (which this menu is forked from), and was working on it since 2023. He was also the owner of ii's Stupid Mods. Both have shut down ever since 2/24/2026.", legal = true},
                 new ButtonInfo { buttonText = "Twigcore", method =() => Process.Start("https://github.com/Twigcore"), isTogglable = false, toolTip = "Twigcore is one of the main owners of Console, the admin system in the menu. He helps with asset ideas, moderate users, contributed to the menu, and much more."},
 
@@ -2768,27 +2809,55 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Exit Sound's Properties", method = () => CurrentCategoryName = "Soundboard", isTogglable = false, toolTip = "Returns you back to the Soundboard page.", legal = true}
             },
 
-            // The four Console asset pages are filled in by Mods/ConsoleAssets.cs as
-            // you walk into them: the bundle list comes from the server, and the rest
-            // depend on which bundle and which spawned object you picked.
+            // The four Console asset pages are filled in by Mods/ConsoleAssets.cs as you walk
+            // into them: the bundle list comes from the server, and the rest depend on which
+            // bundle and which spawned object you picked.
             new[] // Console Assets [51]
             {
-                new ButtonInfo { buttonText = "Exit Console Assets", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods."}
+                new ButtonInfo { buttonText = "Exit Console Assets", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods.", legal = true}
             },
 
             new[] // Console Objects [52]
             {
-                new ButtonInfo { buttonText = "Exit Console Objects", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+                new ButtonInfo { buttonText = "Exit Console Objects", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list.", legal = true}
             },
 
             new[] // Spawned Assets [53]
             {
-                new ButtonInfo { buttonText = "Exit Spawned Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+                new ButtonInfo { buttonText = "Exit Spawned Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list.", legal = true}
             },
 
             new[] // Console Asset Control [54]
             {
-                new ButtonInfo { buttonText = "Exit Asset Control", method = ConsoleAssets.OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets."}
+                new ButtonInfo { buttonText = "Exit Asset Control", method = ConsoleAssets.OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets.", legal = true}
+            },
+
+            new[] // Admin World Controls [55]
+            {
+                new ButtonInfo { buttonText = "Exit Admin World Controls", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods.", legal = true},
+                new ButtonInfo { buttonText = "Morning For Everyone", method =() => ConsoleAdmin.TimeForEveryone(1), isTogglable = false, toolTip = "Sets the time of day to morning for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Day For Everyone", method =() => ConsoleAdmin.TimeForEveryone(3), isTogglable = false, toolTip = "Sets the time of day to day for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Evening For Everyone", method =() => ConsoleAdmin.TimeForEveryone(7), isTogglable = false, toolTip = "Sets the time of day to evening for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Night For Everyone", method =() => ConsoleAdmin.TimeForEveryone(0), isTogglable = false, toolTip = "Sets the time of day to night for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Rain For Everyone", method =() => ConsoleAdmin.WeatherForEveryone(true), isTogglable = false, toolTip = "Makes it rain for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Clear Weather For Everyone", method =() => ConsoleAdmin.WeatherForEveryone(false), isTogglable = false, toolTip = "Stops the rain for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Purple Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0.6f, 0.2f, 1f, 0.2f)), isTogglable = false, toolTip = "Fills the map with purple fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Red Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(1f, 0.1f, 0.1f, 0.2f)), isTogglable = false, toolTip = "Fills the map with red fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Green Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0.1f, 1f, 0.3f, 0.2f)), isTogglable = false, toolTip = "Fills the map with green fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Black Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0f, 0f, 0f, 0.6f)), isTogglable = false, toolTip = "Fills the map with black fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Reset Fog For Everyone", method = ConsoleAdmin.ResetFogForEveryone, isTogglable = false, toolTip = "Puts the fog back to normal for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Forest", method =() => ConsoleAdmin.SendEveryoneTo("Forest"), isTogglable = false, toolTip = "Sends everyone using Console to Forest.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To City", method =() => ConsoleAdmin.SendEveryoneTo("City"), isTogglable = false, toolTip = "Sends everyone using Console to City.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Canyons", method =() => ConsoleAdmin.SendEveryoneTo("Canyons"), isTogglable = false, toolTip = "Sends everyone using Console to Canyons.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Caves", method =() => ConsoleAdmin.SendEveryoneTo("Caves"), isTogglable = false, toolTip = "Sends everyone using Console to Caves.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Beach", method =() => ConsoleAdmin.SendEveryoneTo("Beach"), isTogglable = false, toolTip = "Sends everyone using Console to Beach.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Mountains", method =() => ConsoleAdmin.SendEveryoneTo("Mountains"), isTogglable = false, toolTip = "Sends everyone using Console to Mountains.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Clouds", method =() => ConsoleAdmin.SendEveryoneTo("Clouds"), isTogglable = false, toolTip = "Sends everyone using Console to Clouds.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Basement", method =() => ConsoleAdmin.SendEveryoneTo("Basement"), isTogglable = false, toolTip = "Sends everyone using Console to Basement.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Metropolis", method =() => ConsoleAdmin.SendEveryoneTo("Metropolis"), isTogglable = false, toolTip = "Sends everyone using Console to Metropolis.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Arcade", method =() => ConsoleAdmin.SendEveryoneTo("Arcade"), isTogglable = false, toolTip = "Sends everyone using Console to Arcade.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Rotating", method =() => ConsoleAdmin.SendEveryoneTo("Rotating"), isTogglable = false, toolTip = "Sends everyone using Console to Rotating.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Critters", method =() => ConsoleAdmin.SendEveryoneTo("Critters"), isTogglable = false, toolTip = "Sends everyone using Console to Critters.", legal = true}
             }
         };
 
@@ -2847,7 +2916,8 @@ namespace Nova.Menu
             "Console Assets",
             "Console Objects",
             "Spawned Assets",
-            "Console Asset Control"
+            "Console Asset Control",
+            "Admin World Controls"
         };
 
         public static int _currentCategoryIndex;

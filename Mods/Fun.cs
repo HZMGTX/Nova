@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Mods/Fun.cs
+ * Poison Menu  Mods/Fun.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,13 +40,13 @@ using Photon.Voice.Unity.UtilityScripts;
 using PlayFab;
 using PlayFab.ClientModels;
 using POpusCodec.Enums;
-using Nova.Classes.Menu;
-using Nova.Classes.Mods;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Menu;
-using Nova.Patches.Menu;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Classes.Mods;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Menu;
+using Poison.Patches.Menu;
+using Poison.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -60,16 +57,16 @@ using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Windows.Speech;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.GameModeUtilities;
-using static Nova.Utilities.RandomUtilities;
-using static Nova.Utilities.RigUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.GameModeUtilities;
+using static Poison.Utilities.RandomUtilities;
+using static Poison.Utilities.RigUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Nova.Mods
+namespace Poison.Mods
 {
     public static class Fun
     {
@@ -91,48 +88,6 @@ namespace Nova.Mods
 
         public static void SidewaysHead() =>
             VRRig.LocalRig.head.trackingRotationOffset.y = 90f;
-
-        public static void TiltedHead() =>
-            VRRig.LocalRig.head.trackingRotationOffset.x = 90f;
-
-        // Purely cosmetic, self-contained: its own GameObject, created on first
-        // enable and torn down on disable, never touching any field another mod
-        // reads or writes. Position is refreshed every frame the same way
-        // Freecam repositions its own camera object each frame.
-        private static GameObject haloObject;
-
-        public static void Halo()
-        {
-            if (haloObject == null)
-            {
-                haloObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(haloObject.GetComponent<Collider>());
-                haloObject.transform.localScale = new Vector3(0.35f, 0.01f, 0.35f);
-
-                Material haloMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-                haloMaterial.SetFloat("_Surface", 1);
-                haloMaterial.SetFloat("_Blend", 0);
-                haloMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                haloMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                haloMaterial.SetFloat("_ZWrite", 0);
-                haloMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                haloMaterial.renderQueue = (int)RenderQueue.Transparent;
-                haloMaterial.color = new Color(1f, 0.9f, 0.4f, 0.75f);
-
-                haloObject.GetComponent<Renderer>().material = haloMaterial;
-            }
-
-            haloObject.transform.position = GorillaTagger.Instance.headCollider.transform.position + Vector3.up * 0.3f;
-        }
-
-        public static void DisableHalo()
-        {
-            if (haloObject != null)
-            {
-                Object.Destroy(haloObject);
-                haloObject = null;
-            }
-        }
 
 
         public static float lastBangTime;
@@ -261,18 +216,6 @@ namespace Nova.Mods
             EffectDataPatch.overrideVolume = 99999f;
             EffectDataPatch.tapMultiplier = 10;
             GorillaTagger.Instance.handTapVolume = 99999f;
-        }
-
-        // Distinct from SilentHandTaps: tapsEnabled stays true, so taps are
-        // heard, just faintly, rather than muted outright.
-        public static void QuietHandTaps()
-        {
-            EffectDataPatch.enabled = true;
-            EffectDataPatch.tapsEnabled = true;
-            EffectDataPatch.doOverride = true;
-            EffectDataPatch.overrideVolume = 0.02f;
-            EffectDataPatch.tapMultiplier = 1;
-            GorillaTagger.Instance.handTapVolume = 0.02f;
         }
 
         public static void SilentHandTaps()
@@ -684,7 +627,7 @@ namespace Nova.Mods
         {
             if (FreeCamObject == null)
             {
-                FreeCamObject = new GameObject("Nova_CameraObj");
+                FreeCamObject = new GameObject("Poison_CameraObj");
                 FreeCamObject.transform.position = GorillaTagger.Instance.headCollider.transform.position;
             }
 
@@ -709,7 +652,7 @@ namespace Nova.Mods
         {
             if (FreeCamObject == null)
             {
-                FreeCamObject = new GameObject("Nova_CameraObj");
+                FreeCamObject = new GameObject("Poison_CameraObj");
                 FreeCamObject.transform.position = GorillaTagger.Instance.headCollider.transform.position;
             }
 
@@ -725,7 +668,7 @@ namespace Nova.Mods
         {
             if (FreeCamObject == null)
             {
-                FreeCamObject = new GameObject("Nova_CameraObj");
+                FreeCamObject = new GameObject("Poison_CameraObj");
                 FreeCamObject.transform.position = GorillaTagger.Instance.headCollider.transform.position;
             }
 
@@ -741,7 +684,7 @@ namespace Nova.Mods
         {
             if (FreeCamObject == null)
             {
-                FreeCamObject = new GameObject("Nova_CameraObj");
+                FreeCamObject = new GameObject("Poison_CameraObj");
                 FreeCamObject.transform.position = GorillaTagger.Instance.headCollider.transform.position;
             }
 
@@ -824,7 +767,7 @@ namespace Nova.Mods
                 {
                     if (FreeCamObject == null)
                     {
-                        FreeCamObject = new GameObject("Nova_CameraObj");
+                        FreeCamObject = new GameObject("Poison_CameraObj");
                         FreeCamObject.transform.position = GorillaTagger.Instance.headCollider.transform.position;
                     }
 
@@ -1541,7 +1484,7 @@ namespace Nova.Mods
 
         private static VirtualStumpAd virtualStumpAd;
         public static void CustomVirtualStumpVideo() =>
-            virtualStumpAd ??= new GameObject("Nova_VirtualStumpAd").AddComponent<VirtualStumpAd>();
+            virtualStumpAd ??= new GameObject("Poison_VirtualStumpAd").AddComponent<VirtualStumpAd>();
 
         public static void DisableCustomVirtualStumpVideo()
         {
@@ -3323,7 +3266,7 @@ Piece Name: {gunTarget.name}";
 
                     ThrowableBug targetBug = bugSpamToggle ? bug : firefly;
 
-                    GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
+                    GameObject bugSpamObject = new GameObject("Poison_BugSpamObject");
                     bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                     bugSpamObject.layer = 3;
 
@@ -3367,7 +3310,7 @@ Piece Name: {gunTarget.name}";
 
                 LckSocialCamera camera = cameraSpamType ? LckSocialCameraManager.Instance._networkedCococam : LckSocialCameraManager.Instance._networkedTablet;
 
-                GameObject cameraSpamObject = new GameObject("Nova_CameraSpamObject");
+                GameObject cameraSpamObject = new GameObject("Poison_CameraSpamObject");
                 cameraSpamObject.transform.localScale = Vector3.one * 0.2f;
                 cameraSpamObject.layer = 3;
 
@@ -3435,7 +3378,7 @@ Piece Name: {gunTarget.name}";
                     case 0:
                         {
                             ThrowableBug targetBug = bug;
-                            GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
+                            GameObject bugSpamObject = new GameObject("Poison_BugSpamObject");
                             bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                             bugSpamObject.layer = 3;
 
@@ -3469,7 +3412,7 @@ Piece Name: {gunTarget.name}";
                     case 1:
                         {
                             ThrowableBug targetBug = firefly;
-                            GameObject bugSpamObject = new GameObject("Nova_FireflySpamObject");
+                            GameObject bugSpamObject = new GameObject("Poison_FireflySpamObject");
                             bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                             bugSpamObject.layer = 3;
 
@@ -3507,7 +3450,7 @@ Piece Name: {gunTarget.name}";
 
                             LckSocialCamera camera = LckSocialCameraManager.Instance._networkedCococam;
 
-                            GameObject cameraSpamObject = new GameObject("Nova_CameraSpamObject");
+                            GameObject cameraSpamObject = new GameObject("Poison_CameraSpamObject");
                             cameraSpamObject.transform.localScale = Vector3.one * 0.2f;
                             cameraSpamObject.layer = 3;
 
@@ -3551,7 +3494,7 @@ Piece Name: {gunTarget.name}";
 
                             LckSocialCamera camera = LckSocialCameraManager.Instance._networkedTablet;
 
-                            GameObject cameraSpamObject = new GameObject("Nova_CameraSpamObject");
+                            GameObject cameraSpamObject = new GameObject("Poison_CameraSpamObject");
                             cameraSpamObject.transform.localScale = Vector3.one * 0.2f;
                             cameraSpamObject.layer = 3;
 
@@ -3840,7 +3783,7 @@ Piece Name: {gunTarget.name}";
 
                 if (inAir && !lastInAir)
                 {
-                    GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
+                    GameObject bugSpamObject = new GameObject("Poison_BugSpamObject");
                     bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                     bugSpamObject.layer = 3;
 
@@ -3921,7 +3864,7 @@ Piece Name: {gunTarget.name}";
                 {
                     grabbingCamera = false;
 
-                    GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
+                    GameObject bugSpamObject = new GameObject("Poison_BugSpamObject");
                     bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                     bugSpamObject.layer = 3;
 
@@ -6011,7 +5954,7 @@ Piece Name: {gunTarget.name}";
         public static string[] names = { };
         public static void EnableCustomNameCycle() // Thanks to xynz_ for some fixes
         {
-            var path = $"{PluginInfo.BaseDirectory}/Nova_CustomNameCycle.txt";
+            var path = $"{PluginInfo.BaseDirectory}/Poison_CustomNameCycle.txt";
             if (File.Exists(path))
             {
                 names = File.ReadAllText(path)
@@ -7048,7 +6991,7 @@ Piece Name: {gunTarget.name}";
                 catch { LogManager.Log("Failed to log player"); }
             }
             text += "\n====================================\n";
-            text += "Text file generated with Nova Menu";
+            text += "Text file generated with Poison Menu";
             string fileName = $"{PluginInfo.BaseDirectory}/PlayerInfo/" + PhotonNetwork.CurrentRoom.Name + ".txt";
 
             File.WriteAllText(fileName, text);

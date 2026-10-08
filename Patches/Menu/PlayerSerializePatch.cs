@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Patches/Menu/PlayerSerializePatch.cs
+ * Poison Menu  Patches/Menu/PlayerSerializePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,10 +20,10 @@
  */
 
 using HarmonyLib;
-using Nova.Managers;
+using Poison.Managers;
 using System;
 
-namespace Nova.Patches.Menu
+namespace Poison.Patches.Menu
 {
     [HarmonyPatch(typeof(VRRig), nameof(VRRig.SerializeReadShared))]
     public class PlayerSerializePatch
@@ -43,7 +40,7 @@ namespace Nova.Patches.Menu
             if (delay != null)
             {
                 CoroutineManager.instance.StartCoroutine(
-                    Nova.Menu.Main.SerializationDelay(() =>
+                    Poison.Menu.Main.SerializationDelay(() =>
                     {
                         float oldDelay = delay.Value;
                         delay = null;

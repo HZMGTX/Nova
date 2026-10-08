@@ -1,12 +1,9 @@
 /*
- * Nova Menu  LegacyInjectCompatibility.cs
+ * Poison Menu  LegacyInjectCompatibility.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +19,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Nova;
+using Poison;
 
 #pragma warning disable IDE0130 // Namespace does not match folder structure [for legacy compatibility with default SMI settings]
 // ReSharper disable once CheckNamespace

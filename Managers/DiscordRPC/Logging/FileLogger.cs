@@ -1,4 +1,4 @@
-namespace Nova.Managers.DiscordRPC.Logging
+﻿namespace Poison.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Logs the outputs to a file

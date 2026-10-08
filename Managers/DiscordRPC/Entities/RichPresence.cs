@@ -1,10 +1,10 @@
-using Nova.Managers.DiscordRPC.Exceptions;
-using Nova.Managers.DiscordRPC.Helper;
+using Poison.Managers.DiscordRPC.Exceptions;
+using Poison.Managers.DiscordRPC.Helper;
 using System;
 using System.Text;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC
+namespace Poison.Managers.DiscordRPC
 {
     /// <summary>
     /// The base rich presence structure

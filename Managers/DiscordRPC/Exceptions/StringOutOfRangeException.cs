@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace Nova.Managers.DiscordRPC.Exceptions
+namespace Poison.Managers.DiscordRPC.Exceptions
 {
     /// <summary>
     /// A StringOutOfRangeException is thrown when the length of a string exceeds the allowed limit.

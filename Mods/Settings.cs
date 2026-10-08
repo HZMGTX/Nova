@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Mods/Settings.cs
+ * Poison Menu  Mods/Settings.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,12 +23,12 @@ using GorillaExtensions;
 using GorillaLocomotion;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Classes.Menu;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Menu;
-using Nova.Patches.Menu;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Menu;
+using Poison.Patches.Menu;
+using Poison.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,19 +44,25 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 using UnityEngine.Windows.Speech;
 using UnityEngine.XR;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.RigUtilities;
-using Console = Nova.Classes.Menu.Console;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.RigUtilities;
+using Console = Poison.Classes.Menu.Console;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Nova.Mods
+namespace Poison.Mods
 {
     public static class Settings
     {
         public static void Search() // This took me like 4 hours
         {
+            if (Hud.InUse)
+            {
+                Hud.Instance.Search();
+                return;
+            }
+
             isSearching = !isSearching;
 
             pageNumber = 0;
@@ -73,6 +76,12 @@ namespace Nova.Mods
 
         public static void SpawnKeyboard()
         {
+            if (Hud.InUse)
+            {
+                Hud.Instance.Edit();
+                return;
+            }
+
             isKeyboardPc = isOnPC || toggleButtonActive && keyboardWithToggleButton;
             inTextInput = true;
             keyboardInput = "";
@@ -249,7 +258,7 @@ namespace Nova.Mods
 
             if (TutorialSelector == null)
             {
-                TutorialSelector = new GameObject("Nova_TutorialSelector").AddComponent<LineRenderer>();
+                TutorialSelector = new GameObject("Poison_TutorialSelector").AddComponent<LineRenderer>();
                 TutorialSelector.material.shader = Shader.Find("Sprites/Default");
 
                 TutorialSelector.startWidth = 0.01f;
@@ -320,7 +329,7 @@ namespace Nova.Mods
             string version = PluginInfo.Version;
             if (PluginInfo.BetaBuild) version = "<color=blue>Beta</color> " + version;
             Buttons.AddButton(category, new ButtonInfo { buttonText = "Exit Info Screen", method = () => Toggle("Info Screen"), isTogglable = false, toolTip = "Returns you back to the main page." });
-            Buttons.AddButton(category, new ButtonInfo { buttonText = "DebugMenuName", overlapText = "<color=grey><b>Nova Menu </b></color>" + version, label = true });
+            Buttons.AddButton(category, new ButtonInfo { buttonText = "DebugMenuName", overlapText = "<color=grey><b>Poison Menu </b></color>" + version, label = true });
             Buttons.AddButton(category, new ButtonInfo { buttonText = "DebugColor", overlapText = "Loading...", label = true });
             Buttons.AddButton(category, new ButtonInfo { buttonText = "DebugName", overlapText = "Loading...", label = true });
             Buttons.AddButton(category, new ButtonInfo { buttonText = "DebugId", overlapText = "Loading...", label = true });
@@ -681,7 +690,7 @@ namespace Nova.Mods
         {
             CleanupSpectateCamera();
 
-            spectateCameraObject = new GameObject("Nova_SpectateCamera");
+            spectateCameraObject = new GameObject("Poison_SpectateCamera");
             spectateRenderTexture = new RenderTexture(512, 512, 16);
             spectateCameraObject.AddComponent<Camera>().targetTexture = spectateRenderTexture;
             spectateCameraObject.transform.SetParent(rig.headMesh.transform, false);
@@ -865,7 +874,7 @@ namespace Nova.Mods
                             logoLines += Environment.NewLine + @" ""    " + line + @" """;
 
                         string updateScript = @"@echo off
-title Nova Menu Updater
+title Poison Menu Updater
 color 5
 setlocal
 
@@ -882,7 +891,7 @@ set ""MODS_PATH=%BASE_DIR%Mods""
 
 set ""MENU_FILE=""
 
-for %%F in (""%PLUGIN_PATH%\*Nova*Menu*.dll"" ""%MODS_PATH%\*Nova*Menu*.dll"") do (
+for %%F in (""%PLUGIN_PATH%\*Poison*Menu*.dll"" ""%MODS_PATH%\*Poison*Menu*.dll"") do (
     if exist ""%%~fF"" (
         set ""MENU_FILE=%%~fF""
         goto update
@@ -895,17 +904,19 @@ goto restart
 :update
 echo Found menu file: ""%MENU_FILE%""
 
-set ""DOWNLOAD_NAME=Nova-Menu""
+rem Release assets are uploaded as ""Poison Menu.dll"", which GitHub serves as Poison.Menu.dll.
+set ""DOWNLOAD_NAME=Poison.Menu""
 echo %MENU_FILE% | find /I ""Legal"" >nul
-if %ERRORLEVEL%==0 set ""DOWNLOAD_NAME=Nova-Menu-Legal""
+if %ERRORLEVEL%==0 set ""DOWNLOAD_NAME=Poison.Menu.Legal""
 
 echo Downloading latest release of %DOWNLOAD_NAME%...
 
+rem Downloaded beside the menu rather than over it: -f stops a 404 page being saved as
+rem the DLL, and the running game still holds the old file open.
 curl -f -L -o ""%MENU_FILE%.new"" ^
-""https://github.com/HZMGTX/Nova/releases/latest/download/%DOWNLOAD_NAME%.dll""
-
+""https://github.com/heycanihavethis/Poison/releases/latest/download/%DOWNLOAD_NAME%.dll""
 if errorlevel 1 (
-    echo Download failed. Keeping the menu you already have.
+    echo Download failed, keeping your current menu.
     if exist ""%MENU_FILE%.new"" del ""%MENU_FILE%.new""
     goto restart
 )
@@ -952,9 +963,8 @@ PLUGIN_PATH=""$BASE_DIR/BepInEx/plugins""
 MODS_PATH=""$BASE_DIR/Mods""
 
 MENU_FILE=""""
-PENDING=""""
 
-for f in ""$PLUGIN_PATH""/*Nova*Menu*.dll ""$MODS_PATH""/*Nova*Menu*.dll; do
+for f in ""$PLUGIN_PATH""/*Poison*Menu*.dll ""$MODS_PATH""/*Poison*Menu*.dll; do
     if [ -f ""$f"" ]; then
         MENU_FILE=""$f""
         break
@@ -966,17 +976,20 @@ if [ -z ""$MENU_FILE"" ]; then
 else
     echo ""Found menu file: $MENU_FILE""
 
-    DOWNLOAD_NAME=""Nova-Menu""
+    # Release assets are uploaded as ""Poison Menu.dll"", which GitHub serves as Poison.Menu.dll.
+    DOWNLOAD_NAME=""Poison.Menu""
     if echo ""$MENU_FILE"" | grep -qi ""Legal""; then
-        DOWNLOAD_NAME=""Nova-Menu-Legal""
+        DOWNLOAD_NAME=""Poison.Menu.Legal""
     fi
 
     echo ""Downloading latest release of $DOWNLOAD_NAME...""
+    # Downloaded beside the menu rather than over it: -f stops a 404 page being saved as
+    # the DLL, and the running game still holds the old file open.
     if curl -f -L -o ""$MENU_FILE.new"" \
-    ""https://github.com/HZMGTX/Nova/releases/latest/download/${DOWNLOAD_NAME}.dll""; then
+    ""https://github.com/heycanihavethis/Poison/releases/latest/download/${DOWNLOAD_NAME}.dll""; then
         PENDING=""$MENU_FILE.new""
     else
-        echo ""Download failed. Keeping the menu you already have.""
+        echo ""Download failed, keeping your current menu.""
         rm -f ""$MENU_FILE.new""
     fi
 fi
@@ -1036,6 +1049,12 @@ exit 0";
         }
         public static void CheckWatchMenu()
         {
+            if (Hud.InUse)
+            {
+                watchTimer = 0;
+                return;
+            }
+
             if (watchTimer == 0)
                 watchTimer = Time.time + 7f;
 
@@ -1095,10 +1114,10 @@ exit 0";
         {
             new ThemeDefinition
             {
-                Name = "Nova",
+                Name = "Poison",
                 Background = () => new ExtGradient
                 {
-                    colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 128))
+                    colors = ExtGradient.GetSolidGradient(new Color32(6, 252, 118, 128))
                 },
                 MenuBackground = () => new ExtGradient
                 {
@@ -1108,11 +1127,11 @@ exit 0";
                 {
                     new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(118, 6, 252, 255))
+                        colors = ExtGradient.GetSolidGradient(new Color32(6, 252, 118, 255))
                     },
                     new ExtGradient
                     {
-                        colors = ExtGradient.GetSolidGradient(new Color32(88, 6, 186, 255))
+                        colors = ExtGradient.GetSolidGradient(new Color32(4, 188, 88, 255))
                     }
                 },
                 TextColors = () => new[]
@@ -3346,327 +3365,6 @@ exit 0";
                     }
                 }
             },
-            // ── Two-tone themes ──────────────────────────────────────────────
-            // Everything above sets both ends of each gradient to the same colour,
-            // so it renders flat. These use both ends, which is what the gradient
-            // support was there for: the menu drifts between the two rather than
-            // sitting on one.
-            //
-            // Appended rather than inserted on purpose. themeType is persisted as
-            // an index into this list, so adding anywhere but the end would move
-            // everybody's saved theme to a different one.
-            // Nightshift
-            new ThemeDefinition
-            {
-                Name = "Nightshift",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(88, 60, 200, 128), new Color32(150, 110, 250, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(26, 24, 44, 128), new Color32(38, 34, 62, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(46, 42, 74, 255), new Color32(62, 56, 98, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(124, 92, 240, 255), new Color32(167, 139, 250, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(236, 235, 247, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(150, 147, 178, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
-            // Ember
-            new ThemeDefinition
-            {
-                Name = "Ember",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(168, 34, 26, 128), new Color32(240, 110, 40, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(32, 20, 18, 128), new Color32(48, 30, 24, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(64, 38, 32, 255), new Color32(88, 52, 42, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(206, 62, 30, 255), new Color32(246, 138, 52, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 240, 230, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(176, 150, 140, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
-            // Tidepool
-            new ThemeDefinition
-            {
-                Name = "Tidepool",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(18, 92, 120, 128), new Color32(52, 190, 190, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(14, 28, 34, 128), new Color32(20, 42, 50, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(28, 56, 66, 255), new Color32(38, 76, 88, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(24, 132, 158, 255), new Color32(64, 206, 200, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(232, 248, 250, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(140, 166, 174, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
-            // Orchid
-            new ThemeDefinition
-            {
-                Name = "Orchid",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(146, 30, 140, 128), new Color32(232, 92, 200, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(30, 18, 30, 128), new Color32(46, 28, 46, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(60, 38, 60, 255), new Color32(82, 52, 82, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(178, 44, 168, 255), new Color32(240, 118, 214, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(252, 236, 250, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(176, 148, 174, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
-            // Citrus
-            new ThemeDefinition
-            {
-                Name = "Citrus",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(198, 130, 16, 128), new Color32(246, 208, 62, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(30, 26, 14, 128), new Color32(46, 40, 22, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(60, 52, 28, 255), new Color32(82, 72, 40, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(226, 158, 24, 255), new Color32(250, 216, 78, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 250, 232, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(176, 168, 138, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(28, 22, 8, 255))
-                    }
-                }
-            },
-            // Slate
-            new ThemeDefinition
-            {
-                Name = "Slate",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(64, 76, 94, 128), new Color32(120, 140, 168, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(22, 25, 31, 128), new Color32(34, 39, 48, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(44, 50, 61, 255), new Color32(60, 68, 82, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(92, 112, 140, 255), new Color32(146, 168, 198, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(238, 242, 248, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(146, 154, 168, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
-            // Toxic
-            new ThemeDefinition
-            {
-                Name = "Toxic",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(40, 140, 40, 128), new Color32(150, 230, 60, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(18, 28, 18, 128), new Color32(28, 44, 28, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(36, 56, 36, 255), new Color32(50, 76, 50, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(52, 172, 52, 255), new Color32(164, 236, 76, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(240, 252, 232, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(146, 168, 140, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(16, 32, 12, 255))
-                    }
-                }
-            },
-            // Sunset
-            new ThemeDefinition
-            {
-                Name = "Sunset",
-                Background = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(196, 40, 110, 128), new Color32(250, 150, 70, 128))
-                },
-                MenuBackground = () => new ExtGradient
-                {
-                    colors = ExtGradient.GetSimpleGradient(new Color32(30, 18, 24, 128), new Color32(46, 28, 34, 128))
-                },
-                ButtonColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(62, 38, 46, 255), new Color32(84, 52, 62, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSimpleGradient(new Color32(230, 56, 122, 255), new Color32(252, 164, 86, 255))
-                    }
-                },
-                TextColors = () => new[]
-                {
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 238, 244, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(178, 148, 158, 255))
-                    },
-                    new ExtGradient
-                    {
-                        colors = ExtGradient.GetSolidGradient(new Color32(255, 255, 255, 255))
-                    }
-                }
-            },
         };
 
         public static int ThemeCount => Themes.Count;
@@ -3974,6 +3672,9 @@ exit 0";
             backgroundColor.SetColor(0, theme.backgroundFirst.ToColor32());
             backgroundColor.SetColor(1, theme.backgroundSecond.ToColor32());
 
+            menuBackgroundColor.SetColor(0, theme.backgroundFirst.ToColor32());
+            menuBackgroundColor.SetColor(1, theme.backgroundSecond.ToColor32());
+
             buttonColors[0].SetColor(0, theme.buttonDisabledFirst.ToColor32());
             buttonColors[0].SetColor(1, theme.buttonDisabledSecond.ToColor32());
             buttonColors[1].SetColor(0, theme.buttonEnabledFirst.ToColor32());
@@ -4083,22 +3784,49 @@ exit 0";
         }
 
         private static TMP_FontAsset chosenFont;
+        private static Font customFontSource;
         public static void CustomFontType()
         {
             string filePath = $"{PluginInfo.BaseDirectory}/CustomFont.ttf";
             if (!File.Exists(filePath))
             {
                 LogManager.Log("Downloading CustomFont.ttf");
-                WebClient stream = new WebClient();
-                stream.DownloadFile($"{PluginInfo.ServerResourcePath}/Fonts/LiberationSans.ttf", filePath);
+                try
+                {
+                    WebClient stream = new WebClient();
+                    stream.DownloadFile($"{PluginInfo.ServerResourcePath}/Fonts/LiberationSans.ttf", filePath);
+                }
+                catch (Exception error)
+                {
+                    LogManager.Log("Failed to download CustomFont.ttf: " + error.Message);
+                    return;
+                }
             }
 
-            chosenFont = TMP_FontAsset.CreateFontAsset(new Font($"{FileUtilities.GetGamePath()}/{filePath}"));
+            try
+            {
+                if (customFontSource == null)
+                    customFontSource = new Font($"{FileUtilities.GetGamePath()}/{filePath}");
+                TMP_FontAsset font = TMP_FontAsset.CreateFontAsset(customFontSource);
+                if (font == null)
+                {
+                    LogManager.Log("Failed to create a font asset from CustomFont.ttf");
+                    return;
+                }
+                chosenFont = font;
+            }
+            catch (Exception error)
+            {
+                LogManager.Log("Failed to load CustomFont.ttf: " + error.Message);
+                return;
+            }
             PersistCustomFont();
         }
 
         public static void PersistCustomFont()
         {
+            if (chosenFont == null)
+                return;
             if (activeFont != chosenFont)
                 activeFont = chosenFont;
         }
@@ -4371,18 +4099,18 @@ exit 0";
                 {
                     PromptSingleText("What would you like to set the menu name to?", () =>
                     {
-                        File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt", keyboardInput);
+                        File.WriteAllText($"{PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt", keyboardInput);
                         Apply();
-                        PromptSingle("You can always change this again by re-enabling the mod or changing it in the NovaMenu folder! (located in the Gorilla Tag installation folder)");
+                        PromptSingle("You can always change this again by re-enabling the mod or changing it in the PoisonMenu folder! (located in the Gorilla Tag installation folder)");
                     });
                 }, Apply);
 
                 static void Apply()
                 {
                     doCustomName = true;
-                    if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt"))
-                        File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt", "Your Text Here");
-                    customMenuName = File.ReadAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt");
+                    if (!File.Exists($"{PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt"))
+                        File.WriteAllText($"{PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt", "Your Text Here");
+                    customMenuName = File.ReadAllText($"{PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt");
                 }
                 Apply();
             }
@@ -4401,13 +4129,13 @@ exit 0";
 
         private static KeywordRecognizer mainPhrases;
         private static KeywordRecognizer modPhrases;
-        private static string[] keyWords = { "jarvis", "nova", "seralith", "sarolith", "siri", "google", "alexa", "dummy", "computer", "stinky", "silly", "stupid", "console", "go go gadget", "monika", "wikipedia", "gideon", "a i", "ai", "a.i", "chat gpt", "chatgpt", "grok", "grock", "groq", "garmin" };
+        private static string[] keyWords = { "jarvis", "Poison", "seralith", "sarolith", "siri", "google", "alexa", "dummy", "computer", "stinky", "silly", "stupid", "console", "go go gadget", "monika", "wikipedia", "gideon", "a i", "ai", "a.i", "chat gpt", "chatgpt", "grok", "grock", "groq", "garmin" };
         private static readonly string[] cancelKeywords = { "nevermind", "cancel", "never mind", "stop", "i hate you", "die" };
         public static void VoiceRecognitionOn()
         {
-            if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt"))
-                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
-            keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt");
+            if (!File.Exists($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt"))
+                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt", keyWords);
+            keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt");
             mainPhrases = new KeywordRecognizer(keyWords);
             mainPhrases.OnPhraseRecognized += ModRecognition;
             mainPhrases.Start();
@@ -4568,9 +4296,9 @@ exit 0";
             else if (PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
                 PromptSingle("You can not use AI Assistant while you have another voice-related mod on.", () => mod.SetEnabled(false), "Ok");
 
-            if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt"))
-                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
-            keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt");
+            if (!File.Exists($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt"))
+                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt", keyWords);
+            keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt");
 
             while (PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
                 yield return null;
@@ -5185,7 +4913,7 @@ exit 0";
 
                 if (clickGuiLine == null)
                 {
-                    clickGuiLine = new GameObject("Nova_ClickGUILine")
+                    clickGuiLine = new GameObject("Poison_ClickGUILine")
                         .GetOrAddComponent<LineRenderer>();
 
                     clickGuiLine.material = new Material(Shader.Find("GUI/Text Shader"));
@@ -5334,7 +5062,7 @@ exit 0";
                 if (canSelect)
                 {
                     if (selectObject == null)
-                        selectObject = new GameObject("Nova_PingLine");
+                        selectObject = new GameObject("Poison_PingLine");
 
                     Color targetColor = Buttons.GetIndex("Swap GUI Colors").enabled ? buttonColors[1].GetCurrentColor() : backgroundColor.GetCurrentColor();
                     Color lineColor = targetColor;
@@ -5511,14 +5239,14 @@ exit 0";
 
         public static void ResetVoiceCommandsKeywords()
         {
-            if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt"))
-                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
+            if (!File.Exists($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt"))
+                File.WriteAllLines($"{PluginInfo.BaseDirectory}/Poison_Keywords.txt", keyWords);
         }
 
         public static void ResetSystemPrompt()
         {
-            if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt"))
-                File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt", AIManager.SystemPrompt);
+            if (!File.Exists($"{PluginInfo.BaseDirectory}/Poison_SystemPrompt.txt"))
+                File.WriteAllText($"{PluginInfo.BaseDirectory}/Poison_SystemPrompt.txt", AIManager.SystemPrompt);
         }
 
         public static string SavePreferencesToText()
@@ -6052,7 +5780,7 @@ exit 0";
 
         public static void LoadPCControls()
         {
-            string fileName = $"{PluginInfo.BaseDirectory}/Nova_PCControls.txt";
+            string fileName = $"{PluginInfo.BaseDirectory}/Poison_PCControls.txt";
 
             if (File.Exists(fileName))
             {

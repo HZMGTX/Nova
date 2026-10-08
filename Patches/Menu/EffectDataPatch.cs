@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Patches/Menu/EffectDataPatch.cs
+ * Poison Menu  Patches/Menu/EffectDataPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,10 +22,10 @@
 using GorillaLocomotion;
 using HarmonyLib;
 using Photon.Pun;
-using Nova.Menu;
+using Poison.Menu;
 using UnityEngine;
 
-namespace Nova.Patches.Menu
+namespace Poison.Patches.Menu
 {
     [HarmonyPatch(typeof(VRRig), nameof(VRRig.SetHandEffectData))]
     public class EffectDataPatch

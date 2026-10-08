@@ -1,7 +1,7 @@
-using Nova.Managers.DiscordRPC.Logging;
+﻿using Poison.Managers.DiscordRPC.Logging;
 using System;
 
-namespace Nova.Managers.DiscordRPC.IO
+namespace Poison.Managers.DiscordRPC.IO
 {
     /// <summary>
     /// Pipe Client used to communicate with Discord.

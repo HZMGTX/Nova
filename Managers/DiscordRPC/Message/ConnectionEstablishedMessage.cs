@@ -1,4 +1,4 @@
-namespace Nova.Managers.DiscordRPC.Message
+﻿namespace Poison.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// The connection to the discord client was succesfull. This is called before <see cref="MessageType.Ready"/>.

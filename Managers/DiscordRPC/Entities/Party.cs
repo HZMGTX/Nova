@@ -1,8 +1,8 @@
-using Nova.Managers.DiscordRPC.Helper;
+﻿using Poison.Managers.DiscordRPC.Helper;
 using System;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC
+namespace Poison.Managers.DiscordRPC
 {
     /// <summary>
     /// Structure representing the part the player is in.

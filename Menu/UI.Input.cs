@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using Nova.Managers;
+using Poison.Managers;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
     public partial class UI
     {

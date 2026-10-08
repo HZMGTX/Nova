@@ -1,9 +1,9 @@
-using Nova.Managers.DiscordRPC.Exceptions;
+﻿using Poison.Managers.DiscordRPC.Exceptions;
 using System;
 using System.Text;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC
+namespace Poison.Managers.DiscordRPC
 {
     /// <summary>
     /// The secrets used for Joining. Secrets are obfuscated data of your choosing. They could be match ids, player ids, lobby ids, etc.

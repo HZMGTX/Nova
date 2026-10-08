@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Managers/PatreonManager.cs
+ * Poison Menu  Managers/PatreonManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,21 +22,21 @@
 using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Classes.Menu;
-using Nova.Extensions;
-using Nova.Menu;
-using Nova.Mods;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Extensions;
+using Poison.Menu;
+using Poison.Mods;
+using Poison.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.RigUtilities;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.RigUtilities;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class PatreonManager : MonoBehaviour
     {
@@ -132,7 +129,7 @@ namespace Nova.Managers
                     playerIndicator.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL(member.Value.IconURL, $"Images/Patreon/{member.Key.UserId}.{FileUtilities.GetFileExtension(member.Value.IconURL)}"); // errors?
                     playerIndicator.GetComponent<Renderer>().material.color = Color.white;
 
-                    GameObject go = new GameObject("Nova_Nametag");
+                    GameObject go = new GameObject("Poison_Nametag");
                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                     TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
                     textMesh.fontSize = 4.8f;
@@ -153,7 +150,7 @@ namespace Nova.Managers
                 playerIndicator.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * (distance * playerRig.scaleFactor);
                 playerIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
 
-                GameObject nameTag = playerIndicator.transform.Find("Nova_Nametag").gameObject;
+                GameObject nameTag = playerIndicator.transform.Find("Poison_Nametag").gameObject;
                 nameTag.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * ((distance + 0.25f) * playerRig.scaleFactor);
                 nameTag.transform.LookAt(Camera.main.transform.position);
                 nameTag.transform.Rotate(0f, 180f, 0f);

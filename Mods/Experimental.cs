@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Mods/Experimental.cs
+ * Poison Menu  Mods/Experimental.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,12 +25,12 @@ using GorillaNetworking;
 using GorillaTagScripts.VirtualStumpCustomMaps;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Classes.Menu;
-using Nova.Extensions;
-using Nova.Managers;
-using Nova.Menu;
-using Nova.Patches.Menu;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Extensions;
+using Poison.Managers;
+using Poison.Menu;
+using Poison.Patches.Menu;
+using Poison.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -42,14 +39,14 @@ using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using static Nova.Menu.Main;
-using static Nova.Utilities.RandomUtilities;
-using static Nova.Utilities.RigUtilities;
-using Console = Nova.Classes.Menu.Console;
+using static Poison.Menu.Main;
+using static Poison.Utilities.RandomUtilities;
+using static Poison.Utilities.RigUtilities;
+using Console = Poison.Classes.Menu.Console;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Nova.Mods
+namespace Poison.Mods
 {
     public static class Experimental
     {
@@ -126,7 +123,7 @@ namespace Nova.Mods
                 i++;
             }
             text += "\n====================================\n";
-            text += "Text file generated with Nova Menu";
+            text += "Text file generated with Poison Menu";
             string fileName = $"{PluginInfo.BaseDirectory}/SoundData.txt";
 
             File.WriteAllText(fileName, text);
@@ -148,7 +145,7 @@ namespace Nova.Mods
                 catch { LogManager.Log("Failed to log hat"); }
             }
             text += "\n====================================\n";
-            text += "Text file generated with Nova Menu";
+            text += "Text file generated with Poison Menu";
             string fileName = $"{PluginInfo.BaseDirectory}/CosmeticData.txt";
 
             File.WriteAllText(fileName, text);
@@ -191,7 +188,7 @@ namespace Nova.Mods
                 i++;
             }
             text += "\n====================================\n";
-            text += "Text file generated with Nova Menu";
+            text += "Text file generated with Poison Menu";
             string fileName = $"{PluginInfo.BaseDirectory}/RPCData.txt";
 
             File.WriteAllText(fileName, text);
@@ -635,34 +632,6 @@ namespace Nova.Mods
 
         public static void AdminVibrateAll() =>
             Console.ExecuteCommand("vibrate", ReceiverGroup.Others, 3, 1f);
-
-        // "shake" is a real command Console.cs already handles (case "shake" ->
-        // the Shake coroutine, which repositions the target's body randomly for
-        // a bounded duration). It was never wired to a button, so this exposes
-        // existing, already-tested behavior rather than adding a new one.
-        // strength=0.3, time=2s, constant=false (tapers off toward the end,
-        // matching how Shake's own falloff branch behaves).
-        public static void AdminShakeGun()
-        {
-            if (GetGunInput(false))
-            {
-                var GunData = RenderGun();
-                RaycastHit Ray = GunData.Ray;
-
-                if (GetGunInput(true) && Time.time > adminEventDelay)
-                {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (gunTarget && !gunTarget.IsLocal())
-                    {
-                        adminEventDelay = Time.time + 0.2f;
-                        Console.ExecuteCommand("shake", GetPlayerFromVRRig(gunTarget).ActorNumber, 0.3f, 2f, false);
-                    }
-                }
-            }
-        }
-
-        public static void AdminShakeAll() =>
-            Console.ExecuteCommand("shake", ReceiverGroup.Others, 0.3f, 2f, false);
 
         public static void AdminBMuteGun(bool mute)
         {
@@ -1284,7 +1253,7 @@ namespace Nova.Mods
                                 VRRig vrrig = GetVRRigFromPlayer(sender);
                                 if (!nametags.TryGetValue(vrrig, out var nametag))
                                 {
-                                    GameObject go = new GameObject("Nova_MenuUserNametag");
+                                    GameObject go = new GameObject("Poison_MenuUserNametag");
                                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                     TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
                                     textMesh.fontSize = 4.8f;
@@ -1404,7 +1373,7 @@ namespace Nova.Mods
                                 VRRig vrrig = GetVRRigFromPlayer(sender);
                                 if (!nametags.TryGetValue(vrrig, out var nametag))
                                 {
-                                    GameObject go = new GameObject("Nova_Nametag");
+                                    GameObject go = new GameObject("Poison_Nametag");
                                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                     TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
                                     textMesh.fontSize = 48;

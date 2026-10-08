@@ -1,8 +1,8 @@
-
+﻿
 
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC.Message
+namespace Poison.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Called when the ipc is ready to send arguments.

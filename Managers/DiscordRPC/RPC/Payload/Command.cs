@@ -1,7 +1,7 @@
-using Nova.Managers.DiscordRPC.Converters;
+﻿using Poison.Managers.DiscordRPC.Converters;
 using System;
 
-namespace Nova.Managers.DiscordRPC.RPC.Payload
+namespace Poison.Managers.DiscordRPC.RPC.Payload
 {
     /// <summary>
     /// The possible commands that can be sent and received by the server.

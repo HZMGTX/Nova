@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Patches/Menu/OwnershipPatch.cs
+ * Poison Menu  Patches/Menu/OwnershipPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +23,7 @@ using HarmonyLib;
 using Photon.Pun;
 using System.Collections.Generic;
 
-namespace Nova.Patches.Menu
+namespace Poison.Patches.Menu
 {
     [HarmonyPatch(typeof(RequestableOwnershipGuard), nameof(RequestableOwnershipGuard.OwnershipRequested))]
     public class OwnershipPatch

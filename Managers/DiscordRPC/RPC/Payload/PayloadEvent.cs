@@ -1,8 +1,8 @@
-using Nova.Managers.DiscordRPC.Converters;
+﻿using Poison.Managers.DiscordRPC.Converters;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
 
-namespace Nova.Managers.DiscordRPC.RPC.Payload
+namespace Poison.Managers.DiscordRPC.RPC.Payload
 {
     /// <summary>
     /// Used for Discord IPC Events

@@ -1,6 +1,6 @@
+﻿
 
-
-namespace Nova.Managers.DiscordRPC.Message
+namespace Poison.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Representation of the message received by discord when the presence has been updated.

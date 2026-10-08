@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Patches/Menu/AntiCrashPatches.cs
+ * Poison Menu  Patches/Menu/AntiCrashPatches.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +27,7 @@ using Photon.Realtime;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Nova.Patches.Menu
+namespace Poison.Patches.Menu
 {
     public class AntiCrashPatches
     {

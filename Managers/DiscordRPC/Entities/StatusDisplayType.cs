@@ -1,4 +1,4 @@
-namespace Nova.Managers.DiscordRPC
+﻿namespace Poison.Managers.DiscordRPC
 {
     /// <summary>
     /// Rich Presence Display type

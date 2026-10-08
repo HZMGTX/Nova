@@ -1,12 +1,9 @@
-/*
- * Nova Menu  Extensions/StringExtensions.cs
+﻿/*
+ * Poison Menu  Extensions/StringExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,10 +19,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using static Nova.Menu.Main;
-using static Nova.Utilities.RandomUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.RandomUtilities;
 
-namespace Nova.Extensions
+namespace Poison.Extensions
 {
     public static class StringExtensions
     {

@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Patches/Menu/GetLaunchPatch.cs
+ * Poison Menu  Patches/Menu/GetLaunchPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,14 +20,14 @@
  */
 
 using HarmonyLib;
-using Nova.Extensions;
+using Poison.Extensions;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Nova.Menu.Main;
-using static Nova.Utilities.GameModeUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.GameModeUtilities;
 
-namespace Nova.Patches.Menu
+namespace Poison.Patches.Menu
 {
     [HarmonyPatch(typeof(Slingshot), nameof(Slingshot.GetLaunchVelocity))]
     public class GetLaunchPatch
@@ -70,8 +67,9 @@ namespace Nova.Patches.Menu
                 __result = CalcMinSpeed(__instance.center.transform.position, targetRig);
             }
         }
-
+        
         // ChatGPT used for math.. because I'm only 14 and haven't learned this yet and am not taking a class for a Gorilla Tag mod - iiDk
+        // skid ^^
         private static Vector3 CalcMinSpeed(Vector3 origin, VRRig targetRig)
         {
             Vector3 targetPos = targetRig.headMesh.transform.position;

@@ -1,12 +1,9 @@
 ﻿/*
- * Nova Menu  PluginInfo.cs
+ * Poison Menu  PluginInfo.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,68 +19,26 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-namespace Nova
+namespace Poison
 {
     public class PluginInfo
     {
-        public const string GUID = "org.nova.gorillatag.novamenu";
-        public const string Name = "Nova Menu";
+        public const string GUID = "org.Poison.gorillatag.Poisonmenu";
+        public const string Name = "Poison Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-10-06T13:05:19Z";
-        public const string Version = "1.0.0";
+        public const string BuildTimestamp = "2026-10-06T02:04:57Z";
+        public const string Version = "5.1.3";
 
         public const string BaseDirectory =
 #if LEGAL || LEGAL_DEBUG
-            "NovaMenu/Legal";
+            "PoisonMenu/Legal";
 #else
-            "NovaMenu";
+            "PoisonMenu";
 #endif
-        public const string ClientResourcePath = "NovaMenu.Resources.Client";
-        public const string ServerResourcePath = "https://raw.githubusercontent.com/HZMGTX/Nova/master/Resources/Server";
-        public const string ServerAPI = "https://www.menu.management";
-        public const string Logo = @"
-                                            %%%%%                                                   
-                                           %%% %%%%                                                 
-                                         %%%      %%%%                                              
-                                        %%%         %%%%        %%%  %                              
-                                      %%%%            %%%%%%%% %%%%  %%                             
-                                     %%%        %#####% %%%%%        %%                             
-                                    %%%       ############ %%%                                      
-                                  %%%       ######     %###  %%%%     %%%                           
-                                %%%%       ######        ###   %#%%    %%                           
-                             %%%#%        ######         ###%    %#%%                               
-                       %%%%  %%#%         ######         %###      %##% %%                          
-                 %%%%  %%   %##           ######%         ##%         %###%                         
-                           %#%             ######        ###            ###%                        
-                         %##%              %######%    #####              ###%                      
-#%   %##                  #######%                        ###                    
-                   %% %##                     %#######%                        ###%                 
-###                        %########%                       ###%               
-###                            %#######%                       %##%             
-                  %##                                %#######%                        ###           
-                %##%                                   %#######%                     ###%           
-###                   %##########%        #######%                   ###             
-##%                  %####%    %####        %######%                ###               
-###                  %###%        %##%         %######%              ###                
-###                 ###%          %%%           %######%            ##%                 
-###              %###                          #######          ####                  
-                %###           ####                          #######        %###                    
-####         ####                          #######       ###   ##                 
-                    %###       ####                         %######       ##%    ##%                
-###      ###                         ######      ###                         
-                         %###   ####                       ######      ###        %%%               
-####  %####                   %######     ###           #%               
-                            %%###% ####%              ########      ##%         %%%                 
-###%%######%%    %#########%      ###     %%%% %%%%                 
-                             %#   %### %###############%         ##%%%%% %%%%                       
-                              %%    %##%                       %##  %                               
-                                       %##                    %#%                                   
-                               %%        %#%%               %%%%                                    
-                               %%%         %%#%            %%%                                      
-                                      %%%%%  %%%%        %%%%                                       
-                                 %%%%           %%%     %%%                                         
-                                                  %%%% %%%                                          
-                                                    %%%%                                            ";
+        public const string ClientResourcePath = "PoisonMenu.Resources.Client";
+        public const string ServerResourcePath = "https://raw.githubusercontent.com/heycanihavethis/Poison/master/Resources/Server";
+        public const string ServerAPI = "https://menu.poisons.men";
+        public const string Logo = @"um";
 
 #if DEBUG || LEGAL_DEBUG
         public static bool BetaBuild = true;

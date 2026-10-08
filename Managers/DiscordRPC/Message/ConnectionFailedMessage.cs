@@ -1,4 +1,4 @@
-namespace Nova.Managers.DiscordRPC.Message
+﻿namespace Poison.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Failed to establish any connection with discord. Discord is potentially not running?

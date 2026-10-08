@@ -1,16 +1,16 @@
-using Nova.Managers.DiscordRPC.Events;
-using Nova.Managers.DiscordRPC.Helper;
-using Nova.Managers.DiscordRPC.IO;
-using Nova.Managers.DiscordRPC.Logging;
-using Nova.Managers.DiscordRPC.Message;
-using Nova.Managers.DiscordRPC.RPC.Commands;
-using Nova.Managers.DiscordRPC.RPC.Payload;
+﻿using Poison.Managers.DiscordRPC.Events;
+using Poison.Managers.DiscordRPC.Helper;
+using Poison.Managers.DiscordRPC.IO;
+using Poison.Managers.DiscordRPC.Logging;
+using Poison.Managers.DiscordRPC.Message;
+using Poison.Managers.DiscordRPC.RPC.Commands;
+using Poison.Managers.DiscordRPC.RPC.Payload;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using Valve.Newtonsoft.Json;
 
-namespace Nova.Managers.DiscordRPC.RPC
+namespace Poison.Managers.DiscordRPC.RPC
 {
     /// <summary>
     /// Communicates between the client and discord through RPC

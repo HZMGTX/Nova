@@ -1,6 +1,6 @@
-using Nova.Managers.DiscordRPC.RPC.Payload;
+﻿using Poison.Managers.DiscordRPC.RPC.Payload;
 
-namespace Nova.Managers.DiscordRPC.RPC.Commands
+namespace Poison.Managers.DiscordRPC.RPC.Commands
 {
     internal interface ICommand
     {

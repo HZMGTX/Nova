@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Managers/FriendManager.cs
+ * Poison Menu  Managers/FriendManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,11 +25,11 @@ using GorillaLocomotion;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Nova.Classes.Menu;
-using Nova.Extensions;
-using Nova.Menu;
-using Nova.Mods;
-using Nova.Utilities;
+using Poison.Classes.Menu;
+using Poison.Extensions;
+using Poison.Menu;
+using Poison.Mods;
+using Poison.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -49,12 +46,12 @@ using UnityEngine.Networking;
 using UnityEngine.Rendering;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
-using static Nova.Menu.Main;
-using static Nova.Utilities.AssetUtilities;
-using static Nova.Utilities.RigUtilities;
+using static Poison.Menu.Main;
+using static Poison.Utilities.AssetUtilities;
+using static Poison.Utilities.RigUtilities;
 using JoinType = GorillaNetworking.JoinType;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class FriendManager : MonoBehaviour
     {
@@ -243,7 +240,7 @@ namespace Nova.Managers
                         if (rightJoystickClick && !joystickMenu)
                         {
                             if (pingObject == null)
-                                pingObject = new GameObject("Nova_PingLine");
+                                pingObject = new GameObject("Poison_PingLine");
 
                             Color targetColor = VRRig.LocalRig.playerColor;
                             targetColor.a = 0.15f;
@@ -453,7 +450,7 @@ namespace Nova.Managers
                                 head.transform.localScale = Vector3.one * 0.3f;
                                 head.GetComponent<Renderer>().material.color = senderRig.playerColor;
 
-                                GameObject nametag = new GameObject("Nova_Nametag");
+                                GameObject nametag = new GameObject("Poison_Nametag");
                                 nametag.transform.SetParent(head.transform);
                                 nametag.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 nametag.transform.localPosition = new Vector3(0f, 0.8f, 0f);
@@ -1378,29 +1375,7 @@ namespace Nova.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            // The apex is the hostname the socket is meant to use, but it only
-            // carries websockets once the proxy in front of it is live. The relay's
-            // own hostname is tried next so friends keep working until then.
-            // Ordinary requests go to www instead, which Vercel serves directly.
-            public readonly string[] FriendWebsockets =
-            {
-                $"wss://menu.management?mod={Classes.Menu.Console.MenuName}",
-                $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}"
-            };
-
-            // Which endpoint the next attempt uses. It only moves when one proves
-            // unusable, so a working endpoint is kept rather than re-probed every
-            // reconnect.
-            public int endpoint;
-
-            // Whether this socket ever carried a message. An endpoint that accepts
-            // the upgrade and then closes without saying anything has rejected us —
-            // it is not the same as a healthy server going away, and without telling
-            // the two apart a rejecting endpoint traps the retry loop forever.
-            public bool servedAnything;
-
-            public string FriendWebsocket =>
-                FriendWebsockets[endpoint % FriendWebsockets.Length];
+            public readonly string FriendWebsocket = $"wss://menu.poisons.men/?mod={Classes.Menu.Console.MenuName}";
 
             public ClientWebSocket ws;
             public CancellationTokenSource cts;
@@ -1437,7 +1412,6 @@ namespace Nova.Managers
                     if (ws.State == WebSocketState.Open)
                     {
                         connected = true;
-                        servedAnything = false;
                         LogManager.Log("Connected to friends websocket");
                         _ = Receive();
                     }
@@ -1446,8 +1420,6 @@ namespace Nova.Managers
                 {
                     connected = false;
                     LogManager.LogError($"Could not connect to friends websocket: {e.Message}");
-                    // Fall through to the next endpoint on the following retry.
-                    endpoint++;
                 }
             }
 
@@ -1467,15 +1439,8 @@ namespace Nova.Managers
 
                             if (result.MessageType == WebSocketMessageType.Close)
                             {
-                                LogManager.Log($"Server closed: {ws.CloseStatusDescription}");
+                                LogManager.Log("Server closed");
                                 connected = false;
-
-                                // Closed without ever serving us. Accepting the socket
-                                // and then dropping it is a rejection, so move on rather
-                                // than reconnecting here forever.
-                                if (!servedAnything)
-                                    endpoint++;
-
                                 await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                                 return;
                             }
@@ -1485,7 +1450,6 @@ namespace Nova.Managers
                         } while (!result.EndOfMessage);
 
                         string message = messageBuilder.ToString();
-                        servedAnything = true;
                         HandleJSON(message);
                     }
                 }

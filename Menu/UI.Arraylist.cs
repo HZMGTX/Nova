@@ -1,12 +1,12 @@
-using Nova.Classes.Menu;
+using Poison.Classes.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 
-using static Nova.Menu.Main;
+using static Poison.Menu.Main;
 
-namespace Nova.Menu
+namespace Poison.Menu
 {
     public partial class UI
     {

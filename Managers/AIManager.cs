@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Managers/AIManager.cs
+ * Poison Menu  Managers/AIManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +19,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Nova.Classes.Menu;
-using Nova.Menu;
-using Nova.Mods;
+using Poison.Classes.Menu;
+using Poison.Menu;
+using Poison.Mods;
 using System;
 using System.Collections;
 using System.IO;
@@ -32,19 +29,19 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
-using static Nova.Utilities.AssetUtilities;
+using static Poison.Utilities.AssetUtilities;
 
-namespace Nova.Managers
+namespace Poison.Managers
 {
     public class AIManager
     {
-        public static string SystemPrompt = @"NAME: Nova's Voice Assistant
+        public static string SystemPrompt = @"NAME: Poison's Voice Assistant
         MENU VERSION: {2}
         MOD COUNT: {0}
 
-        You are a voice assistant for a Gorilla Tag mod menu called ""Nova Menu"". You are not Nova, but represent the menu.
-        GitHub: https://github.com/Nova
-        Nova's Discord Server: {1}
+        You are a voice assistant for a Gorilla Tag mod menu called ""Poison Menu"". You are not Poison, but represent the menu.
+        GitHub: https://github.com/Poison
+        Poison's Discord Server: {1}
 
         Speak using simple 7th grade vocabulary. Limit all responses to 2 sentences and 300 characters. No emojis, em-dashes, markdown, or questions. Do not advertise other menus, mods, or AI unless asked.
 
@@ -86,7 +83,7 @@ namespace Nova.Managers
         public static IEnumerator AskAI(string text)
         {
             generating = true;
-            string filePath = $"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt";
+            string filePath = $"{PluginInfo.BaseDirectory}/Poison_SystemPrompt.txt";
             if (!File.Exists(filePath))
                 File.WriteAllText(filePath, SystemPrompt);
             else if (customPrompt)
@@ -100,8 +97,8 @@ namespace Nova.Managers
 
             text = URLEncode(text);
             string prompt = URLEncode(string.Format(SystemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
-            string api = "https://www.menu.management/ai";
-
+            string api = "https://menu.poisons.men/ai"; // yeah im not doing this shit, pollutions needs an api key, make ~400 groq.com rotating api keys and switch between them or use openrouter or whatever the hell 
+            
             var payload = new
             {
                 text = text,

@@ -1,12 +1,9 @@
 /*
- * Nova Menu  Classes/Menu/KeyboardCollider.cs
+ * Poison Menu  Classes/Menu/KeyboardCollider.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
- *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Copyright (C) 2026  Poison Software
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,9 +21,9 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using static Nova.Menu.Main;
+using static Poison.Menu.Main;
 
-namespace Nova.Classes.Menu
+namespace Poison.Classes.Menu
 {
     public class KeyboardKey : MonoBehaviour
     {
@@ -40,7 +37,7 @@ namespace Nova.Classes.Menu
         public void OnTriggerEnter(Collider collider)
         {
             if ((collider != lKeyCollider && collider != rKeyCollider) || menu == null || !(Time.time > delay)) return;
-            if (!Nova.Menu.Buttons.GetIndex("Disable Keyboard Delay").enabled)
+            if (!Poison.Menu.Buttons.GetIndex("Disable Keyboard Delay").enabled)
                 delay = Time.time + 0.1f;
 
             if (doButtonsVibrate)
