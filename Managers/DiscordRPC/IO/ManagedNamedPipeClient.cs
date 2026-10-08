@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Logging;
+﻿using Nova.Managers.DiscordRPC.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;

@@ -2,11 +2,12 @@
  * Nova Menu  Mods/Safety.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -673,7 +674,7 @@ namespace Nova.Mods
 
         public static void ChangeIdentityCustom()
         {
-            string[] names = { "nova", "me" };
+            string[] names = { "Nova", "me" };
             Color[] colors = { new Color32(255, 128, 0, 255), Color.white };
 
             string fileName = $"{PluginInfo.BaseDirectory}/CustomIdentities.txt";
@@ -684,7 +685,7 @@ namespace Nova.Mods
                 colors = data[1].Split(";").Select(HexToColor).ToArray();
             }
             else
-                File.WriteAllText(fileName, "nova;me\n9b59b6;ffffff");
+                File.WriteAllText(fileName, "Nova;me\n9b59b6;ffffff");
 
             string name = names[Random.Range(0, names.Length)];
             Color color = colors[Random.Range(0, colors.Length)];

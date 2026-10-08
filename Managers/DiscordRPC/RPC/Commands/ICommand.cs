@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.RPC.Payload;
+﻿using Nova.Managers.DiscordRPC.RPC.Payload;
 
 namespace Nova.Managers.DiscordRPC.RPC.Commands
 {

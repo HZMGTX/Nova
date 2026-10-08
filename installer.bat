@@ -8,7 +8,7 @@ chcp 65001 >nul
 
 
 cls
-title Poison Menu Installer // [#---------] Getting directory
+title Nova Menu Installer // [#---------] Getting directory
 color 0e
 
 
@@ -51,7 +51,7 @@ if not defined gamePath (
 
 color 0e
 cls
-title Poison Menu Installer // [###-------] Downloading BepInEx
+title Nova Menu Installer // [###-------] Downloading BepInEx
 curl -L "https://github.com/BepInEx/BepInEx/releases/download/v5.4.23.4/BepInEx_win_x64_5.4.23.4.zip" -o BPNX54234.zip
 if errorlevel 1 (
     color 0c
@@ -63,7 +63,7 @@ if errorlevel 1 (
 
 
 cls
-title Poison Menu Installer // [####------] Extracting BepInEx
+title Nova Menu Installer // [####------] Extracting BepInEx
 powershell -command "Expand-Archive -Path 'BPNX54234.zip' -DestinationPath '%gamePath%' -Force"
 if errorlevel 1 (
     color 0c
@@ -75,31 +75,31 @@ if errorlevel 1 (
 
 
 cls
-title Poison Menu Installer // [#####-----] Creating directories
+title Nova Menu Installer // [#####-----] Creating directories
 mkdir "%gamePath%/BepInEx/config" 2>nul
 mkdir "%gamePath%/BepInEx/plugins" 2>nul
 
 
 cls
-title Poison Menu Installer // [######----] Downloading Poison
-for /f "tokens=*" %%i in ('powershell -Command "(Invoke-RestMethod -Uri 'https://api.github.com/repos/heycanihavethis/poison/releases/latest').assets | Where-Object { $_.name -eq 'Poison.Menu.dll' } | Select-Object -ExpandProperty browser_download_url"') do (
-    set poisonUrl=%%i
+title Nova Menu Installer // [######----] Downloading Nova
+for /f "tokens=*" %%i in ('powershell -Command "(Invoke-RestMethod -Uri 'https://api.github.com/repos/HZMGTX/Nova/releases/latest').assets | Where-Object { $_.name -eq 'Nova.Menu.dll' } | Select-Object -ExpandProperty browser_download_url"') do (
+    set novaUrl=%%i
 )
 
 
-if "%poisonUrl%"=="" (
+if "%novaUrl%"=="" (
     color 0c
-    echo Failed to find Poison.Menu.dll in the latest release of Poison.
+    echo Failed to find Nova.Menu.dll in the latest release of Nova.
     pause
     exit /b
 )
 
 
 color 0e
-curl -L "%poisonUrl%" -o "%gamePath%/BepInEx/plugins/Poison.Menu.dll"
+curl -L "%novaUrl%" -o "%gamePath%/BepInEx/plugins/Nova.Menu.dll"
 if errorlevel 1 (
     color 0c
-    echo Failed to download Poison.Menu.dll.
+    echo Failed to download Nova.Menu.dll.
     echo Error code: %errorlevel%
     pause
     exit /b
@@ -107,8 +107,8 @@ if errorlevel 1 (
 
 
 cls
-title Poison Menu Installer // [##########] Finished
-echo Congratulations, you now have Poison installed!
+title Nova Menu Installer // [##########] Finished
+echo Congratulations, you now have Nova installed!
 
 
 del "BPNX54234.zip" 2>nul

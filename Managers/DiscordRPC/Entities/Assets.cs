@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Exceptions;
+﻿using Nova.Managers.DiscordRPC.Exceptions;
 using System;
 using Valve.Newtonsoft.Json;
 

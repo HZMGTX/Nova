@@ -1,4 +1,4 @@
-using Valve.Newtonsoft.Json;
+﻿using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
 
 namespace Nova.Managers.DiscordRPC.RPC.Payload

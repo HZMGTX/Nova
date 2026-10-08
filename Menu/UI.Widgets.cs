@@ -3,8 +3,6 @@ using UnityEngine;
 
 
 using UnityEngine.InputSystem;
-using static Poison.Menu.Main;
-
 using static Nova.Menu.Main;
 
 namespace Nova.Menu

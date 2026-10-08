@@ -1,12 +1,13 @@
-/*
+﻿/*
  * Nova Menu  Mods/Detected.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +48,7 @@ namespace Nova.Mods
             if (!allowDetected)
             {
                 LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/danger.ogg", "Audio/Menu/danger.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
-                Prompt("The mods in this category are detected. <b>Unless you know what you're doing, you will get banned.</b> Are you sure you would like to continue?",
+                Prompt("The mods in this category are DETECTED. <b>Unless you know what you're doing, you will get banned, even in private codes. </b> Are you sure you would like to continue?",
                     () =>
                     {
                         allowDetected = true; Buttons.CurrentCategoryName = "Detected Mods";
@@ -804,7 +805,7 @@ namespace Nova.Mods
 
         }
 
-        public static string name = "NOVA";
+        public static string name = "Nova";
 
         public static void PromptNameChange() =>
             Prompt("Would you like to set a name?", () => PromptSingleText("Please enter the name you'd like to use:", () => name = keyboardInput, "Done"));

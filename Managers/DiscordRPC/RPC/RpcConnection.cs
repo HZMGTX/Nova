@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Events;
+﻿using Nova.Managers.DiscordRPC.Events;
 using Nova.Managers.DiscordRPC.Helper;
 using Nova.Managers.DiscordRPC.IO;
 using Nova.Managers.DiscordRPC.Logging;

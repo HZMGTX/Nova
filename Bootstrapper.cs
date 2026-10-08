@@ -2,11 +2,12 @@
  * Nova Menu  Bootstrapper.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +32,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+
 namespace Nova
 {
     internal static class Bootstrapper
@@ -88,6 +90,7 @@ namespace Nova
             Loader.AddComponent<NotificationManager>();
             Loader.AddComponent<CustomBoardManager>();
             Loader.AddComponent<UI>();
+            Loader.AddComponent<Hud>();
             UnityEngine.Object.DontDestroyOnLoad(Loader);
             coroutineManager.StartCoroutine(PatchIntegrityLoop());
         }

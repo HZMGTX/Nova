@@ -2,11 +2,12 @@
  * Nova Menu  Patches/Menu/GetLaunchPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -70,8 +71,9 @@ namespace Nova.Patches.Menu
                 __result = CalcMinSpeed(__instance.center.transform.position, targetRig);
             }
         }
-
+        
         // ChatGPT used for math.. because I'm only 14 and haven't learned this yet and am not taking a class for a Gorilla Tag mod - iiDk
+        // skid ^^
         private static Vector3 CalcMinSpeed(Vector3 origin, VRRig targetRig)
         {
             Vector3 targetPos = targetRig.headMesh.transform.position;

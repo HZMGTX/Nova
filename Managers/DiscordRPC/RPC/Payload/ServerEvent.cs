@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Converters;
+﻿using Nova.Managers.DiscordRPC.Converters;
 
 namespace Nova.Managers.DiscordRPC.RPC.Payload
 {

@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Message;
+﻿using Nova.Managers.DiscordRPC.Message;
 
 namespace Nova.Managers.DiscordRPC.Events
 {

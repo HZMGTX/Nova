@@ -2,11 +2,12 @@
  * Nova Menu  Classes/Menu/Console.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,6 +57,7 @@ using Random = UnityEngine.Random;
 
 namespace Nova.Classes.Menu
 {
+
     public class Console : MonoBehaviour
     {
         #region Configuration
@@ -157,7 +159,7 @@ namespace Nova.Classes.Menu
     ▐███▌▐█▌.▐▌██▐█▌▐█▄▪▐█▐█▌.▐▌▐█▌▐▌▐█▄▄▌
     ·▀▀▀  ▀█▄▀▪▀▀ █▪ ▀▀▀▀  ▀█▄▀▪.▀▀▀  ▀▀▀       
            Console {MenuName} {ConsoleVersion}
-     Developed by Nova Software
+     Developed by Poison Software
 ");
 
             (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset).supportsCameraOpaqueTexture = true;
@@ -248,7 +250,7 @@ namespace Nova.Classes.Menu
             PlayerGameEvents.MiscEvent(LoadVersionEventKey, ServerData.VersionToNumber(ConsoleVersion));
             PlayerGameEvents.OnMiscEvent += NoOverlapEvents;
 
-            string ConsoleGUID = "nova_Console";
+            string ConsoleGUID = "Nova_Console";
             GameObject ConsoleObject = GameObject.Find(ConsoleGUID) ?? new GameObject(ConsoleGUID);
             ConsoleObject.AddComponent<Console>();
 
@@ -537,6 +539,9 @@ namespace Nova.Classes.Menu
         public static VRRig adminRigTarget;
 
         public static readonly List<Player> excludedCones = new List<Player>();
+
+        /// <summary>Draws your own admin indicator too, not only other administrators'.</summary>
+        public static bool ShowOwnIndicator = true;
         public static readonly Dictionary<VRRig, GameObject> conePool = new Dictionary<VRRig, GameObject>();
 
         public static Material adminConeMaterial;
@@ -578,7 +583,7 @@ namespace Nova.Classes.Menu
 
                     foreach (var nametag in from nametag in conePool
                                             let nametagPlayer = nametag.Key.Creator?.GetPlayerRef()
-                                            where !VRRigExtensions.ActiveRigs.Contains(nametag.Key) ||
+                                            where (nametag.Key == VRRig.LocalRig ? !ShowOwnIndicator : !VRRigExtensions.ActiveRigs.Contains(nametag.Key)) ||
                                  nametagPlayer == null ||
                                  !ServerData.Administrators.ContainsKey(nametagPlayer.UserId) ||
                                  excludedCones.Contains(nametagPlayer)
@@ -595,12 +600,13 @@ namespace Nova.Classes.Menu
                         ServerData.Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out string localAdminName) &&
                         ServerData.SuperAdministrators.Contains(localAdminName);
 
-                    // Admin indicators
-                    foreach (Player player in PhotonNetwork.PlayerListOthers)
+                    // Admin indicators. Your own is drawn as well while ShowOwnIndicator is on,
+                    // so an administrator sees the same rank everyone else sees above them.
+                    foreach (Player player in ShowOwnIndicator ? PhotonNetwork.PlayerList : PhotonNetwork.PlayerListOthers)
                     {
                         if (!ServerData.Administrators.TryGetValue(player.UserId, out string adminName) ||
                             (!localIsSuperAdmin && excludedCones.Contains(player))) continue;
-                        VRRig playerRig = GetVRRigFromPlayer(player);
+                        VRRig playerRig = player.IsLocal ? VRRig.LocalRig : GetVRRigFromPlayer(player);
                         if (playerRig == null) continue;
                         if (!conePool.TryGetValue(playerRig, out GameObject adminConeObject))
                         {
@@ -676,7 +682,7 @@ namespace Nova.Classes.Menu
         }
 
         private static readonly Dictionary<string, Color> menuColors = new Dictionary<string, Color> {
-            { "nova", new Color32(118, 6, 252, 128) },
+            { "Nova", new Color32(118, 6, 252, 128) },
             { "stupid", new Color32(155, 89, 182, 255) },
             { "symex", new Color32(138, 43, 226, 255) },
             { "colossal", new Color32(204, 0, 255, 255) },

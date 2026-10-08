@@ -2,11 +2,12 @@
  * Nova Menu  Managers/PluginManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,6 +32,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using UnityEngine;
 using static Nova.Menu.Main;
 using static Nova.Utilities.FileUtilities;
 
@@ -211,14 +213,23 @@ namespace Nova.Managers
             }
         }
 
-        public static void ExecuteOnGUI()
+        public static void ExecuteOnGUI(Event pad)
         {
             foreach (Plugin plugin in Plugins.Where(plugin => plugin.Enabled))
             {
                 try
                 {
                     foreach (MethodInfo method in ResolveHooks(plugin.Assembly).OnGUI)
-                        method.Invoke(null, null);
+                    {
+                        if (pad == null) { method.Invoke(null, null); continue; }
+                        Event original = Event.current;
+                        try
+                        {
+                            Event.current = pad;
+                            method.Invoke(null, null);
+                        }
+                        finally { Event.current = original; }
+                    }
                 }
                 catch (Exception e) { LogManager.Log("Error with OnGUI() with plugin " + plugin.Name + ": " + e); }
             }

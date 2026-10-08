@@ -1,4 +1,4 @@
-using Nova.Managers.DiscordRPC.Helper;
+﻿using Nova.Managers.DiscordRPC.Helper;
 using System;
 using Valve.Newtonsoft.Json;
 

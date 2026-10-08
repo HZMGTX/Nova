@@ -1,12 +1,13 @@
-/*
+﻿/*
  * Nova Menu  Mods/Preferences.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -276,6 +277,57 @@ namespace Nova.Classes.Menu
             catch (Exception e) { LogManager.Log("Error importing preferences from text: " + e.Message); }
         }
 
+        public static void ImportSeralyth()
+        {
+            try
+            {
+                string path = SeralythPath;
+                if (!File.Exists(path))
+                {
+                    LogManager.Log($"Seralyth preferences not found at '{path}'.");
+                    return;
+                }
+
+                var data = JsonConvert.DeserializeObject<PreferencesData>(File.ReadAllText(path));
+                if (data == null)
+                {
+                    LogManager.Log("Failed to parse Seralyth preferences.");
+                    return;
+                }
+
+                int applied = 0;
+                RunWithoutSaving(() =>
+                {
+                    try
+                    {
+                        if (data.misc != null)
+                        {
+                            if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
+                            if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
+                            if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
+                            if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
+                        }
+                    }
+                    catch (Exception e) { LogManager.Log("Error restoring Seralyth misc: " + e.Message); }
+
+                    foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons ?? new Dictionary<string, SavedButtonState>())
+                    {
+                        ButtonInfo button = Buttons.GetIndex(kv.Key);
+                        if (button == null || button.label || !button.isTogglable) continue;
+                        if (kv.Value.enabled == true && !button.enabled)
+                        {
+                            Toggle(button.buttonText);
+                            applied++;
+                        }
+                    }
+                });
+
+                Save();
+                LogManager.Log($"Imported {applied} settings from Seralyth.");
+            }
+            catch (Exception e) { LogManager.Log("Error importing Seralyth settings: " + e.Message); }
+        }
+
         public static void Load()
         {
             try
@@ -300,10 +352,41 @@ namespace Nova.Classes.Menu
             catch (Exception e) { LogManager.Log("Error loading preferences: " + e.Message); }
 
             hasLoadedPreferences = true;
+            MaybePromptSeralythMigration();
         }
 
-        private static void Apply(PreferencesData data)
+        private static string SeralythPath => Path.Combine(Nova.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
+
+        public static bool HasSeralythSettings()
         {
+            try { return File.Exists(SeralythPath); }
+            catch { return false; }
+        }
+
+        private static void MaybePromptSeralythMigration()
+        {
+            try
+            {
+                string marker = Path.Combine(PluginInfo.BaseDirectory, "Seralyth_Migrated.txt");
+                if (!HasSeralythSettings() || File.Exists(marker)) return;
+                Prompt("Seralyth settings detected in your Gorilla Tag folder.\n\nImport your settings from Seralyth?",
+                    Accept: () =>
+                    {
+                        try { File.WriteAllText(marker, DateTime.Now.ToString("F")); } catch { }
+                        ImportSeralyth();
+                    },
+                    Decline: () =>
+                    {
+                        try { File.WriteAllText(marker, DateTime.Now.ToString("F")); } catch { }
+                        LogManager.Log("Skipped Seralyth migration; you can still use Settings > Import Seralyth Settings.");
+                    },
+                    AcceptButton: "Migrate",
+                    DeclineButton: "Skip");
+            }
+            catch (Exception e) { LogManager.Log("Error checking for Seralyth settings: " + e.Message); }
+        }
+
+        private static void Apply(PreferencesData data)        {
             if (data == null)
             {
                 LogManager.Log("preferences not found!");
@@ -315,6 +398,22 @@ namespace Nova.Classes.Menu
             {
                 try { Settings.Panic(); }
                 catch (Exception e) { LogManager.Log("error resetting menu: " + e.Message); }
+
+                try
+                {
+                    if (data.misc != null)
+                    {
+                        if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
+                        if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
+                        if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
+                        if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
+                        if (data.misc.TryGetValue("playTime", out object pt)) playTime = SafeInt(pt, (int)playTime);
+
+                        if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
+                            Important.oldId = uidStr;
+                    }
+                }
+                catch (Exception e) { LogManager.Log("Error restoring misc settings: " + e.Message); }
 
                 foreach (KeyValuePair<string, SavedButtonState> kv in data.buttons ?? new Dictionary<string, SavedButtonState>())
                 {
@@ -393,24 +492,11 @@ namespace Nova.Classes.Menu
 
                 try
                 {
-                    if (data.misc != null)
-                    {
-                        if (data.misc.TryGetValue("pageButtonType", out object pbt)) pageButtonType = SafeInt(pbt, pageButtonType);
-                        if (data.misc.TryGetValue("themeType", out object tt)) themeType = SafeInt(tt, themeType);
-                        if (data.misc.TryGetValue("fontCycle", out object fc)) fontCycle = SafeInt(fc, fontCycle);
-                        if (data.misc.TryGetValue("pageSize", out object ps)) _pageSize = SafeInt(ps, _pageSize);
-                        if (data.misc.TryGetValue("playTime", out object pt)) playTime = SafeInt(pt, (int)playTime);
-
-                        if (data.misc.TryGetValue("userId", out object uid) && uid is string uidStr && !string.IsNullOrEmpty(uidStr) && uidStr != "null")
-                            Important.oldId = uidStr;
-                    }
-                }
-                catch (Exception e) { LogManager.Log("Error restoring misc settings: " + e.Message); }
-
-                try
-                {
-                    if (data.customTheme != null)
+                    ButtonInfo customThemeButton = Buttons.GetIndex("Custom Menu Theme");
+                    if (data.customTheme != null && customThemeButton != null && customThemeButton.enabled)
                         Settings.ApplyTheme(data.customTheme);
+                    else
+                        Settings.ApplyMenuTheme(themeType);
                 }
                 catch (Exception e) { LogManager.Log("Error applying custom theme: " + e.Message); }
             });

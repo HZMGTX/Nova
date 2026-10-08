@@ -2,11 +2,12 @@
  * Nova Menu  PluginInfo.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +30,8 @@ namespace Nova
         public const string GUID = "org.nova.gorillatag.novamenu";
         public const string Name = "Nova Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-10-06T13:05:19Z";
-        public const string Version = "1.0.0";
+        public const string BuildTimestamp = "2026-10-08T07:12:10Z";
+        public const string Version = "5.1.3";
 
         public const string BaseDirectory =
 #if LEGAL || LEGAL_DEBUG
@@ -41,49 +42,7 @@ namespace Nova
         public const string ClientResourcePath = "NovaMenu.Resources.Client";
         public const string ServerResourcePath = "https://raw.githubusercontent.com/HZMGTX/Nova/master/Resources/Server";
         public const string ServerAPI = "https://www.menu.management";
-        public const string Logo = @"
-                                            %%%%%                                                   
-                                           %%% %%%%                                                 
-                                         %%%      %%%%                                              
-                                        %%%         %%%%        %%%  %                              
-                                      %%%%            %%%%%%%% %%%%  %%                             
-                                     %%%        %#####% %%%%%        %%                             
-                                    %%%       ############ %%%                                      
-                                  %%%       ######     %###  %%%%     %%%                           
-                                %%%%       ######        ###   %#%%    %%                           
-                             %%%#%        ######         ###%    %#%%                               
-                       %%%%  %%#%         ######         %###      %##% %%                          
-                 %%%%  %%   %##           ######%         ##%         %###%                         
-                           %#%             ######        ###            ###%                        
-                         %##%              %######%    #####              ###%                      
-#%   %##                  #######%                        ###                    
-                   %% %##                     %#######%                        ###%                 
-###                        %########%                       ###%               
-###                            %#######%                       %##%             
-                  %##                                %#######%                        ###           
-                %##%                                   %#######%                     ###%           
-###                   %##########%        #######%                   ###             
-##%                  %####%    %####        %######%                ###               
-###                  %###%        %##%         %######%              ###                
-###                 ###%          %%%           %######%            ##%                 
-###              %###                          #######          ####                  
-                %###           ####                          #######        %###                    
-####         ####                          #######       ###   ##                 
-                    %###       ####                         %######       ##%    ##%                
-###      ###                         ######      ###                         
-                         %###   ####                       ######      ###        %%%               
-####  %####                   %######     ###           #%               
-                            %%###% ####%              ########      ##%         %%%                 
-###%%######%%    %#########%      ###     %%%% %%%%                 
-                             %#   %### %###############%         ##%%%%% %%%%                       
-                              %%    %##%                       %##  %                               
-                                       %##                    %#%                                   
-                               %%        %#%%               %%%%                                    
-                               %%%         %%#%            %%%                                      
-                                      %%%%%  %%%%        %%%%                                       
-                                 %%%%           %%%     %%%                                         
-                                                  %%%% %%%                                          
-                                                    %%%%                                            ";
+        public const string Logo = @"um";
 
 #if DEBUG || LEGAL_DEBUG
         public static bool BetaBuild = true;

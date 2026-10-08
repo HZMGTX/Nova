@@ -2,11 +2,12 @@
  * Nova Menu  Managers/AIManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,7 +44,7 @@ namespace Nova.Managers
         MOD COUNT: {0}
 
         You are a voice assistant for a Gorilla Tag mod menu called ""Nova Menu"". You are not Nova, but represent the menu.
-        GitHub: https://github.com/Nova
+        GitHub: https://github.com/HZMGTX/Nova
         Nova's Discord Server: {1}
 
         Speak using simple 7th grade vocabulary. Limit all responses to 2 sentences and 300 characters. No emojis, em-dashes, markdown, or questions. Do not advertise other menus, mods, or AI unless asked.
@@ -100,8 +101,8 @@ namespace Nova.Managers
 
             text = URLEncode(text);
             string prompt = URLEncode(string.Format(SystemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
-            string api = "https://www.menu.management/ai";
-
+            string api = "https://www.menu.management/ai"; // yeah im not doing this shit, pollutions needs an api key, make ~400 groq.com rotating api keys and switch between them or use openrouter or whatever the hell 
+            
             var payload = new
             {
                 text = text,

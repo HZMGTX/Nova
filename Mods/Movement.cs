@@ -1,12 +1,13 @@
-/*
+﻿/*
  * Nova Menu  Mods/Movement.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -350,19 +351,13 @@ namespace Nova.Mods
         public static void Fly()
         {
             if (rightPrimary)
-            {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
         }
 
         public static void TriggerFly()
         {
             if (rightTrigger > 0.5f)
-            {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
         }
 
         public static bool noclip;
@@ -370,8 +365,7 @@ namespace Nova.Mods
         {
             if (rightPrimary)
             {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
+                GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
                 if (!noclip)
                 {
                     noclip = true;
@@ -394,8 +388,8 @@ namespace Nova.Mods
 
             if (Mathf.Abs(joy.x) > 0.3 || Mathf.Abs(joy.y) > 0.3)
             {
-                GTPlayer.Instance.transform.position += GorillaTagger.Instance.headCollider.transform.forward * (Time.deltaTime * (joy.y * FlySpeed)) + GorillaTagger.Instance.headCollider.transform.right * (Time.deltaTime * (joy.x * FlySpeed));
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
+                Vector3 move = GorillaTagger.Instance.headCollider.transform.forward * joy.y + GorillaTagger.Instance.headCollider.transform.right * joy.x;
+                GorillaTagger.Instance.rigidbody.linearVelocity = move.normalized * FlySpeed;
             }
         }
 
@@ -423,10 +417,7 @@ namespace Nova.Mods
         public static void HandFly()
         {
             if (rightPrimary)
-            {
-                GTPlayer.Instance.transform.position += ControllerUtilities.GetTrueRightHand().forward * (Time.deltaTime * FlySpeed);
-                GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-            }
+                GorillaTagger.Instance.rigidbody.linearVelocity = ControllerUtilities.GetTrueRightHand().forward * FlySpeed;
         }
 
         public static void FlyTowardsGun()
@@ -437,10 +428,7 @@ namespace Nova.Mods
                 RaycastHit Ray = GunData.Ray;
 
                 if (gunLocked && lockTarget != null)
-                {
-                    GTPlayer.Instance.transform.position += (lockTarget.transform.position - GorillaTagger.Instance.bodyCollider.transform.position) * (Time.deltaTime * FlySpeed);
-                    GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
-                }
+                    GorillaTagger.Instance.rigidbody.linearVelocity = (lockTarget.transform.position - GorillaTagger.Instance.bodyCollider.transform.position).normalized * FlySpeed;
 
                 if (GetGunInput(true))
                 {
@@ -5734,7 +5722,7 @@ namespace Nova.Mods
             {
                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>SEX</color><color=grey>]</color> A browser tab has been opened on your computer.");
                 PromptSingle("A browser tab has been opened on your computer. Please go and verify your age.", null, "Ok frick off buddy");
-                Application.OpenURL("https://seralyth.software/age_verification");
+                Application.OpenURL("https://www.menu.management/age_verification"); // is this shit even on the menu anymore??? do i gotta spend time prompting a fucking age verification site 
 
                 CoroutineManager.instance.StartCoroutine(Sex());
             });

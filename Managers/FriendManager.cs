@@ -2,11 +2,12 @@
  * Nova Menu  Managers/FriendManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1378,29 +1379,7 @@ namespace Nova.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            // The apex is the hostname the socket is meant to use, but it only
-            // carries websockets once the proxy in front of it is live. The relay's
-            // own hostname is tried next so friends keep working until then.
-            // Ordinary requests go to www instead, which Vercel serves directly.
-            public readonly string[] FriendWebsockets =
-            {
-                $"wss://menu.management?mod={Classes.Menu.Console.MenuName}",
-                $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}"
-            };
-
-            // Which endpoint the next attempt uses. It only moves when one proves
-            // unusable, so a working endpoint is kept rather than re-probed every
-            // reconnect.
-            public int endpoint;
-
-            // Whether this socket ever carried a message. An endpoint that accepts
-            // the upgrade and then closes without saying anything has rejected us —
-            // it is not the same as a healthy server going away, and without telling
-            // the two apart a rejecting endpoint traps the retry loop forever.
-            public bool servedAnything;
-
-            public string FriendWebsocket =>
-                FriendWebsockets[endpoint % FriendWebsockets.Length];
+            public readonly string FriendWebsocket = $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}";
 
             public ClientWebSocket ws;
             public CancellationTokenSource cts;
@@ -1437,7 +1416,6 @@ namespace Nova.Managers
                     if (ws.State == WebSocketState.Open)
                     {
                         connected = true;
-                        servedAnything = false;
                         LogManager.Log("Connected to friends websocket");
                         _ = Receive();
                     }
@@ -1446,8 +1424,6 @@ namespace Nova.Managers
                 {
                     connected = false;
                     LogManager.LogError($"Could not connect to friends websocket: {e.Message}");
-                    // Fall through to the next endpoint on the following retry.
-                    endpoint++;
                 }
             }
 
@@ -1467,15 +1443,8 @@ namespace Nova.Managers
 
                             if (result.MessageType == WebSocketMessageType.Close)
                             {
-                                LogManager.Log($"Server closed: {ws.CloseStatusDescription}");
+                                LogManager.Log("Server closed");
                                 connected = false;
-
-                                // Closed without ever serving us. Accepting the socket
-                                // and then dropping it is a rejection, so move on rather
-                                // than reconnecting here forever.
-                                if (!servedAnything)
-                                    endpoint++;
-
                                 await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
                                 return;
                             }
@@ -1485,7 +1454,6 @@ namespace Nova.Managers
                         } while (!result.EndOfMessage);
 
                         string message = messageBuilder.ToString();
-                        servedAnything = true;
                         HandleJSON(message);
                     }
                 }

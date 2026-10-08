@@ -2,11 +2,12 @@
  * Nova Menu  Mods/Experimental.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -635,34 +636,6 @@ namespace Nova.Mods
 
         public static void AdminVibrateAll() =>
             Console.ExecuteCommand("vibrate", ReceiverGroup.Others, 3, 1f);
-
-        // "shake" is a real command Console.cs already handles (case "shake" ->
-        // the Shake coroutine, which repositions the target's body randomly for
-        // a bounded duration). It was never wired to a button, so this exposes
-        // existing, already-tested behavior rather than adding a new one.
-        // strength=0.3, time=2s, constant=false (tapers off toward the end,
-        // matching how Shake's own falloff branch behaves).
-        public static void AdminShakeGun()
-        {
-            if (GetGunInput(false))
-            {
-                var GunData = RenderGun();
-                RaycastHit Ray = GunData.Ray;
-
-                if (GetGunInput(true) && Time.time > adminEventDelay)
-                {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (gunTarget && !gunTarget.IsLocal())
-                    {
-                        adminEventDelay = Time.time + 0.2f;
-                        Console.ExecuteCommand("shake", GetPlayerFromVRRig(gunTarget).ActorNumber, 0.3f, 2f, false);
-                    }
-                }
-            }
-        }
-
-        public static void AdminShakeAll() =>
-            Console.ExecuteCommand("shake", ReceiverGroup.Others, 0.3f, 2f, false);
 
         public static void AdminBMuteGun(bool mute)
         {

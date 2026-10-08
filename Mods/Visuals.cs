@@ -1,12 +1,13 @@
-/*
+﻿/*
  * Nova Menu  Mods/Visuals.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -295,6 +296,47 @@ namespace Nova.Mods
                 Transform enemy = enemies[i].transform;
                 Visualize(PrimitiveType.Sphere, enemy.position, enemy.rotation, enemy.lossyScale, coreESPColor, i + 451980, coreESPColor.a);
             }
+        }
+
+        public static void LucyESP()
+        {
+            if (!NetworkSystem.Instance.InRoom)
+                return;
+
+            HalloweenGhostChaser hgc = Overpowered.Lucy;
+            if (hgc == null)
+                return;
+
+            bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
+            bool tt = Buttons.GetIndex("Transparent Theme").enabled;
+
+            Color lucyColor = fmt ? backgroundColor.GetCurrentColor() : hgc.isSummoned ? new Color(0.75f, 0.1f, 0.1f) : new Color(0.6f, 0.8f, 1f);
+            if (tt)
+                lucyColor.a = 0.5f;
+
+            Visualize(PrimitiveType.Sphere, hgc.transform.position, hgc.transform.rotation, Vector3.one * 0.75f, lucyColor, 778293, lucyColor.a);
+        }
+
+        public static void LucyOverlay()
+        {
+            HalloweenGhostChaser hgc = Overpowered.Lucy;
+            if (hgc == null)
+            {
+                NotificationManager.information.Remove("Lucy");
+                return;
+            }
+
+            string stateName = hgc.currentState switch
+            {
+                HalloweenGhostChaser.ChaseState.Dormant => "Dormant",
+                HalloweenGhostChaser.ChaseState.InitialRise => "Rising",
+                HalloweenGhostChaser.ChaseState.Gong => "Gong",
+                HalloweenGhostChaser.ChaseState.Chasing => "Chasing",
+                HalloweenGhostChaser.ChaseState.Grabbing => "Grabbing",
+                _ => "Unknown"
+            };
+
+            NotificationManager.information["Lucy"] = $"{stateName} | {hgc.currentSpeed:F1}m/s | {hgc.targetPlayer?.NickName ?? "Nobody"}";
         }
 
         public static void ResourceESP()
@@ -2939,7 +2981,7 @@ namespace Nova.Mods
                     {
                         if (!compactNameTags.ContainsKey(vrrig))
                         {
-                            GameObject textContainer = new GameObject("nova_vrctag_text");
+                            GameObject textContainer = new GameObject("Nova_vrctag_text");
                             if (hoc)
                                 textContainer.layer = 19;
 
@@ -2962,7 +3004,7 @@ namespace Nova.Mods
                             nameMesh.alignment = TextAlignmentOptions.Center;
                             nameMesh.richText = true;
 
-                            GameObject bgContainer = new GameObject("nova_vrctag_background");
+                            GameObject bgContainer = new GameObject("Nova_vrctag_background");
                             if (hoc)
                                 bgContainer.layer = 19;
 

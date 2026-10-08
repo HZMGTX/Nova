@@ -2,11 +2,12 @@
  * Nova Menu  Mods/Fun.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
- * Copyright (C) 2026  Seralyth Software
- * Copyright (C) 2026  Nova
+ * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
  *
- * Modified from Seralyth Menu
- * https://github.com/Seralyth/Seralyth-Menu
+ * Modified from Poison Menu (formerly Seralyth Menu)
+ * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,48 +92,6 @@ namespace Nova.Mods
 
         public static void SidewaysHead() =>
             VRRig.LocalRig.head.trackingRotationOffset.y = 90f;
-
-        public static void TiltedHead() =>
-            VRRig.LocalRig.head.trackingRotationOffset.x = 90f;
-
-        // Purely cosmetic, self-contained: its own GameObject, created on first
-        // enable and torn down on disable, never touching any field another mod
-        // reads or writes. Position is refreshed every frame the same way
-        // Freecam repositions its own camera object each frame.
-        private static GameObject haloObject;
-
-        public static void Halo()
-        {
-            if (haloObject == null)
-            {
-                haloObject = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                Object.Destroy(haloObject.GetComponent<Collider>());
-                haloObject.transform.localScale = new Vector3(0.35f, 0.01f, 0.35f);
-
-                Material haloMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-                haloMaterial.SetFloat("_Surface", 1);
-                haloMaterial.SetFloat("_Blend", 0);
-                haloMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                haloMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                haloMaterial.SetFloat("_ZWrite", 0);
-                haloMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                haloMaterial.renderQueue = (int)RenderQueue.Transparent;
-                haloMaterial.color = new Color(1f, 0.9f, 0.4f, 0.75f);
-
-                haloObject.GetComponent<Renderer>().material = haloMaterial;
-            }
-
-            haloObject.transform.position = GorillaTagger.Instance.headCollider.transform.position + Vector3.up * 0.3f;
-        }
-
-        public static void DisableHalo()
-        {
-            if (haloObject != null)
-            {
-                Object.Destroy(haloObject);
-                haloObject = null;
-            }
-        }
 
 
         public static float lastBangTime;
@@ -261,18 +220,6 @@ namespace Nova.Mods
             EffectDataPatch.overrideVolume = 99999f;
             EffectDataPatch.tapMultiplier = 10;
             GorillaTagger.Instance.handTapVolume = 99999f;
-        }
-
-        // Distinct from SilentHandTaps: tapsEnabled stays true, so taps are
-        // heard, just faintly, rather than muted outright.
-        public static void QuietHandTaps()
-        {
-            EffectDataPatch.enabled = true;
-            EffectDataPatch.tapsEnabled = true;
-            EffectDataPatch.doOverride = true;
-            EffectDataPatch.overrideVolume = 0.02f;
-            EffectDataPatch.tapMultiplier = 1;
-            GorillaTagger.Instance.handTapVolume = 0.02f;
         }
 
         public static void SilentHandTaps()

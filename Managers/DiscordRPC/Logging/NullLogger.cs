@@ -1,4 +1,4 @@
-namespace Nova.Managers.DiscordRPC.Logging
+﻿namespace Nova.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Ignores all log events
