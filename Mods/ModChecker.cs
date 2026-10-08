@@ -218,6 +218,27 @@ namespace Nova.Mods
                 Line("Header", report.Properties.Count == 0 ? "<color=green>No mod properties</color>" : $"<color=red>{report.Properties.Count} mod propert{(report.Properties.Count == 1 ? "y" : "ies")}</color>")
             };
 
+            if (report.Rig != null)
+                buttons.Add(new ButtonInfo
+                {
+                    buttonText = Prefix + "CopyLook",
+                    overlapText = "Copy Their Look",
+                    method = () =>
+                    {
+                        VRRig rig = Console.GetVRRigFromPlayer(player);
+                        if (rig == null)
+                        {
+                            NotificationManager.SendNotification($"{Plain(player.NickName)} is no longer here.", 4000);
+                            return;
+                        }
+
+                        Fun.CopyCosmeticsFrom(rig);
+                        NotificationManager.SendNotification($"Now wearing what {Plain(player.NickName)} wears.", 4000);
+                    },
+                    isTogglable = false,
+                    toolTip = "Wears the same cosmetics as this player. Console users see it on you too when you are an administrator."
+                });
+
             int index = 0;
             foreach (var (key, value) in report.Properties)
                 buttons.Add(Line("Property" + index++, $"{key} <color=grey>= {value}</color>"));

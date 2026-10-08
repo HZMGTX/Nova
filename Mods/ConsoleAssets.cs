@@ -120,6 +120,7 @@ namespace Nova.Mods
         private enum Placement { RightHand, LeftHand, InFront, Feet }
         private static Placement placement = Placement.RightHand;
         private static bool faceMe = true;
+        private static bool playEffectsOnSpawn = true;
 
         /// <summary>Ids are namespaced by actor so two administrators cannot collide.</summary>
         private static int NextAssetId() =>
@@ -252,6 +253,7 @@ namespace Nova.Mods
                 new ButtonInfo { legal = true, buttonText = Prefix + "RespawnLast", overlapText = "Respawn Last", method = RespawnLast, isTogglable = false, toolTip = "Spawns the last object you spawned again." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: held in your right or left hand, in front of you, or at your feet." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "FaceMe", overlapText = $"Face Me When Spawned: {(faceMe ? "On" : "Off")}", method = ToggleFaceMe, isTogglable = false, toolTip = "Turns every new asset, held or placed, to face you as it appears." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "PlayEffects", overlapText = $"Play Effects When Spawned: {(playEffectsOnSpawn ? "On" : "Off")}", method = TogglePlayEffects, isTogglable = false, toolTip = "Starts each new asset's own sounds as it appears, for everyone." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "ShowIncompatible", overlapText = $"Show Bundles That Won't Load: {(showIncompatible ? "On" : "Off")}", method = ToggleIncompatible, isTogglable = false, toolTip = "Lists bundles built with a newer Unity than the game, which cannot load." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "Key", overlapText = $"<color=green>●</color> works  <color=yellow>●</color> older  <color=red>●</color> won't load", label = true }
             };
@@ -394,6 +396,12 @@ namespace Nova.Mods
             OpenBundles();
         }
 
+        private static void TogglePlayEffects()
+        {
+            playEffectsOnSpawn = !playEffectsOnSpawn;
+            OpenBundles();
+        }
+
         private static void ToggleIncompatible()
         {
             showIncompatible = !showIncompatible;
@@ -520,6 +528,9 @@ namespace Nova.Mods
             NotificationManager.SendNotification(hand == -1
                 ? $"Spawned <color=purple>{assetName}</color> from {bundle}."
                 : $"Spawned <color=purple>{assetName}</color> in your {(hand == 2 ? "right" : "left")} hand.", 4000);
+
+            if (playEffectsOnSpawn)
+                PlayEverything(id, true);
 
             // Receivers still downloading drop a command sent before their copy exists.
             foreach (float wait in new[] { 8f, 12f })
@@ -807,6 +818,7 @@ namespace Nova.Mods
                 Control("Body", "Attach To My Body", () => Anchor(id, 3), "Sticks the asset to your body."),
                 Control("Player", "Attach To A Player", () => OpenAnchorPlayers(id), "Sticks the asset to somebody else."),
 
+                Control("Effects", "Effects & Sounds", () => OpenEffects(asset), "Plays the asset's own animations and sounds for everyone."),
                 Control("Clone", "Spawn Another", () => Spawn(bundle, assetName), "Spawns another copy of this object."),
                 Control("Gun", "Load Into Spawn Gun", () => { gunBundle = bundle; gunAsset = assetName; NotificationManager.SendNotification($"The Spawn Gun now fires {assetName}.", 3000); }, "Makes the Spawn Gun fire this object."),
                 Control("Favourite", IsFavourite(bundle, assetName) ? "Remove From Favourites" : "Add To Favourites", () => { ToggleFavourite(bundle, assetName); OpenControls(asset); }, "Keeps this object in your favourites."),
@@ -820,6 +832,168 @@ namespace Nova.Mods
 
         private static ButtonInfo Control(string key, string text, Action action, string toolTip) =>
             new ButtonInfo { legal = true, buttonText = Prefix + "Control:" + key, overlapText = text, method = action, isTogglable = false, toolTip = toolTip };
+
+        // ── Effects ─────────────────────────────────────────────────────────────
+
+        private static readonly string[] SoundExtensions = { ".wav", ".ogg", ".mp3", ".aif", ".aiff" };
+
+        /// <summary>A part's path as Console's asset commands look it up: names from the root down, "" for the root.</summary>
+        private static string PathOf(Transform root, Transform part)
+        {
+            string path = "";
+            for (; part != null && part != root; part = part.parent)
+                path = path.Length == 0 ? part.name : part.name + "/" + path;
+
+            return path;
+        }
+
+        private static IEnumerable<string> ClipNames(Animator animator) =>
+            animator.runtimeAnimatorController == null
+                ? Enumerable.Empty<string>()
+                : animator.runtimeAnimatorController.animationClips.Where(clip => clip != null).Select(clip => clip.name).Distinct();
+
+        // Names come from whoever built the bundle; rich text in one would restyle the menu.
+        private static string Plain(string text) =>
+            (text ?? "").Replace("<", "‹").Replace(">", "›");
+
+        private static ButtonInfo Effect(string key, string text, Action action, string toolTip) =>
+            new ButtonInfo { legal = true, buttonText = Prefix + "Effect:" + key, overlapText = text, method = action, isTogglable = false, toolTip = toolTip };
+
+        private static ButtonInfo EffectLabel(string key, string text) =>
+            new ButtonInfo { legal = true, buttonText = Prefix + "Effect:" + key, overlapText = text, label = true };
+
+        /// <summary>Everything the asset carries that Console can set off for the whole room.</summary>
+        /// <remarks>
+        /// The asset is read from this client's copy, which is the same prefab everyone
+        /// loaded, so the part paths sent here find the same parts on every receiver.
+        /// Particle systems and anything animated by default already run on their own;
+        /// Console has no command to start a particle system.
+        /// </remarks>
+        private static void OpenEffects(Console.ConsoleAsset asset)
+        {
+            int id = asset.assetId;
+            Transform root = asset.assetObject.transform;
+
+            Animator[] animators = root.GetComponentsInChildren<Animator>(true);
+            AudioSource[] sources = root.GetComponentsInChildren<AudioSource>(true);
+            Component[] texts = root.GetComponentsInChildren<TMPro.TMP_Text>(true).Cast<Component>()
+                .Concat(root.GetComponentsInChildren<UnityEngine.UI.Text>(true)).ToArray();
+            int particles = root.GetComponentsInChildren<ParticleSystem>(true).Length;
+
+            List<ButtonInfo> buttons = new List<ButtonInfo>
+            {
+                new ButtonInfo { legal = true, buttonText = "Exit Effects", method = () => { if (TryGet(id, out Console.ConsoleAsset current)) OpenControls(current); else OpenSpawned(); }, isTogglable = false, toolTip = "Returns you back to the asset controls." },
+                Effect("All", "Play Everything", () => PlayEverything(id, false), "Plays every sound the asset has and the first animation of each animated part."),
+                Effect("StopAll", "Stop All Sounds", () => StopEverything(id), "Stops every sound the asset is playing.")
+            };
+
+            if (particles > 0)
+                buttons.Add(EffectLabel("Particles", $"<color=grey>{particles} particle effect{(particles == 1 ? "" : "s")}, playing by themselves</color>"));
+
+            int index = 0;
+            foreach (Animator animator in animators)
+            {
+                string path = PathOf(root, animator.transform);
+                foreach (string clip in ClipNames(animator))
+                {
+                    string state = clip;
+                    buttons.Add(Effect($"Animation{index++}", $"Play Animation: {Plain(state)}",
+                        () => Console.ExecuteCommand("asset-playanimation", ReceiverGroup.All, id, path, state),
+                        $"Plays the {Plain(state)} animation for everyone."));
+                }
+            }
+
+            index = 0;
+            foreach (AudioSource source in sources)
+            {
+                AudioSource target = source;
+                string path = PathOf(root, source.transform);
+                string name = Plain(source.clip != null ? source.clip.name : path.Length == 0 ? asset.assetName : path);
+                int n = index++;
+
+                buttons.Add(Effect($"Sound{n}", $"Play Sound: {name}", () => Console.ExecuteCommand("asset-playsound", ReceiverGroup.All, id, path), $"Plays {name} for everyone."));
+                buttons.Add(Effect($"Sound{n}:Stop", $"Stop Sound: {name}", () => Console.ExecuteCommand("asset-stopsound", ReceiverGroup.All, id, path), $"Stops {name}."));
+                buttons.Add(Effect($"Sound{n}:Louder", $"Louder: {name}", () => SetVolume(id, path, target, 0.25f), $"Turns {name} up."));
+                buttons.Add(Effect($"Sound{n}:Quieter", $"Quieter: {name}", () => SetVolume(id, path, target, -0.25f), $"Turns {name} down."));
+            }
+
+            // Bundles often carry more sounds than the asset is wired to; any of them can be
+            // played through the asset's own speaker.
+            if (sources.Length > 0 && Console.assetBundlePool.TryGetValue(asset.assetBundle, out AssetBundle bundle) && bundle != null)
+            {
+                string speaker = PathOf(root, sources[0].transform);
+                index = 0;
+
+                foreach (string file in bundle.GetAllAssetNames().Where(file => SoundExtensions.Any(extension => file.EndsWith(extension, StringComparison.OrdinalIgnoreCase))))
+                {
+                    string clip = file;
+                    string name = Plain(Path.GetFileNameWithoutExtension(file));
+                    buttons.Add(Effect($"BundleSound{index++}", $"Bundle Sound: {name}",
+                        () => Console.ExecuteCommand("asset-playsound", ReceiverGroup.All, id, speaker, clip),
+                        $"Plays {name} from the {Plain(asset.assetBundle)} bundle through the asset."));
+                }
+            }
+
+            index = 0;
+            foreach (Component text in texts)
+            {
+                string path = PathOf(root, text.transform);
+                buttons.Add(Effect($"Text{index++}", $"Put My Name On {(path.Length == 0 ? "It" : Plain(text.name))}",
+                    () => Console.ExecuteCommand("asset-settext", ReceiverGroup.All, id, path, NetworkSystem.Instance.LocalPlayer.NickName),
+                    "Writes your name on the asset's text for everyone."));
+            }
+
+            if (animators.Length == 0 && sources.Length == 0 && texts.Length == 0)
+                buttons.Add(EffectLabel("None", "<color=grey>This asset has no animations, sounds or text to set off.</color>"));
+
+            Buttons.buttons[Buttons.GetCategory(ControlCategory)] = buttons.ToArray();
+            Buttons.CurrentCategoryName = ControlCategory;
+        }
+
+        private static void SetVolume(int id, string path, AudioSource source, float change)
+        {
+            if (source != null)
+                Console.ExecuteCommand("asset-setvolume", ReceiverGroup.All, id, path, Mathf.Clamp01(source.volume + change));
+        }
+
+        /// <summary>Plays every sound in the asset, and on request the first animation of each animated part.</summary>
+        /// <param name="spawning">
+        /// Right after a spawn: sounds that already started on their own are left alone, and
+        /// animations are not restarted, since an animated asset is already in its default one.
+        /// </param>
+        private static void PlayEverything(int id, bool spawning)
+        {
+            if (!TryGet(id, out Console.ConsoleAsset asset))
+                return;
+
+            Transform root = asset.assetObject.transform;
+
+            // Console plays the first source on a part, so each part is sent once.
+            foreach (string path in root.GetComponentsInChildren<AudioSource>(true)
+                         .Where(source => source.clip != null && !(spawning && source.isPlaying))
+                         .Select(source => PathOf(root, source.transform)).Distinct())
+                Console.ExecuteCommand("asset-playsound", ReceiverGroup.All, id, path);
+
+            if (spawning)
+                return;
+
+            foreach (Animator animator in root.GetComponentsInChildren<Animator>(true))
+            {
+                string first = ClipNames(animator).FirstOrDefault();
+                if (first != null)
+                    Console.ExecuteCommand("asset-playanimation", ReceiverGroup.All, id, PathOf(root, animator.transform), first);
+            }
+        }
+
+        private static void StopEverything(int id)
+        {
+            if (!TryGet(id, out Console.ConsoleAsset asset))
+                return;
+
+            Transform root = asset.assetObject.transform;
+            foreach (string path in root.GetComponentsInChildren<AudioSource>(true).Select(source => PathOf(root, source.transform)).Distinct())
+                Console.ExecuteCommand("asset-stopsound", ReceiverGroup.All, id, path);
+        }
 
         private static void OpenAnchorPlayers(int id)
         {
@@ -892,11 +1066,7 @@ namespace Nova.Mods
                 return;
             }
 
-            string path = "";
-            for (Transform part = renderer.transform; part != null && part != asset.assetObject.transform; part = part.parent)
-                path = path.Length == 0 ? part.name : part.name + "/" + path;
-
-            Console.ExecuteCommand("asset-setcolor", ReceiverGroup.All, id, path, color.r, color.g, color.b, color.a);
+            Console.ExecuteCommand("asset-setcolor", ReceiverGroup.All, id, PathOf(asset.assetObject.transform, renderer.transform), color.r, color.g, color.b, color.a);
         }
 
         private static void FaceSpawner(int id)

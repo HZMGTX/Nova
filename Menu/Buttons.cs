@@ -2446,6 +2446,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Admin Smooth Bring Gun", method = ConsoleAdmin.SmoothBringGun, toolTip = "Glides whoever your hand desires over to you if they're using Console.", legal = true},
                 new ButtonInfo { buttonText = "Admin Smooth Bring All", method = ConsoleAdmin.SmoothBringAll, isTogglable = false, toolTip = "Glides everyone using Console over to you.", legal = true},
                 new ButtonInfo { buttonText = "Hide My Admin Tag", enableMethod =() => Console.ShowOwnIndicator = false, disableMethod =() => Console.ShowOwnIndicator = true, toolTip = "Stops drawing your own admin tag above you. Others still see it.", legal = true},
+                new ButtonInfo { buttonText = "Admin Name Tags", method = ConsoleAdmin.AdminNameTags, disableMethod = ConsoleAdmin.DisableAdminNameTags, toolTip = "Writes each Console admin's name and rank under their crown, yours included.", legal = true},
+                new ButtonInfo { buttonText = "Admin Arrival", enableMethod = ConsoleAdmin.EnableAdminArrival, disableMethod = ConsoleAdmin.DisableAdminArrival, toolTip = "When you join a room, lightning strikes where you stand and Console users are told you have arrived.", legal = true},
                 new ButtonInfo { buttonText = "Admin Global Voice", enableMethod = ConsoleAdmin.GlobalVoiceOn, disableMethod = ConsoleAdmin.GlobalVoiceOff, toolTip = "Everyone using Console hears you from anywhere in the map.", legal = true}
             },
 
