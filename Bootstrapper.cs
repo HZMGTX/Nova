@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Bootstrapper.cs
+ * Nova Menu  Bootstrapper.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -18,18 +22,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-using Poison.Classes.Menu;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches;
-using Poison.Patches.Menu;
+using Nova.Classes.Menu;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches;
+using Nova.Patches.Menu;
 using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
 using UnityEngine;
 
-namespace Poison
+namespace Nova
 {
     internal static class Bootstrapper
     {
@@ -65,23 +69,23 @@ namespace Poison
                     Directory.CreateDirectory(target);
             }
             PatchHandler.PatchAll(true);
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Poison_Preferences.txt"))
+            if (File.Exists($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt"))
             {
-                if (File.ReadAllLines($"{PluginInfo.BaseDirectory}/Poison_Preferences.txt")[0]
+                if (File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Preferences.txt")[0]
                     .Split(";;")
                     .Contains("Accept TOS"))
                 {
                     TOSPatches.enabled = true;
                 }
             }
-            if (File.Exists($"{PluginInfo.BaseDirectory}/Poison_DisableTelemetry.txt"))
+            if (File.Exists($"{PluginInfo.BaseDirectory}/Nova_DisableTelemetry.txt"))
                 ServerData.DisableTelemetry = true;
             GorillaTagger.OnPlayerSpawned(LoadMenu);
         }
         private static void LoadMenu()
         {
             PatchHandler.PatchAll();
-            Loader = new GameObject("Poison_Loader");
+            Loader = new GameObject("Nova_Loader");
             CoroutineManager coroutineManager = Loader.AddComponent<CoroutineManager>();
             Loader.AddComponent<NotificationManager>();
             Loader.AddComponent<CustomBoardManager>();

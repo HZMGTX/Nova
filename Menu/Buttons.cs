@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Menu/Buttons.cs
+ * Nova Menu  Menu/Buttons.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,13 +28,13 @@ using GorillaNetworking;
 using GorillaTagScripts;
 using GorillaTagScripts.ObstacleCourse;
 using Photon.Pun;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Mods;
-using Poison.Patches.Menu;
-using Poison.Patches.Safety;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Mods;
+using Nova.Patches.Menu;
+using Nova.Patches.Safety;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,13 +42,13 @@ using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.RandomUtilities;
-using static Poison.Utilities.RigUtilities;
-using Console = Poison.Classes.Menu.Console;
+using static Nova.Menu.Main;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
+using Console = Nova.Classes.Menu.Console;
 using Random = UnityEngine.Random;
 
-namespace Poison.Menu
+namespace Nova.Menu
 {
     public static class Buttons
     {
@@ -52,7 +56,7 @@ namespace Poison.Menu
         {
             new[] { // Main [0]
 
-                new ButtonInfo { buttonText = "Join Discord", method = Important.JoinDiscord, isTogglable = false, toolTip = "Invites you to join the <b>Poison</b> Discord server.", legal = true},
+                new ButtonInfo { buttonText = "Join Discord", method = Important.JoinDiscord, isTogglable = false, toolTip = "Invites you to join the <b>Nova</b> Discord server.", legal = true},
 
                 new ButtonInfo { buttonText = "Settings", method =() => CurrentCategoryName = "Settings", isTogglable = false, toolTip = "Opens the settings tab.", legal = true},
                 new ButtonInfo { buttonText = "Friends", method =() => CurrentCategoryName = "Friends", isTogglable = false, toolTip = "Opens the friends tab.", legal = true},
@@ -140,7 +144,7 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Menu Collisions", enableMethod =() => menuCollisions = true, disableMethod =() => menuCollisions = false, toolTip = "Gives the menu collisions when dropping it.", legal = true},
                 new ButtonInfo { buttonText = "Player Scale Menu", enableMethod =() => scaleWithPlayer = true, disableMethod =() => scaleWithPlayer = false, toolTip = "Scales the menu with your player scale.", legal = true},
                 new ButtonInfo { buttonText = "Alphabetize Menu", toolTip = "Alphabetizes the entire menu.", legal = true},
-                new ButtonInfo { buttonText = "Custom Menu Name", enableMethod = Settings.CustomMenuName, disableMethod =() => doCustomName = false, toolTip = $"Changes the name of the menu to whatever. You can change the text inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Poison_CustomMenuName.txt).", legal = true},
+                new ButtonInfo { buttonText = "Custom Menu Name", enableMethod = Settings.CustomMenuName, disableMethod =() => doCustomName = false, toolTip = $"Changes the name of the menu to whatever. You can change the text inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt).", legal = true},
                 new ButtonInfo { buttonText = "Menu Trail", enableMethod =() => menuTrail = true, disableMethod =() => menuTrail = false, toolTip = "Gives the menu a trail when you drop.", legal = true},
 
                 new ButtonInfo { buttonText = "Dynamic Animations", enableMethod =() => dynamicAnimations = true, disableMethod =() => dynamicAnimations = false, toolTip = "Adds more animations to the menu, giving you a better sense of control.", legal = true},
@@ -200,7 +204,7 @@ namespace Poison.Menu
                 ButtonHelper.CreateNumeric("Change Arrow Type", 0, arrowTypes.Length - 1, arrowType, Settings.ApplyArrowType, toolTip: "Changes the type of arrows on the page buttons.", legal: true),
                 ButtonHelper.CreateNumeric("Change Font Type", 0, 14, fontCycle, Settings.ApplyFontType, toolTip: "Changes the type of font.", legal: true),
                 new ButtonInfo { buttonText = "Rapid Font Changer", method = Settings.ChangeFontRapid, toolTip = "Changes the type of font every menu refresh.", legal = true},
-                new ButtonInfo { buttonText = "Custom Font Type", enableMethod = Settings.CustomFontType, method = Settings.PersistCustomFont, disableMethod = Settings.DisableCustomFont, toolTip = $"Changes the font type on the menu to a custom font. You can change the photo inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Poison_CustomWatermark.txt).", legal = true},
+                new ButtonInfo { buttonText = "Custom Font Type", enableMethod = Settings.CustomFontType, method = Settings.PersistCustomFont, disableMethod = Settings.DisableCustomFont, toolTip = $"Changes the font type on the menu to a custom font. You can change the photo inside of your Gorilla Tag files ({PluginInfo.BaseDirectory}/Nova_CustomWatermark.txt).", legal = true},
                 ButtonHelper.CreateNumeric("Change Font Style Type", 0, 3, Settings.fontStyleType, Settings.ApplyFontStyleType, toolTip: "Changes the style of the font.", legal: true),
                 ButtonHelper.Create("Change Input Text Color", () => Settings.InputColorNames, Settings.inputTextColorInt, Settings.ApplyInputTextColor, "Changes the color of the input indicator next to the buttons.", legal: true),
                 new ButtonInfo { buttonText = "Vibrant Text Colors", enableMethod =() => vibrantColors = true, disableMethod =() => vibrantColors = false, toolTip = "Makes certain green and purple colors more vibrant.", legal = true},
@@ -262,10 +266,10 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "No Prefix Narration", enableMethod =() => NotificationManager.noPrefix = true, disableMethod =() => NotificationManager.noPrefix = false, toolTip = "Stops the prefix on notifications from narrating itself.", legal = true},
                 new ButtonInfo { buttonText = "Hide Notification Brackets", enableMethod =() => hideBrackets = true, disableMethod =() => hideBrackets = false, toolTip = "Hides brackets on all notifications.", legal = true},
 
-                new ButtonInfo { buttonText = "Conduct Notifications", enableMethod =() => { GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/CodeOfConductHeadingText").GetComponent<TextMeshPro>().text = "Poison Menu"; GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().richText = true; }, method =() => GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().text = NotificationManager.notificationText.text, toolTip = "Shows notifications on the code of conduct instead.", legal = true},
+                new ButtonInfo { buttonText = "Conduct Notifications", enableMethod =() => { GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/CodeOfConductHeadingText").GetComponent<TextMeshPro>().text = "Nova Menu"; GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().richText = true; }, method =() => GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().text = NotificationManager.notificationText.text, toolTip = "Shows notifications on the code of conduct instead.", legal = true},
                 new ButtonInfo { buttonText = "Disable Notification Rich Text", enableMethod =() => NotificationManager.noRichText = true, disableMethod =() => NotificationManager.noRichText = false, toolTip = "Removes rich text from notifications.", legal = true},
 
-                new ButtonInfo { buttonText = "Disable RPC Protection", enableMethod =() => Poison.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = false, disableMethod =() => Poison.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = true, toolTip = "Disables the client-side protection limiting you to sending 500 RPCs a second.", legal = true},
+                new ButtonInfo { buttonText = "Disable RPC Protection", enableMethod =() => Nova.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = false, disableMethod =() => Nova.Patches.Safety.RPCProtection.OpRaiseEventPatch.enabled = true, toolTip = "Disables the client-side protection limiting you to sending 500 RPCs a second.", legal = true},
                 new ButtonInfo { buttonText = "Disable Notifications", enableMethod =() => disableNotifications = true, disableMethod =() => disableNotifications = false, toolTip = "Disables all notifications.", legal = true},
                 new ButtonInfo { buttonText = "Disable Master Client Notifications", enableMethod =() => disableMasterClientNotifications = true, disableMethod =() => disableMasterClientNotifications = false, toolTip = "Disables all notifications regarding master client.", legal = true},
                 new ButtonInfo { buttonText = "Disable Room Notifications", enableMethod =() => disableRoomNotifications = true, disableMethod =() => disableRoomNotifications = false, toolTip = "Disables all notifications regarding the room.", legal = true},
@@ -439,7 +443,7 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Create Private", method =() => Important.CreateRoom(Important.RandomRoomName(), false), isTogglable = false, toolTip = "Creates a private room.", legal = true},
 
                 new ButtonInfo { buttonText = "Fast Disconnect", method =() => SinglePlayerPatch.enabled = true, disableMethod =() =>  SinglePlayerPatch.enabled = false, toolTip = "Uses the fastest method of disconnecting possible.", legal = true},
-                new ButtonInfo { buttonText = "Join Menu Room", method =() => PhotonNetworkController.Instance.AttemptToJoinSpecificRoom($"<$Poison_{PluginInfo.Version}>", JoinType.Solo), isTogglable = false, toolTip = "Connects you to a room that is exclusive to <b>Poison Menu</b> users.", legal = true},
+                new ButtonInfo { buttonText = "Join Menu Room", method =() => PhotonNetworkController.Instance.AttemptToJoinSpecificRoom($"<$Nova_{PluginInfo.Version}>", JoinType.Solo), isTogglable = false, toolTip = "Connects you to a room that is exclusive to <b>Nova Menu</b> users.", legal = true},
 
                 new ButtonInfo { buttonText = "Bypass Join Room Type", enableMethod =() => JoinedRoomPatch.enabled = true, disableMethod =() => JoinedRoomPatch.enabled = false, toolTip = "Bypasses the immediate disconnection when trying to join a room that is in another map."},
 
@@ -488,7 +492,7 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Restart Gorilla Tag", aliases = new[] { "Restart Game", "Restart App" }, method = () => Prompt("Are you sure you want to restart Gorilla Tag?", Important.RestartGame), isTogglable = false, toolTip = "Restarts Gorilla Tag.", legal = true},
                 new ButtonInfo { buttonText = "Open Gorilla Tag Folder", method = Important.OpenGorillaTagFolder, isTogglable = false, toolTip = "Opens the folder in which your game is located.", legal = true},
 
-                new ButtonInfo { buttonText = "Discord RPC", aliases = new[] { "Self Tracker" }, method = Important.DiscordRPC, disableMethod = Important.DisableDiscordRPC, toolTip = "Gives you a indicator on Discord that you are using Poison Menu.", legal = true},
+                new ButtonInfo { buttonText = "Discord RPC", aliases = new[] { "Self Tracker" }, method = Important.DiscordRPC, disableMethod = Important.DisableDiscordRPC, toolTip = "Gives you a indicator on Discord that you are using Nova Menu.", legal = true},
                 new ButtonInfo { buttonText = "Media Integration", aliases = new[] { "Spotify" }, enableMethod = Important.EnsureIntegrationProgram, method = Important.MediaIntegration, disableMethod = Important.DisableMediaIntegration, toolTip = "Shows you what media you are watching/listening to in the top left. To switch media, open the menu and use your left joystick.", legal = true},
 
                 new ButtonInfo { buttonText = "Anti Hand Tap", enableMethod =() => HandTapPatch.enabled = true, disableMethod =() => HandTapPatch.enabled = false, toolTip = "Stops all hand tap sounds from being played."},
@@ -2449,7 +2453,7 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Search", method = Settings.Search, isTogglable = false, toolTip = "Lets you search for specific mods.", legal = true},
                 new ButtonInfo { buttonText = "Global Return", method = Settings.GlobalReturn, isTogglable = false, toolTip = "Returns you to the previous category.", legal = true},
                 new ButtonInfo { buttonText = "Info Screen", method = Settings.Debug, enableMethod = Settings.ShowDebug, disableMethod = Settings.HideDebug, toolTip = "Shows game and modding related information.", legal = true},
-                new ButtonInfo { buttonText = "Donate Button", method =() => { NotificationManager.ClearAllNotifications(); acceptedDonations = true; File.WriteAllText($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt", "true"); Prompt($"If you like this menu and would like to support, you should join our Patreon! ", () => Process.Start("https://patreon.com/Poison")); }, isTogglable = false, toolTip = "An advertisement for Poison's Patreon.", legal = true},
+                new ButtonInfo { buttonText = "Donate Button", method =() => { NotificationManager.ClearAllNotifications(); acceptedDonations = true; File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt", "true"); Prompt($"If you like this menu and would like to support it, star it on GitHub!", () => Process.Start("https://github.com/HZMGTX/Nova")); }, isTogglable = false, toolTip = "Asks you to support Nova by starring it on GitHub.", legal = true},
                 new ButtonInfo { buttonText = "Update Button", method =() => UpdatePrompt(), isTogglable = false, toolTip = "Prompts you to update the menu.", legal = true },
 
                 new ButtonInfo { buttonText = "Accept Prompt", method =() => { NotificationManager.ClearAllNotifications(); if (inTextInput) Settings.DestroyKeyboard(); CurrentPrompt.AcceptAction?.Invoke(); Settings.StopCurrentPrompt(); }, isTogglable = false, legal = true},
@@ -2618,7 +2622,8 @@ namespace Poison.Menu
             new[] { // Credits [38]
                 new ButtonInfo { buttonText = "Exit Credits", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
-                new ButtonInfo { buttonText = "Multifactor", method =() => Process.Start("https://github.com/multifactorrr"), isTogglable = false, toolTip = "Multifactor is the current owner of Poison and Poison Menu, previously a developer of Poison." },
+                new ButtonInfo { buttonText = "HZMGTX", method =() => Process.Start("https://github.com/HZMGTX"), isTogglable = false, toolTip = "HZMGTX is the owner of <b>Nova Menu</b>, which is built on Poison Menu.", legal = true},
+                new ButtonInfo { buttonText = "Multifactor", method =() => Process.Start("https://github.com/multifactorrr"), isTogglable = false, toolTip = "Multifactor is the current owner of Poison and Nova Menu, previously a developer of Nova." },
                 new ButtonInfo { buttonText = "Kingofnetflix", isTogglable = false, toolTip = "Kingofnetflix is the creator of <b>Poison (Menu)</b>, and was a developer for ii's <b>Stupid</b> Menu. Quit modding and the modding community August 2026." },
                 new ButtonInfo { buttonText = "iiDk", method =() => Process.Start("https://github.com/iiDk-the-actual"), isTogglable = false, toolTip = "iiDk is the creator of ii's <b>Stupid</b> Menu (which this menu is forked from), and was working on it since 2023. He was also the owner of ii's Stupid Mods. Both have shut down ever since 2/24/2026.", legal = true},
                 new ButtonInfo { buttonText = "Twigcore", method =() => Process.Start("https://github.com/Twigcore"), isTogglable = false, toolTip = "Twigcore is one of the main owners of Console, the admin system in the menu. He helps with asset ideas, moderate users, contributed to the menu, and much more."},

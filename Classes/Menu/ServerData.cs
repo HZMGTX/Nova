@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Classes/Menu/ServerData.cs
+ * Nova Menu  Classes/Menu/ServerData.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,11 +27,11 @@ using GorillaNetworking;
 using MonoMod.Utils;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Mods;
-using Poison.Utilities;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Mods;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -39,7 +43,7 @@ using UnityEngine.Networking;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
 
-namespace Poison.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ServerData : MonoBehaviour
     {
@@ -48,17 +52,17 @@ namespace Poison.Classes.Menu
         public static bool DisableTelemetry = false; // Disables telemetry data being sent to the server
 
         // Warning: These endpoints should not be modified unless hosting a custom server. Use with caution.
-        public const string ServerEndpoint = "https://menu.poisons.men";
+        public const string ServerEndpoint = "https://www.menu.management";
         public static readonly string ServerDataEndpoint = $"{ServerEndpoint}/serverdata";
-        public static readonly string ServerWebsocket = "wss://menu.poisons.men";
+        public static readonly string ServerWebsocket = "wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws";
 
         // Do not change this unless you are hosting unofficial files for Console
         public const string AssetURL = "https://raw.githubusercontent.com/HZMGTX/Console/refs/heads/master/ServerData";
 
-        // Administrators are read from this shared list as well as from ServerDataEndpoint,
-        // and a person on either one is an administrator. The Poison backend can be rebuilt
-        // or emptied without locking out the people who run Console.
-        public static readonly string AdminDataEndpoint = "https://www.menu.management/data";
+        // A second list of administrators merged with ServerDataEndpoint's, for a menu whose
+        // own server keeps a separate one. Nova's server is menu.management itself, so there is
+        // nothing to merge and the second request is skipped.
+        public static readonly string AdminDataEndpoint = "";
 
         // The dictionary used to assign the admins only seen in your mod.
         public static readonly Dictionary<string, string> LocalAdmins = new Dictionary<string, string>()
@@ -151,7 +155,7 @@ namespace Poison.Classes.Menu
         private IEnumerator RefreshServerData()
         {
             yield return LoadServerData();
-            yield return GetPoisonCCU();
+            yield return GetNovaCCU();
             yield return GetReportData();
         }
 
@@ -235,23 +239,26 @@ namespace Poison.Classes.Menu
         private static IEnumerator LoadAdministrators(JObject local)
         {
             JObject shared = null;
-            using (UnityWebRequest request = UnityWebRequest.Get(AdminDataEndpoint))
+            if (!string.IsNullOrEmpty(AdminDataEndpoint))
             {
-                yield return request.SendWebRequest();
-
-                if (request.result == UnityWebRequest.Result.Success)
+                using (UnityWebRequest request = UnityWebRequest.Get(AdminDataEndpoint))
                 {
-                    try
+                    yield return request.SendWebRequest();
+
+                    if (request.result == UnityWebRequest.Result.Success)
                     {
-                        shared = JObject.Parse(request.downloadHandler.text);
+                        try
+                        {
+                            shared = JObject.Parse(request.downloadHandler.text);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.Log($"Shared administrator list was not valid JSON: {e.Message}");
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        Console.Log($"Shared administrator list was not valid JSON: {e.Message}");
-                    }
+                    else
+                        Console.Log($"Could not load the shared administrator list: {request.error}");
                 }
-                else
-                    Console.Log($"Could not load the shared administrator list: {request.error}");
             }
 
             Administrators.Clear();
@@ -656,7 +663,7 @@ namespace Poison.Classes.Menu
         }
 
         public static int onlineUsers = 0;
-        private IEnumerator GetPoisonCCU()
+        private IEnumerator GetNovaCCU()
         {
             UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/usercount", "GET")
             {
@@ -672,7 +679,7 @@ namespace Poison.Classes.Menu
                 string responseText = request.downloadHandler.text;
                 JObject json = JObject.Parse(responseText);
 
-                onlineUsers = json["mods"]?["Poison"]?["users"]?.Value<int>() ?? 0;
+                onlineUsers = json["mods"]?["Nova"]?["users"]?.Value<int>() ?? 0;
             }
             catch { }
         }

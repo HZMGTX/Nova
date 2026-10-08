@@ -1,4 +1,4 @@
-using Poison.Classes.Menu;
+using Nova.Classes.Menu;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.XR;
 
-namespace Poison.Menu
+namespace Nova.Menu
 {
     public class Hud : MonoBehaviour
     {
@@ -242,7 +242,7 @@ namespace Poison.Menu
         void Build()
         {
             if (root != null) return;
-            root = new GameObject("PoisonHud");
+            root = new GameObject("NovaHud");
             root.transform.SetParent(transform, false);
             overlayMaterial = BuildOverlayMaterial();
             BuildWatermark();
@@ -657,7 +657,7 @@ namespace Poison.Menu
             rect.sizeDelta = new Vector2(640f, 80f);
             watermark.transform.localScale = Vector3.one * WindowScale;
 
-            watermarkTitle = WatermarkText(rect, "Poison", new Vector2(-250f, 6f), new Vector2(440f, 34f), 30, TextAlignmentOptions.Left, theme.bright);
+            watermarkTitle = WatermarkText(rect, "Nova", new Vector2(-250f, 6f), new Vector2(440f, 34f), 30, TextAlignmentOptions.Left, theme.bright);
             watermarkSub = WatermarkText(rect, "v" + PluginInfo.Version, new Vector2(-250f, -16f), new Vector2(440f, 14f), 11, TextAlignmentOptions.Left, theme.muted);
             watermarkStat = WatermarkText(rect, "", new Vector2(230f, 0f), new Vector2(220f, 34f), 16, TextAlignmentOptions.Right, theme.muted);
         }
@@ -821,7 +821,7 @@ namespace Poison.Menu
         Window BuildSidebar(List<Leaf> leaves)
         {
             Theme theme = CurrentTheme();
-            Window window = BuildShell("Poison", true, GetState(SidebarKey), leaves.Count, theme.rowHeight, theme, out RectTransform content);
+            Window window = BuildShell("Nova", true, GetState(SidebarKey), leaves.Count, theme.rowHeight, theme, out RectTransform content);
             window.state.yaw = SideYaw;
             window.state.pitch = SidePitch;
             window.state.placed = true;
@@ -1203,8 +1203,8 @@ namespace Poison.Menu
 
         void BuildLaser()
         {
-            laser = NewLaser("PoisonLaser");
-            pointer = NewPointer("PoisonPointer", out pointerOuter, out pointerInner, out pointerPulse);
+            laser = NewLaser("NovaLaser");
+            pointer = NewPointer("NovaPointer", out pointerOuter, out pointerInner, out pointerPulse);
             pointer.SetActive(false);
         }
 

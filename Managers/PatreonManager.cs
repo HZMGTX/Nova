@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Managers/PatreonManager.cs
+ * Nova Menu  Managers/PatreonManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,21 +26,21 @@
 using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Menu;
-using Poison.Mods;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Menu;
+using Nova.Mods;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RigUtilities;
 
-namespace Poison.Managers
+namespace Nova.Managers
 {
     public class PatreonManager : MonoBehaviour
     {
@@ -129,7 +133,7 @@ namespace Poison.Managers
                     playerIndicator.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL(member.Value.IconURL, $"Images/Patreon/{member.Key.UserId}.{FileUtilities.GetFileExtension(member.Value.IconURL)}"); // errors?
                     playerIndicator.GetComponent<Renderer>().material.color = Color.white;
 
-                    GameObject go = new GameObject("Poison_Nametag");
+                    GameObject go = new GameObject("Nova_Nametag");
                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                     TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
                     textMesh.fontSize = 4.8f;
@@ -150,7 +154,7 @@ namespace Poison.Managers
                 playerIndicator.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * (distance * playerRig.scaleFactor);
                 playerIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
 
-                GameObject nameTag = playerIndicator.transform.Find("Poison_Nametag").gameObject;
+                GameObject nameTag = playerIndicator.transform.Find("Nova_Nametag").gameObject;
                 nameTag.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * ((distance + 0.25f) * playerRig.scaleFactor);
                 nameTag.transform.LookAt(Camera.main.transform.position);
                 nameTag.transform.Rotate(0f, 180f, 0f);

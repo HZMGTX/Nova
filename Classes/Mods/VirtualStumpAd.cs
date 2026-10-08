@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Classes/Mods/VirtualStumpAd.cs
+ * Nova Menu  Classes/Mods/VirtualStumpAd.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,9 +27,9 @@ using GorillaExtensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Video;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Classes.Mods
+namespace Nova.Classes.Mods
 {
     public class VirtualStumpAd : MonoBehaviour
     {
@@ -107,7 +111,7 @@ namespace Poison.Classes.Mods
                 if (featuredMapText != null)
                 {
                     oldText = featuredMapText.text;
-                    featuredMapText.text = "<b><color=#7C00FA>Poison Menu</color></b>";
+                    featuredMapText.text = "<b><color=#7C00FA>Nova Menu</color></b>";
                     MapInfoText.SetActive(true);
                 }
 

@@ -1,8 +1,8 @@
-﻿using Poison.Managers.DiscordRPC.Exceptions;
+﻿using Nova.Managers.DiscordRPC.Exceptions;
 using System;
 using Valve.Newtonsoft.Json;
 
-namespace Poison.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// Information about the pictures used in the Rich Presence.

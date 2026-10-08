@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>Poison Menu</AssemblyName>
+    <AssemblyName>Nova Menu</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     
     <TargetFramework>netstandard2.1</TargetFramework>
@@ -19,19 +19,19 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Legal'">
-    <AssemblyName>Poison Menu Legal</AssemblyName>
+    <AssemblyName>Nova Menu Legal</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Legal Debug'">
-    <AssemblyName>Poison Menu Legal Debug</AssemblyName>
+    <AssemblyName>Nova Menu Legal Debug</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'LEGAL_DEBUG'">
-    <AssemblyName>Poison Menu Legal Debug</AssemblyName>
+    <AssemblyName>Nova Menu Legal Debug</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'DEBUG' Or '$(Configuration)' == 'Debug'">
-    <AssemblyName>Poison Menu Debug</AssemblyName>
+    <AssemblyName>Nova Menu Debug</AssemblyName>
   </PropertyGroup>
   
   <PropertyGroup> 

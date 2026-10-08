@@ -1,4 +1,4 @@
-﻿namespace Poison.Managers.DiscordRPC.Logging
+﻿namespace Nova.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Level of logging to use.

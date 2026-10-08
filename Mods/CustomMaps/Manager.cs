@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/CustomMaps/Manager.cs
+ * Nova Menu  Mods/CustomMaps/Manager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,10 +24,10 @@
  */
 
 using GorillaTagScripts.VirtualStumpCustomMaps;
-using Poison.Classes.Menu;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -31,7 +35,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-namespace Poison.Mods.CustomMaps
+namespace Nova.Mods.CustomMaps
 {
     public static class Manager
     {

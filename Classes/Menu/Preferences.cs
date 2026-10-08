@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Mods/Preferences.cs
+ * Nova Menu  Mods/Preferences.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +24,9 @@
  */
 
 using Photon.Pun;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Mods;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Mods;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,14 +34,14 @@ using System.IO;
 using System.Linq;
 using UnityEngine;
 using Valve.Newtonsoft.Json;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public static class Preferences
     {
-        private const string FileName = "Poison_Preferences.json";
-        private const string LegacyFileName = "Poison_Preferences.txt";
+        private const string FileName = "Nova_Preferences.json";
+        private const string LegacyFileName = "Nova_Preferences.txt";
         internal static bool DisableAutoSave = false;
 
         private const int MinWriteIntervalMs = 250;
@@ -351,7 +355,7 @@ namespace Poison.Classes.Menu
             MaybePromptSeralythMigration();
         }
 
-        private static string SeralythPath => Path.Combine(Poison.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
+        private static string SeralythPath => Path.Combine(Nova.Utilities.FileUtilities.GetGamePath(), "SeralythMenu", "Seralyth_Preferences.json");
 
         public static bool HasSeralythSettings()
         {

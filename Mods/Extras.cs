@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/Extras.cs
+ * Nova Menu  Mods/Extras.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,13 +25,13 @@
 
 using GorillaLocomotion;
 using GorillaTag.Rendering;
-using Poison.Utilities;
+using Nova.Utilities;
 using UnityEngine;
 using UnityEngine.Rendering;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 using Object = UnityEngine.Object;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     /// <summary>Movement, fun and visual mods added alongside the originals.</summary>
     public static class Extras
@@ -218,7 +222,7 @@ namespace Poison.Mods
 
         private static GameObject Trail(Transform hand)
         {
-            GameObject holder = new GameObject("PoisonHandTrail");
+            GameObject holder = new GameObject("NovaHandTrail");
             holder.transform.SetParent(hand, false);
 
             TrailRenderer trail = holder.AddComponent<TrailRenderer>();
@@ -302,7 +306,7 @@ namespace Poison.Mods
             if (headlamp != null)
                 return;
 
-            headlamp = new GameObject("PoisonHeadlamp");
+            headlamp = new GameObject("NovaHeadlamp");
             headlamp.transform.SetParent(GorillaTagger.Instance.headCollider.transform, false);
 
             Light lamp = headlamp.AddComponent<Light>();

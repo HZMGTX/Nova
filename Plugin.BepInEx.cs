@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Plugin.BepInEx.cs
+ * Nova Menu  Plugin.BepInEx.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,11 +24,11 @@
  */
 
 using BepInEx;
-using Poison.Managers;
-using Poison.Menu;
+using Nova.Managers;
+using Nova.Menu;
 using System.ComponentModel;
 
-namespace Poison
+namespace Nova
 {
     [Description(PluginInfo.Description)]
     [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]

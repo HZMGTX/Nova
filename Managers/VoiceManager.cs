@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Managers/VoiceManager.cs
+ * Nova Menu  Managers/VoiceManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,12 +27,12 @@
 // For anyone else snooping in this class hoping to use it, you need to make sure that your recorder source type is a Factory and that the Factory is a new instance of this class.
 // You may use VoiceManager.Get()
 using Photon.Voice;
-using Poison.Mods;
+using Nova.Mods;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Poison.Managers
+namespace Nova.Managers
 {
     public class VoiceManager : IAudioReader<float>
     {

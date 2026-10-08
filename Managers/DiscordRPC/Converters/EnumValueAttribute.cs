@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Poison.Managers.DiscordRPC.Converters
+namespace Nova.Managers.DiscordRPC.Converters
 {
     internal class EnumValueAttribute : Attribute
     {

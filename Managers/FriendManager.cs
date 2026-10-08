@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Managers/FriendManager.cs
+ * Nova Menu  Managers/FriendManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,11 +29,11 @@ using GorillaLocomotion;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Menu;
-using Poison.Mods;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Menu;
+using Nova.Mods;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -46,12 +50,12 @@ using UnityEngine.Networking;
 using UnityEngine.Rendering;
 using Valve.Newtonsoft.Json;
 using Valve.Newtonsoft.Json.Linq;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RigUtilities;
 using JoinType = GorillaNetworking.JoinType;
 
-namespace Poison.Managers
+namespace Nova.Managers
 {
     public class FriendManager : MonoBehaviour
     {
@@ -240,7 +244,7 @@ namespace Poison.Managers
                         if (rightJoystickClick && !joystickMenu)
                         {
                             if (pingObject == null)
-                                pingObject = new GameObject("Poison_PingLine");
+                                pingObject = new GameObject("Nova_PingLine");
 
                             Color targetColor = VRRig.LocalRig.playerColor;
                             targetColor.a = 0.15f;
@@ -450,7 +454,7 @@ namespace Poison.Managers
                                 head.transform.localScale = Vector3.one * 0.3f;
                                 head.GetComponent<Renderer>().material.color = senderRig.playerColor;
 
-                                GameObject nametag = new GameObject("Poison_Nametag");
+                                GameObject nametag = new GameObject("Nova_Nametag");
                                 nametag.transform.SetParent(head.transform);
                                 nametag.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 nametag.transform.localPosition = new Vector3(0f, 0.8f, 0f);
@@ -1375,7 +1379,7 @@ namespace Poison.Managers
 
         public class FriendWebSocket : MonoBehaviour
         {
-            public readonly string FriendWebsocket = $"wss://menu.poisons.men/?mod={Classes.Menu.Console.MenuName}";
+            public readonly string FriendWebsocket = $"wss://vbvbekoikimuvhqfzolt.supabase.co/functions/v1/friends-ws?mod={Classes.Menu.Console.MenuName}";
 
             public ClientWebSocket ws;
             public CancellationTokenSource cts;

@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Managers/NotificationManager.cs
+ * Nova Menu  Managers/NotificationManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +24,9 @@
  */
 
 using GorillaLocomotion;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Menu;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -30,9 +34,9 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Managers
+namespace Nova.Managers
 {
     public class NotificationManager : MonoBehaviour
     {
@@ -80,7 +84,7 @@ namespace Poison.Managers
         {
             mainCamera = Camera.main.gameObject;
 
-            GameObject canvasParent = new GameObject("Poison_NotificationParent");
+            GameObject canvasParent = new GameObject("Nova_NotificationParent");
             canvasParent.transform.position = mainCamera.transform.position;
 
             canvas = new GameObject("Canvas");

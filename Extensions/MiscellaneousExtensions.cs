@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Extensions/MiscellaneousExtensions.cs
+ * Nova Menu  Extensions/MiscellaneousExtensions.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,15 +24,15 @@
  */
 
 using Photon.Pun;
-using Poison.Utilities;
+using Nova.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Extensions
+namespace Nova.Extensions
 {
     public static class MiscellaneousExtensions
     {

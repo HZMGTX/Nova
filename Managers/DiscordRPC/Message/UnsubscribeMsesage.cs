@@ -1,6 +1,6 @@
-﻿using Poison.Managers.DiscordRPC.RPC.Payload;
+﻿using Nova.Managers.DiscordRPC.RPC.Payload;
 
-namespace Poison.Managers.DiscordRPC.Message
+namespace Nova.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Called as validation of a subscribe

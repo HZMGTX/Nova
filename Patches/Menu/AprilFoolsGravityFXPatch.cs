@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Patches/Menu/EnablePatch.cs
+ * Nova Menu  Patches/Menu/EnablePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,7 +26,7 @@
 // Credits to Zlothy29IQ on GitHub. I saw he made it first and just took it. Thanks. Thanks. Thanks. Thanks
 using HarmonyLib;
 
-namespace Poison.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(AprilFoolsGravityFX), nameof(AprilFoolsGravityFX.Start))]
     public class AprilFoolsGravityFXEnablePatch

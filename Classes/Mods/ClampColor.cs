@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Classes/Mods/ClampColor.cs
+ * Nova Menu  Classes/Mods/ClampColor.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,11 +23,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Poison.Classes.Menu;
-using Poison.Managers;
+using Nova.Classes.Menu;
+using Nova.Managers;
 using UnityEngine;
 
-namespace Poison.Classes.Mods
+namespace Nova.Classes.Mods
 {
     public class ClampColor : MonoBehaviour
     {

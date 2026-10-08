@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/Overpowered.cs
+ * Nova Menu  Mods/Overpowered.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,11 +36,11 @@ using Photon.Pun;
 using Photon.Realtime;
 using Photon.Voice;
 using Photon.Voice.PUN;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches.Menu;
-using Poison.Utilities;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -44,17 +48,17 @@ using System.IO;
 using System.Linq;
 using Unity.XR.CoreUtils;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.GameModeUtilities;
-using static Poison.Utilities.RandomUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.GameModeUtilities;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 using JoinType = GorillaNetworking.JoinType;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Overpowered
     {

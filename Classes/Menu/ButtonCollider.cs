@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Classes/Menu/ButtonCollider.cs
+ * Nova Menu  Classes/Menu/ButtonCollider.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,11 +23,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Poison.Managers;
+using Nova.Managers;
 using UnityEngine;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ButtonCollider : MonoBehaviour
     {

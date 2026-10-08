@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using Valve.Newtonsoft.Json;
 
-namespace Poison.Managers.DiscordRPC.Converters
+namespace Nova.Managers.DiscordRPC.Converters
 {
     /// <summary>
     /// Converts enums with the <see cref="EnumValueAttribute"/> into Json friendly terms. 

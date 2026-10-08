@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Mods/Important.cs
+ * Nova Menu  Mods/Important.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -25,13 +29,13 @@ using GorillaNetworking;
 using GorillaTagScripts;
 using HarmonyLib;
 using Photon.Pun;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Managers.DiscordRPC;
-using Poison.Menu;
-using Poison.Patches.Menu;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Managers.DiscordRPC;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,13 +55,13 @@ using UnityEngine.TextCore;
 using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 using Valve.Newtonsoft.Json;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.RandomUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RandomUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 using Object = UnityEngine.Object;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Important
     {
@@ -330,7 +334,7 @@ namespace Poison.Mods
                 .Aggregate("", (current, line) => current + (Environment.NewLine + "echo      " + line));
 
             string restartScript = @"@echo off
-title Poison Menu - Restarting Gorilla Tag
+title Nova Menu - Restarting Gorilla Tag
 color 5
 
 cls
@@ -409,7 +413,7 @@ exit";
                     Assets = new Managers.DiscordRPC.Assets
                     {
                         LargeImageKey = "cone",
-                        LargeImageText = "Poison Menu",
+                        LargeImageText = "Nova Menu",
                         SmallImageKey = inRoom ? "online" : "offline",
                         SmallImageText = inRoom ? "Online" : "Offline"
                     },
@@ -427,7 +431,7 @@ exit";
                         new Button
                         {
                             Label = "Download",
-                            Url = "https://github.com/heycanihavethis/Poison/"
+                            Url = "https://github.com/HZMGTX/Nova/"
                         }
                     }
                 });
@@ -452,7 +456,9 @@ exit";
             {
                 Prompt("This mod requires the \"QuickSong\" library. Would you like to automatically download it? (16.3mb)", () =>
                 {
-                    using UnityWebRequest request = UnityWebRequest.Get("https://github.com/Poison/QuickSong/releases/latest/download/QuickSong.exe");
+                    // Fetched from Nova's own releases. It used to come from an account the project
+                    // does not own, which could have served any program to every user.
+                    using UnityWebRequest request = UnityWebRequest.Get("https://github.com/HZMGTX/Nova/releases/latest/download/QuickSong.exe");
                     UnityWebRequestAsyncOperation operation = request.SendWebRequest();
 
                     while (!operation.isDone) { }
@@ -580,7 +586,7 @@ exit";
                 if (_mediaSpriteSheet == null)
                 {
                     _mediaSpriteSheet = ScriptableObject.CreateInstance<TMP_SpriteAsset>();
-                    _mediaSpriteSheet.name = "Poison_SpriteSheet";
+                    _mediaSpriteSheet.name = "Nova_SpriteSheet";
 
                     var textureList = new List<Texture2D>();
                     var spriteDataList = new List<(string name, int index)>();
@@ -674,7 +680,7 @@ exit";
 
                 if (mediaText == null)
                 {
-                    GameObject textHolder = new GameObject("Poison_MediaText");
+                    GameObject textHolder = new GameObject("Nova_MediaText");
 
                     TextMeshPro text = textHolder.GetOrAddComponent<TextMeshPro>();
                     text.color = Color.white;

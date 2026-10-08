@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Patches/Safety/AntiCheatPatches.cs
+ * Nova Menu  Patches/Safety/AntiCheatPatches.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,11 +25,11 @@
 
 using HarmonyLib;
 using Photon.Pun;
-using Poison.Managers;
+using Nova.Managers;
 using UnityEngine;
-using static Poison.Patches.PatchHandler;
+using static Nova.Patches.PatchHandler;
 
-namespace Poison.Patches.Safety
+namespace Nova.Patches.Safety
 {
     public class AntiCheatPatches
     {

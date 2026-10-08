@@ -1,9 +1,9 @@
-﻿using Poison.Managers.DiscordRPC.Exceptions;
+﻿using Nova.Managers.DiscordRPC.Exceptions;
 using System;
 using System.Text;
 using Valve.Newtonsoft.Json;
 
-namespace Poison.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// A Rich Presence button.

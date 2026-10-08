@@ -1,4 +1,4 @@
-﻿namespace Poison.Managers.DiscordRPC
+﻿namespace Nova.Managers.DiscordRPC
 {
     /// <summary>
     /// The type of event receieved by the RPC. A flag type that can be combined.

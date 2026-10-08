@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/ConsoleAssets.cs
+ * Nova Menu  Mods/ConsoleAssets.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,9 +24,9 @@
  */
 
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Managers;
-using Poison.Menu;
+using Nova.Classes.Menu;
+using Nova.Managers;
+using Nova.Menu;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -32,10 +36,10 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using UnityEngine;
 using Valve.Newtonsoft.Json.Linq;
-using static Poison.Menu.Main;
-using Console = Poison.Classes.Menu.Console;
+using static Nova.Menu.Main;
+using Console = Nova.Classes.Menu.Console;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     /// <summary>
     /// Browses the asset bundles Console hosts and spawns them into the room.

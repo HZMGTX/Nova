@@ -1,6 +1,6 @@
-﻿using Poison.Managers.DiscordRPC.Converters;
+﻿using Nova.Managers.DiscordRPC.Converters;
 
-namespace Poison.Managers.DiscordRPC.RPC.Payload
+namespace Nova.Managers.DiscordRPC.RPC.Payload
 {
     /// <summary>
     /// See https://discordapp.com/developers/docs/topics/rpc#rpc-server-payloads-rpc-events for documentation

@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/Sound.cs
+ * Nova Menu  Mods/Sound.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,22 +28,22 @@ using GorillaLocomotion;
 using Photon.Pun;
 using Photon.Realtime;
 using Photon.Voice.Unity;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches.Menu;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.FileUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.FileUtilities;
 using Random = UnityEngine.Random;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Sound
     {

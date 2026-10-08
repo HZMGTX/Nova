@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/CustomMaps/Maps/ChimpCombat.cs
+ * Nova Menu  Mods/CustomMaps/Maps/ChimpCombat.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,18 +26,18 @@
 using ExitGames.Client.Photon;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Poison.Extensions.VRRigExtensions;
-using static Poison.Menu.Main;
-using static Poison.Mods.CustomMaps.Manager;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Extensions.VRRigExtensions;
+using static Nova.Menu.Main;
+using static Nova.Mods.CustomMaps.Manager;
+using static Nova.Utilities.RigUtilities;
 
-namespace Poison.Mods.CustomMaps.Maps
+namespace Nova.Mods.CustomMaps.Maps
 {
     public class ChimpCombat : CustomMap
     {

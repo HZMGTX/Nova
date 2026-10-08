@@ -1,8 +1,8 @@
 using GorillaNetworking;
 using Photon.Pun;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,10 +12,10 @@ using UnityEngine;
 
 
 using UnityEngine.InputSystem;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
 
-namespace Poison.Menu
+namespace Nova.Menu
 {
     public partial class UI : MonoBehaviour
     {
@@ -118,7 +118,7 @@ namespace Poison.Menu
         private readonly Dictionary<string, Texture2D> icons = new Dictionary<string, Texture2D>();
         private readonly Dictionary<ButtonInfo, float> switches = new Dictionary<ButtonInfo, float>();
         private readonly Queue<Action> actions = new Queue<Action>();
-        private readonly string hidePath = Path.Combine(PluginInfo.BaseDirectory, "Poison_HideGUI.txt");
+        private readonly string hidePath = Path.Combine(PluginInfo.BaseDirectory, "Nova_HideGUI.txt");
 
         private GUIStyle titleStyle;
         private GUIStyle textStyle;
@@ -382,7 +382,7 @@ namespace Poison.Menu
         {
             switch (kind)
             {
-                case PanelLauncher: return "Poison";
+                case PanelLauncher: return "Nova";
                 case PanelCategory: return category;
                 case PanelFavorites: return "Favorites";
                 case PanelActive: return "Active";
@@ -979,7 +979,7 @@ namespace Poison.Menu
                 TintTexture(new Rect(rect.x, rect.y + 1, 22, 22), logoRecolor != null ? logoRecolor : logo,
                     logoRecolor != null ? Color.white : Color.Lerp(bright, accent, 0.6f));
             }
-            Label(new Rect(rect.x + 30, rect.y - 1, 120, 20), "Poison", titleStyle, bright);
+            Label(new Rect(rect.x + 30, rect.y - 1, 120, 20), "Nova", titleStyle, bright);
             Label(new Rect(rect.x + 30, rect.y + 16, 120, 14), "v" + PluginInfo.Version, smallStyle, muted);
         }
 
@@ -1350,7 +1350,7 @@ namespace Poison.Menu
             Box(new Rect(sx - 260, sy - 165, 1080, 700), new Color(0, 0, 0, 0.6f), 0);
             Box(new Rect(sx, sy, 560, 365), border, 8);
             Box(new Rect(sx + 1, sy + 1, 558, 363), panel, 7);
-            Label(new Rect(sx + 26, sy + 22, 490, 28), "Poison", titleStyle);
+            Label(new Rect(sx + 26, sy + 22, 490, 28), "Nova", titleStyle);
             string message = Plain(prompt.Message);
             float height = wrapStyle.CalcHeight(new GUIContent(message), 484);
             BeginScroll(new Rect(sx + 26, sy + 74, 508, 155), promptScroll, height);
@@ -1591,7 +1591,7 @@ namespace Poison.Menu
             status = text;
             statusUntil = Time.unscaledTime + 5;
             motions.Remove("status");
-            NotificationManager.SendNotification("<color=grey>[</color><color=#" + ColorUtility.ToHtmlStringRGB(accent) + ">Poison</color><color=grey>]</color> " + text);
+            NotificationManager.SendNotification("<color=grey>[</color><color=#" + ColorUtility.ToHtmlStringRGB(accent) + ">Nova</color><color=grey>]</color> " + text);
         }
 
         public void DebugPrint(string text)

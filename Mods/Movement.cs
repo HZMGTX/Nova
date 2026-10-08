@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Mods/Movement.cs
+ * Nova Menu  Mods/Movement.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,13 +31,13 @@ using GorillaLocomotion.Swimming;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Classes.Mods;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches.Menu;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Classes.Mods;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,14 +51,14 @@ using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.XR;
 using Valve.Newtonsoft.Json.Linq;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.RandomUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Movement
     {
@@ -5718,7 +5722,7 @@ namespace Poison.Mods
             {
                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>SEX</color><color=grey>]</color> A browser tab has been opened on your computer.");
                 PromptSingle("A browser tab has been opened on your computer. Please go and verify your age.", null, "Ok frick off buddy");
-                Application.OpenURL("https://poisons.men/age_verification"); // is this shit even on the menu anymore??? do i gotta spend time prompting a fucking age verification site 
+                Application.OpenURL("https://www.menu.management/age_verification"); // is this shit even on the menu anymore??? do i gotta spend time prompting a fucking age verification site 
 
                 CoroutineManager.instance.StartCoroutine(Sex());
             });

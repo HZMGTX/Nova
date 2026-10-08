@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  PluginInfo.cs
+ * Nova Menu  PluginInfo.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -19,25 +23,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-namespace Poison
+namespace Nova
 {
     public class PluginInfo
     {
-        public const string GUID = "org.Poison.gorillatag.Poisonmenu";
-        public const string Name = "Poison Menu";
+        public const string GUID = "org.nova.gorillatag.novamenu";
+        public const string Name = "Nova Menu";
         public const string Description = "Community powered mod menu for Gorilla Tag.";
-        public const string BuildTimestamp = "2026-10-06T02:04:57Z";
+        public const string BuildTimestamp = "2026-10-08T07:12:10Z";
         public const string Version = "5.1.3";
 
         public const string BaseDirectory =
 #if LEGAL || LEGAL_DEBUG
-            "PoisonMenu/Legal";
+            "NovaMenu/Legal";
 #else
-            "PoisonMenu";
+            "NovaMenu";
 #endif
-        public const string ClientResourcePath = "PoisonMenu.Resources.Client";
-        public const string ServerResourcePath = "https://raw.githubusercontent.com/heycanihavethis/Poison/master/Resources/Server";
-        public const string ServerAPI = "https://menu.poisons.men";
+        public const string ClientResourcePath = "NovaMenu.Resources.Client";
+        public const string ServerResourcePath = "https://raw.githubusercontent.com/HZMGTX/Nova/master/Resources/Server";
+        public const string ServerAPI = "https://www.menu.management";
         public const string Logo = @"um";
 
 #if DEBUG || LEGAL_DEBUG

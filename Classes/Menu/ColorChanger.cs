@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Classes/Menu/ColorChanger.cs
+ * Nova Menu  Classes/Menu/ColorChanger.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,10 +24,10 @@
  */
 
 using GorillaExtensions;
-using Poison.Menu;
+using Nova.Menu;
 using UnityEngine;
 
-namespace Poison.Classes.Menu
+namespace Nova.Classes.Menu
 {
     public class ColorChanger : MonoBehaviour
     {

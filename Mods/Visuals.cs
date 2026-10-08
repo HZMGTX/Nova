@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Mods/Visuals.cs
+ * Nova Menu  Mods/Visuals.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -28,13 +32,13 @@ using GorillaTag.Rendering;
 using GorillaTagScripts;
 using HarmonyLib;
 using Photon.Pun;
-using Poison.Classes.Menu;
-using Poison.Classes.Mods;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches.Menu;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Classes.Mods;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -47,13 +51,13 @@ using UnityEngine.Rendering;
 using UnityEngine.TextCore;
 using UnityEngine.UI;
 using WebSocketSharp;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.GameModeUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.GameModeUtilities;
+using static Nova.Utilities.RigUtilities;
 using Object = UnityEngine.Object;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public class Visuals
     {
@@ -99,7 +103,7 @@ namespace Poison.Mods
             title.text = "DEBUG INFO";
             body.richText = true;
             string text = "";
-            text += $"<color=blue><b>Poison</b></color> {PluginInfo.Version}  <color=grey>|</color>  Users Online:  {ServerData.onlineUsers}" + "\\n \\n";
+            text += $"<color=blue><b>Nova</b></color> {PluginInfo.Version}  <color=grey>|</color>  Users Online:  {ServerData.onlineUsers}" + "\\n \\n";
             string red = "<color=red>" + MathF.Floor(PlayerPrefs.GetFloat("redValue") * 255f) + "</color>";
             string green = ", <color=green>" + MathF.Floor(PlayerPrefs.GetFloat("greenValue") * 255f) + "</color>";
             string blue = ", <color=blue>" + MathF.Floor(PlayerPrefs.GetFloat("blueValue") * 255f) + "</color>";
@@ -398,7 +402,7 @@ namespace Poison.Mods
                 if (_infoSpriteAsset == null)
                 {
                     _infoSpriteAsset = ScriptableObject.CreateInstance<TMP_SpriteAsset>();
-                    _infoSpriteAsset.name = "Poison_InfoSprites";
+                    _infoSpriteAsset.name = "Nova_InfoSprites";
 
                     var textureList = new List<Texture2D>();
                     var spriteDataList = new List<(string name, int index)>();
@@ -549,7 +553,7 @@ namespace Poison.Mods
                 string watchText = "";
 
                 if (infoWatchMenuName || defaultWatch)
-                    watchText = (doCustomName ? NoRichtextTags(customMenuName) : "Poison Menu") + "\n<color=grey>";
+                    watchText = (doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu") + "\n<color=grey>";
                 else if (!infoWatchMenuName && !defaultWatch)
                     watchText = "<color=grey>";
 
@@ -607,7 +611,7 @@ namespace Poison.Mods
 
                 if (trailRenderer == null)
                 {
-                    GameObject trailHolder = new GameObject("Poison_DrawGunTrail");
+                    GameObject trailHolder = new GameObject("Nova_DrawGunTrail");
 
                     trailRenderer = trailHolder.AddComponent<TrailRenderer>();
                     trailRenderer.startWidth = 0.1f;
@@ -1680,7 +1684,7 @@ namespace Poison.Mods
             {
                 if (!nametags.ContainsKey(vrrig))
                 {
-                    GameObject go = new GameObject("Poison_Nametag");
+                    GameObject go = new GameObject("Nova_Nametag");
                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                     TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                     TextMeshPro.fontSize = 4.8f;
@@ -1736,7 +1740,7 @@ namespace Poison.Mods
                     {
                         if (!velnametags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Veltag");
+                            GameObject go = new GameObject("Nova_Veltag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -1794,7 +1798,7 @@ namespace Poison.Mods
                     {
                         if (!fpsNametags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_FPStag");
+                            GameObject go = new GameObject("Nova_FPStag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -1851,7 +1855,7 @@ namespace Poison.Mods
                     {
                         if (!targetFPSNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_FPStag");
+                            GameObject go = new GameObject("Nova_FPStag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -1909,7 +1913,7 @@ namespace Poison.Mods
                     {
                         if (!idNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_IDtag");
+                            GameObject go = new GameObject("Nova_IDtag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -1967,7 +1971,7 @@ namespace Poison.Mods
                     {
                         if (!platformTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_PlatformTag");
+                            GameObject go = new GameObject("Nova_PlatformTag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2038,7 +2042,7 @@ namespace Poison.Mods
                         {
                             if (vrrig.IsKIDRestricted())
                             {
-                                GameObject go = new GameObject("Poison_Kidtag");
+                                GameObject go = new GameObject("Nova_Kidtag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 TextMeshPro TextMeshPro = go.GetOrAddComponent<TextMeshPro>();
                                 TextMeshPro.fontSize = 4.8f;
@@ -2110,7 +2114,7 @@ namespace Poison.Mods
                             var subDetails = SubscriptionManager.GetSubscriptionDetails(vrrig);
                             if (subDetails.tier > 0)
                             {
-                                GameObject go = new GameObject("Poison_SubscriberTag");
+                                GameObject go = new GameObject("Nova_SubscriberTag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 TextMeshPro TextMeshPro = go.GetOrAddComponent<TextMeshPro>();
                                 TextMeshPro.fontSize = 4.8f;
@@ -2168,7 +2172,7 @@ namespace Poison.Mods
                     {
                         if (!creationDateTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_CreationTag");
+                            GameObject go = new GameObject("Nova_CreationTag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2226,7 +2230,7 @@ namespace Poison.Mods
                     {
                         if (!pingNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Pingtag");
+                            GameObject go = new GameObject("Nova_Pingtag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2284,7 +2288,7 @@ namespace Poison.Mods
                     {
                         if (!turnNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Turntag");
+                            GameObject go = new GameObject("Nova_Turntag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2345,7 +2349,7 @@ namespace Poison.Mods
                     {
                         if (!taggedNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Taggedtag");
+                            GameObject go = new GameObject("Nova_Taggedtag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2501,7 +2505,7 @@ namespace Poison.Mods
                     {
                         if (!modNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Modtag");
+                            GameObject go = new GameObject("Nova_Modtag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2606,7 +2610,7 @@ namespace Poison.Mods
                     {
                         if (!cosmeticNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_Modtag");
+                            GameObject go = new GameObject("Nova_Modtag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                             TextMeshPro TextMeshPro = go.AddComponent<TextMeshPro>();
                             TextMeshPro.fontSize = 4.8f;
@@ -2781,7 +2785,7 @@ namespace Poison.Mods
                             string userId = GetPlayerFromVRRig(vrrig).UserId;
                             if (verifiedDictionary.TryGetValue(userId, out string name))
                             {
-                                GameObject go = new GameObject("Poison_Verifiedtag");
+                                GameObject go = new GameObject("Nova_Verifiedtag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 TextMeshPro TextMeshPro = go.GetOrAddComponent<TextMeshPro>();
                                 TextMeshPro.fontSize = 4.8f;
@@ -2792,7 +2796,7 @@ namespace Poison.Mods
                             }
                             else if (ServerData.Administrators.TryGetValue(userId, out string adminName))
                             {
-                                GameObject go = new GameObject("Poison_Verifiedtag");
+                                GameObject go = new GameObject("Nova_Verifiedtag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 TextMeshPro TextMeshPro = go.GetOrAddComponent<TextMeshPro>();
                                 TextMeshPro.fontSize = 4.8f;
@@ -2877,7 +2881,7 @@ namespace Poison.Mods
                                 else if (crashPower > 1500)
                                     crashedColor = new Color32(255, 128, 0, 255);
 
-                                GameObject go = new GameObject("Poison_Crashedtag");
+                                GameObject go = new GameObject("Nova_Crashedtag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
                                 TextMeshPro TextMeshPro = go.GetOrAddComponent<TextMeshPro>();
                                 TextMeshPro.fontSize = 4.8f;
@@ -2977,7 +2981,7 @@ namespace Poison.Mods
                     {
                         if (!compactNameTags.ContainsKey(vrrig))
                         {
-                            GameObject textContainer = new GameObject("Poison_vrctag_text");
+                            GameObject textContainer = new GameObject("Nova_vrctag_text");
                             if (hoc)
                                 textContainer.layer = 19;
 
@@ -3000,7 +3004,7 @@ namespace Poison.Mods
                             nameMesh.alignment = TextAlignmentOptions.Center;
                             nameMesh.richText = true;
 
-                            GameObject bgContainer = new GameObject("Poison_vrctag_background");
+                            GameObject bgContainer = new GameObject("Nova_vrctag_background");
                             if (hoc)
                                 bgContainer.layer = 19;
 
@@ -3159,7 +3163,7 @@ namespace Poison.Mods
 
                 if (!minecraftNameTags.ContainsKey(vrrig))
                 {
-                    GameObject tagContainer = new GameObject("Poison_MinecraftTag");
+                    GameObject tagContainer = new GameObject("Nova_MinecraftTag");
                     if (hoc)
                         tagContainer.layer = 19;
 
@@ -3250,7 +3254,7 @@ namespace Poison.Mods
                     {
                         if (!castingNameTags.ContainsKey(vrrig))
                         {
-                            GameObject go = new GameObject("Poison_CastingTag");
+                            GameObject go = new GameObject("Nova_CastingTag");
                             go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
 
                             TextMeshPro text = go.AddComponent<TextMeshPro>();

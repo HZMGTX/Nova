@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Patches/Menu/SerializePatch.cs
+ * Nova Menu  Patches/Menu/SerializePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,10 +25,10 @@
 
 using HarmonyLib;
 using Photon.Pun;
-using Poison.Managers;
+using Nova.Managers;
 using System;
 
-namespace Poison.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(PhotonNetwork), nameof(PhotonNetwork.RunViewUpdate))]
     public class SerializePatch

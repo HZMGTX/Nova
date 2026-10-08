@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Patches/Menu/TagPatch.cs
+ * Nova Menu  Patches/Menu/TagPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,15 +25,15 @@
 
 using GorillaGameModes;
 using HarmonyLib;
-using Poison.Extensions;
-using Poison.Menu;
+using Nova.Extensions;
+using Nova.Menu;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.GameModeUtilities;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.GameModeUtilities;
 
-namespace Poison.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(GameMode), nameof(GameMode.ReportTag))]
     public class TagPatch

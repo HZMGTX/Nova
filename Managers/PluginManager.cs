@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Managers/PluginManager.cs
+ * Nova Menu  Managers/PluginManager.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -19,8 +23,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Poison.Classes.Menu;
-using Poison.Menu;
+using Nova.Classes.Menu;
+using Nova.Menu;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,10 +33,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.FileUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.FileUtilities;
 
-namespace Poison.Managers
+namespace Nova.Managers
 {
     public class PluginManager
     {

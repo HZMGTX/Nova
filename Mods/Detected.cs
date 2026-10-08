@@ -1,8 +1,12 @@
 ﻿/*
- * Poison Menu  Mods/Detected.cs
+ * Nova Menu  Mods/Detected.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,18 +28,18 @@ using GorillaGameModes;
 using GorillaNetworking;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.RigUtilities;
 using Hashtable = ExitGames.Client.Photon.Hashtable;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Detected
     {
@@ -801,7 +805,7 @@ namespace Poison.Mods
 
         }
 
-        public static string name = "Poison";
+        public static string name = "Nova";
 
         public static void PromptNameChange() =>
             Prompt("Would you like to set a name?", () => PromptSingleText("Please enter the name you'd like to use:", () => name = keyboardInput, "Done"));

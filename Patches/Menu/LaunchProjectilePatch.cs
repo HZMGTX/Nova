@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Patches/Menu/LaunchProjectilePatch.cs
+ * Nova Menu  Patches/Menu/LaunchProjectilePatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,11 +24,11 @@
  */
 
 using HarmonyLib;
-using Poison.Extensions;
-using static Poison.Menu.Main;
-using static Poison.Utilities.AssetUtilities;
+using Nova.Extensions;
+using static Nova.Menu.Main;
+using static Nova.Utilities.AssetUtilities;
 
-namespace Poison.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(ProjectileWeapon), nameof(ProjectileWeapon.LaunchProjectile))]
     public class LaunchProjectilePatch

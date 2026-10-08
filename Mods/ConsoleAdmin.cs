@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/ConsoleAdmin.cs
+ * Nova Menu  Mods/ConsoleAdmin.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,13 +24,13 @@
  */
 
 using Photon.Realtime;
-using Poison.Extensions;
+using Nova.Extensions;
 using UnityEngine;
-using static Poison.Menu.Main;
-using static Poison.Utilities.RigUtilities;
-using Console = Poison.Classes.Menu.Console;
+using static Nova.Menu.Main;
+using static Nova.Utilities.RigUtilities;
+using Console = Nova.Classes.Menu.Console;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     /// <summary>
     /// Admin mods for commands Console already understands but nothing in the menu sent.

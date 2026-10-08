@@ -1,13 +1,13 @@
-﻿using Poison.Managers.DiscordRPC.Events;
-using Poison.Managers.DiscordRPC.Exceptions;
-using Poison.Managers.DiscordRPC.IO;
-using Poison.Managers.DiscordRPC.Logging;
-using Poison.Managers.DiscordRPC.Message;
-using Poison.Managers.DiscordRPC.RPC;
-using Poison.Managers.DiscordRPC.RPC.Commands;
+﻿using Nova.Managers.DiscordRPC.Events;
+using Nova.Managers.DiscordRPC.Exceptions;
+using Nova.Managers.DiscordRPC.IO;
+using Nova.Managers.DiscordRPC.Logging;
+using Nova.Managers.DiscordRPC.Message;
+using Nova.Managers.DiscordRPC.RPC;
+using Nova.Managers.DiscordRPC.RPC.Commands;
 using System;
 
-namespace Poison.Managers.DiscordRPC
+namespace Nova.Managers.DiscordRPC
 {
 
     /// <summary>

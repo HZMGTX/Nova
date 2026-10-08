@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Poison.Managers.DiscordRPC.Logging
+namespace Nova.Managers.DiscordRPC.Logging
 {
     public class DiscordLogManager : ILogger
     {

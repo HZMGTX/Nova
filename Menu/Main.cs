@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Menu/Main.cs
+ * Nova Menu  Menu/Main.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,14 +31,14 @@ using GorillaTagScripts;
 using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Classes.Mods;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Mods;
-using Poison.Patches;
-using Poison.Patches.Menu;
-using Poison.Utilities;
+using Nova.Classes.Menu;
+using Nova.Classes.Mods;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Mods;
+using Nova.Patches;
+using Nova.Patches.Menu;
+using Nova.Utilities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -57,17 +61,17 @@ using UnityEngine.XR;
 using Valve.Newtonsoft.Json;
 using Valve.VR;
 using WebSocketSharp;
-using static Poison.Utilities.AssetUtilities;
-using static Poison.Utilities.FileUtilities;
-using static Poison.Utilities.RandomUtilities;
-using ButtonCollider = Poison.Classes.Menu.ButtonCollider;
+using static Nova.Utilities.AssetUtilities;
+using static Nova.Utilities.FileUtilities;
+using static Nova.Utilities.RandomUtilities;
+using ButtonCollider = Nova.Classes.Menu.ButtonCollider;
 using CommonUsages = UnityEngine.XR.CommonUsages;
-using Console = Poison.Classes.Menu.Console;
+using Console = Nova.Classes.Menu.Console;
 using JoinType = GorillaNetworking.JoinType;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Poison.Menu
+namespace Nova.Menu
 {
     [HarmonyPatch(typeof(GTPlayer), nameof(GTPlayer.LateUpdate))]
     public class Main : MonoBehaviour
@@ -92,9 +96,9 @@ namespace Poison.Menu
             //if (Plugin.FirstLaunch)
             //    Prompt("It seems like this is your first time using the menu. Would you like to watch a quick tutorial to get to know how to use it?", Settings.ShowTutorial);
             //else
-            //    acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt");
+            //    acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt");
             if (!Bootstrapper.FirstLaunch)
-                acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Poison_HideDonationButton.txt");
+                acceptedDonations = File.Exists($"{PluginInfo.BaseDirectory}/Nova_HideDonationButton.txt");
 
             NetworkSystem.Instance.OnJoinedRoomEvent += OnJoinRoom;
             NetworkSystem.Instance.OnReturnedToSinglePlayer += OnLeaveRoom;
@@ -547,7 +551,7 @@ namespace Poison.Menu
 
                 if (animatedTitle && title != null)
                 {
-                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Poison Menu";
+                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
                     int length = (int)Mathf.PingPong(Time.time / 0.25f, targetString.Length + 1);
                     title.text = length > 0 ? targetString[..length] : "";
                 }
@@ -1882,7 +1886,7 @@ namespace Poison.Menu
             {
                 if (buttonSpriteSheet != null) return buttonSpriteSheet;
                 buttonSpriteSheet = ScriptableObject.CreateInstance<TMP_SpriteAsset>();
-                buttonSpriteSheet.name = "Poison_SpriteSheet";
+                buttonSpriteSheet.name = "Nova_SpriteSheet";
 
                 var textureList = new List<Texture2D>();
                 var spriteDataList = new List<(string name, int index)>();
@@ -2397,7 +2401,7 @@ namespace Poison.Menu
                     case 61:
                         if (videoPlayer == null)
                         {
-                            videoPlayer = new GameObject("Poison_VideoPlayer").AddComponent<VideoPlayer>();
+                            videoPlayer = new GameObject("Nova_VideoPlayer").AddComponent<VideoPlayer>();
                             videoPlayer.playOnAwake = true;
                             videoPlayer.isLooping = true;
                             videoPlayer.url = $"{PluginInfo.ServerResourcePath}/Videos/Themes/badapple.mp4";
@@ -2457,7 +2461,7 @@ namespace Poison.Menu
                     }
                 }.AddComponent<TextMeshPro>();
                 title.font = activeFont;
-                title.text = translate ? "Poison" : "<b>Poison</b>";
+                title.text = translate ? "Nova" : "<b>Nova</b>";
 
                 if (doCustomName)
                     title.text = customMenuName;
@@ -2500,7 +2504,7 @@ namespace Poison.Menu
 
                 if (animatedTitle)
                 {
-                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Poison Menu";
+                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
                     int length = (int)Mathf.PingPong(Time.time / 0.25f, targetString.Length);
                     title.text = length > 0 ? targetString[..length] : "";
                 }
@@ -3495,7 +3499,7 @@ namespace Poison.Menu
                     case "webm":
                     case "mov":
                         {
-                            promptVideoPlayer = new GameObject("Poison_PromptVideoPlayer").AddComponent<VideoPlayer>();
+                            promptVideoPlayer = new GameObject("Nova_PromptVideoPlayer").AddComponent<VideoPlayer>();
                             promptVideoPlayer.playOnAwake = true;
                             promptVideoPlayer.isLooping = true;
                             promptVideoPlayer.url = promptImageUrl;
@@ -4318,7 +4322,7 @@ namespace Poison.Menu
             if (disableGunLine) return (Ray, GunPointer);
             if (GunLine == null)
             {
-                GameObject line = new GameObject("Poison_GunLine");
+                GameObject line = new GameObject("Nova_GunLine");
                 GunLine = line.AddComponent<LineRenderer>();
             }
 
@@ -6850,9 +6854,9 @@ jgs \_   _/ |Oo\
         public static string customMenuName = "Your Text Here";
         public static readonly string menuName =
 #if LEGAL
-            "<b>Poison</b> Legal";
+            "<b>Nova</b> Legal";
 #else
-            "<b>Poison</b> Menu";
+            "<b>Nova</b> Menu";
 #endif
         public static bool doCustomMenuBackground;
         public static bool menuTrail;
@@ -7035,7 +7039,7 @@ jgs \_   _/ |Oo\
         public static readonly List<string> skipButtons = new List<string> { };
         public static bool translate;
 
-        public static string serverLink = "https://discord.gg/FXja6thKZC";
+        public static string serverLink = "https://discord.gg/EFTCVQe8Gx";
 
         public static int arrowType;
         public static readonly string[][] arrowTypes = {

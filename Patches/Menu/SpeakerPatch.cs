@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Patches/Menu/SpeakerPatch.cs
+ * Nova Menu  Patches/Menu/SpeakerPatch.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,7 +28,7 @@ using Photon.Voice;
 using Photon.Voice.Unity;
 using System.Collections.Generic;
 
-namespace Poison.Patches.Menu
+namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(Speaker), nameof(Speaker.OnAudioFrame))]
     public class SpeakerPatch

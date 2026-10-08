@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Poison.Managers.DiscordRPC.Exceptions
+namespace Nova.Managers.DiscordRPC.Exceptions
 {
     /// <summary>
     /// A InvalidConfigurationException is thrown when trying to perform a action that conflicts with the current configuration.

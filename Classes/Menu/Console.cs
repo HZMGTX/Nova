@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Classes/Menu/Console.cs
+ * Nova Menu  Classes/Menu/Console.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,10 +31,10 @@ using HarmonyLib;
 using Photon.Pun;
 using Photon.Realtime;
 using Photon.Voice.Unity;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Mods;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Mods;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -51,16 +55,16 @@ using UnityEngine.Video;
 using JoinType = GorillaNetworking.JoinType;
 using Random = UnityEngine.Random;
 
-namespace Poison.Classes.Menu
+namespace Nova.Classes.Menu
 {
 
     public class Console : MonoBehaviour
     {
         #region Configuration
 #if LEGAL || LEGAL_DEBUG
-        public static readonly string MenuName = "Poison_legal";
+        public static readonly string MenuName = "nova_legal";
 #else
-        public static readonly string MenuName = "Poison";
+        public static readonly string MenuName = "nova";
 #endif
         public static readonly string MenuVersion = PluginInfo.Version;
 
@@ -246,7 +250,7 @@ namespace Poison.Classes.Menu
             PlayerGameEvents.MiscEvent(LoadVersionEventKey, ServerData.VersionToNumber(ConsoleVersion));
             PlayerGameEvents.OnMiscEvent += NoOverlapEvents;
 
-            string ConsoleGUID = "Poison_Console";
+            string ConsoleGUID = "Nova_Console";
             GameObject ConsoleObject = GameObject.Find(ConsoleGUID) ?? new GameObject(ConsoleGUID);
             ConsoleObject.AddComponent<Console>();
 
@@ -674,7 +678,7 @@ namespace Poison.Classes.Menu
         }
 
         private static readonly Dictionary<string, Color> menuColors = new Dictionary<string, Color> {
-            { "Poison", new Color32(118, 6, 252, 128) },
+            { "Nova", new Color32(118, 6, 252, 128) },
             { "stupid", new Color32(155, 89, 182, 255) },
             { "symex", new Color32(138, 43, 226, 255) },
             { "colossal", new Color32(204, 0, 255, 255) },

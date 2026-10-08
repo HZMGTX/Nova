@@ -1,8 +1,12 @@
 /*
- * Poison Menu  Mods/Projectiles.cs
+ * Nova Menu  Mods/Projectiles.cs
  * A community driven mod menu for Gorilla Tag with over 1000+ mods
  *
  * Copyright (C) 2026  Poison Software
+ * Copyright (C) 2026  HZMGTX
+ * https://github.com/HZMGTX/Nova
+ *
+ * Modified from Poison Menu (formerly Seralyth Menu)
  * https://github.com/heycanihavethis/Poison
  *
  * This program is free software: you can redistribute it and/or modify
@@ -26,11 +30,11 @@ using GorillaNetworking;
 using GorillaTag.CosmeticSystem;
 using Photon.Pun;
 using Photon.Realtime;
-using Poison.Classes.Menu;
-using Poison.Extensions;
-using Poison.Managers;
-using Poison.Menu;
-using Poison.Patches.Menu;
+using Nova.Classes.Menu;
+using Nova.Extensions;
+using Nova.Managers;
+using Nova.Menu;
+using Nova.Patches.Menu;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -38,14 +42,14 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using static Poison.Extensions.VRRigExtensions;
-using static Poison.Menu.Main;
-using static Poison.Utilities.RandomUtilities;
-using static Poison.Utilities.RigUtilities;
+using static Nova.Extensions.VRRigExtensions;
+using static Nova.Menu.Main;
+using static Nova.Utilities.RandomUtilities;
+using static Nova.Utilities.RigUtilities;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
-namespace Poison.Mods
+namespace Nova.Mods
 {
     public static class Projectiles
     {

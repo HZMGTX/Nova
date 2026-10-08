@@ -1,6 +1,6 @@
 ﻿using Valve.Newtonsoft.Json;
 
-namespace Poison.Managers.DiscordRPC.Message
+namespace Nova.Managers.DiscordRPC.Message
 {
     /// <summary>
     /// Created when a error occurs within the ipc and it is sent to the client.

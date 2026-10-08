@@ -1,4 +1,4 @@
-﻿namespace Poison.Managers.DiscordRPC.Logging
+﻿namespace Nova.Managers.DiscordRPC.Logging
 {
     /// <summary>
     /// Logging interface to log the internal states of the pipe. Logs are sent in a NON thread safe way. They can come from multiple threads and it is upto the ILogger to account for it.

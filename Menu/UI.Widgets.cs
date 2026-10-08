@@ -3,9 +3,9 @@ using UnityEngine;
 
 
 using UnityEngine.InputSystem;
-using static Poison.Menu.Main;
+using static Nova.Menu.Main;
 
-namespace Poison.Menu
+namespace Nova.Menu
 {
     public partial class UI
     {
@@ -93,7 +93,7 @@ namespace Poison.Menu
             return Color.HSVToRGB(h, Mathf.Min(s, 0.35f), Mathf.Clamp(v, value * 0.7f, value));
         }
 
-        private static Color ThemeColor(Poison.Classes.Menu.ExtGradient gradient)
+        private static Color ThemeColor(Nova.Classes.Menu.ExtGradient gradient)
         {
             if (gradient == null) return Color.magenta;
             if (gradient.rainbow) return Color.HSVToRGB(0.75f, 1f, 1f);
