@@ -584,6 +584,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Cosmetic Notifications", method = Safety.CosmeticNotifications, toolTip = "Sends you a notification if there is a Finger Painter, Illustrator, Administrator, Stick, Forest Guide, or Another Axiom Creator in your room."},
 
                 new ButtonInfo { buttonText = "Steam Detector", method = Important.SteamDetector, toolTip = "Detects when a player in your room is on Steam.", legal = true},
+                new ButtonInfo { buttonText = "Room Mod Checker", method = RoomModChecker.Open, isTogglable = false, toolTip = "Shows which players in the room are running mods, which menu they use, their platform and admin rank.", legal = true},
+                new ButtonInfo { buttonText = "Mod Checker Alerts", enableMethod = RoomModChecker.EnableAlerts, disableMethod = RoomModChecker.DisableAlerts, toolTip = "Notifies you when a player running mods is in or joins your room.", legal = true},
 
                 new ButtonInfo { buttonText = "Bypass Automod", method = Safety.BypassAutomod, toolTip = "Attempts to bypass automod muting yourself and others."},
                 new ButtonInfo { buttonText = "Bypass Mod Checkers", enableMethod =() => PropertiesPatches.enabled = true, method = Safety.BypassModCheckers, disableMethod =() => PropertiesPatches.enabled = false, toolTip = "Tells players using mod checkers that you have no mods."},
@@ -2865,6 +2867,16 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Send Everyone To Arcade", method =() => ConsoleAdmin.SendEveryoneTo("Arcade"), isTogglable = false, toolTip = "Sends everyone using Console to Arcade.", legal = true},
                 new ButtonInfo { buttonText = "Send Everyone To Rotating", method =() => ConsoleAdmin.SendEveryoneTo("Rotating"), isTogglable = false, toolTip = "Sends everyone using Console to Rotating.", legal = true},
                 new ButtonInfo { buttonText = "Send Everyone To Critters", method =() => ConsoleAdmin.SendEveryoneTo("Critters"), isTogglable = false, toolTip = "Sends everyone using Console to Critters.", legal = true}
+            },
+
+            new[] // Room Mod Checker [56]
+            {
+                new ButtonInfo { buttonText = "Exit Room Mod Checker", method =() => CurrentCategoryName = "Important Mods", isTogglable = false, toolTip = "Returns you back to the important mods.", legal = true}
+            },
+
+            new[] // Room Mod Checker Player [57]
+            {
+                new ButtonInfo { buttonText = "Exit Room Mod Checker Player", method = RoomModChecker.Open, isTogglable = false, toolTip = "Returns you back to the mod checker.", legal = true}
             }
         };
 
@@ -2924,7 +2936,9 @@ namespace Nova.Menu
             "Console Objects",
             "Spawned Assets",
             "Console Asset Control",
-            "Admin World Controls"
+            "Admin World Controls",
+            "Room Mod Checker",
+            "Room Mod Checker Player"
         };
 
         public static int _currentCategoryIndex;
