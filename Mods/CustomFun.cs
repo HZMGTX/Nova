@@ -30,7 +30,6 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using static Nova.Menu.Main;
-using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
 
 namespace Nova.Mods
@@ -38,46 +37,11 @@ namespace Nova.Mods
     /// <summary>The second set of Custom Mods: toys, art, critters and mini-games.</summary>
     /// <remarks>
     /// Everything here is only seen by you. Anything that makes many objects keeps them in
-    /// a capped list and reuses them, and nothing allocates every frame, so leaving these
-    /// on does not cost frames.
+    /// a capped list and reuses them, and bursts go through two shared particle systems,
+    /// so leaving these on does not cost frames.
     /// </remarks>
     public static partial class Custom
     {
-        /// <summary>One visual thing these mods keep track of, with its renderer kept to hand.</summary>
-        private sealed class Piece
-        {
-            public GameObject Object;
-            public Renderer Renderer;
-            public Vector3 Velocity;
-            public float Born;
-            public float Life;
-            public float Size;
-        }
-
-        private static Piece MakePiece(PrimitiveType type, Color color, Vector3 scale)
-        {
-            GameObject made = Extras.Primitive(type, color, scale);
-            return new Piece { Object = made, Renderer = made.GetComponent<Renderer>(), Born = Time.time };
-        }
-
-        private static void ClearPieces(List<Piece> pieces)
-        {
-            foreach (Piece piece in pieces)
-                Destroy(piece.Object);
-            pieces.Clear();
-        }
-
-        private static void SetAlpha(Piece piece, Color color, float alpha) =>
-            piece.Renderer.material.color = new Color(color.r, color.g, color.b, alpha);
-
-        /// <summary>True on the frame a button goes down.</summary>
-        private static bool Pressed(bool down, ref bool held)
-        {
-            bool pressed = down && !held;
-            held = down;
-            return pressed;
-        }
-
         // ── Movement toys ───────────────────────────────────────────────────────
 
         private static ParticleSystem jetFlame;
@@ -117,37 +81,36 @@ namespace Nova.Mods
 
             var flame = jetFlame.emission;
             flame.enabled = firing;
-            jetFlame.transform.SetPositionAndRotation(
-                Extras.BodyPosition - LookFlat() * (0.2f * Scale) + Vector3.down * (0.1f * Scale),
-                Quaternion.LookRotation(Vector3.down));
+            Follow(jetFlame, Extras.BodyPosition - LookFlat() * (0.2f * Scale) + Vector3.down * (0.1f * Scale));
+            jetFlame.transform.rotation = Quaternion.LookRotation(Vector3.down);
         }
 
-        public static void DisableJetpack()
-        {
-            if (jetFlame != null)
-                Object.Destroy(jetFlame.gameObject);
-            jetFlame = null;
-        }
+        public static void DisableJetpack() => DestroyParticles(ref jetFlame);
 
         private static Vector3 skateVelocity;
 
         /// <summary>The ground turns to ice: you keep sliding instead of stopping.</summary>
+        /// <remarks>
+        /// Only the gentle slowing of friction is undone. A sharp stop (a wall) or a turn is
+        /// left alone, so you can still steer and never get pinned against things.
+        /// </remarks>
         public static void IceSkates()
         {
             Vector3 velocity = Extras.Body.linearVelocity;
             Vector3 flat = new Vector3(velocity.x, 0f, velocity.z);
+            float speed = flat.magnitude;
+            float kept = skateVelocity.magnitude;
 
-            // Friction is the game slowing you each frame; on the ground that loss is mostly put back.
-            if (Extras.Grounded() && flat.sqrMagnitude < skateVelocity.sqrMagnitude)
+            if (Extras.Grounded() && speed < kept && speed > kept * 0.5f && Vector3.Dot(flat / Mathf.Max(speed, 0.001f), skateVelocity / kept) > 0.9f)
             {
-                Vector3 kept = skateVelocity * Mathf.Pow(0.99f, Time.deltaTime * 72f);
-                velocity.x = kept.x;
-                velocity.z = kept.z;
+                Vector3 glide = flat / speed * (kept * Mathf.Pow(0.99f, Time.deltaTime * 72f));
+                velocity.x = glide.x;
+                velocity.z = glide.z;
                 Extras.Body.linearVelocity = velocity;
-                flat = kept;
+                flat = glide;
             }
 
-            skateVelocity = flat.sqrMagnitude > 0.04f ? flat : Vector3.zero;
+            skateVelocity = flat.sqrMagnitude > 0.04f * Scale * Scale ? flat : Vector3.zero;
         }
 
         private static float trampolineFall;
@@ -172,28 +135,25 @@ namespace Nova.Mods
         /// <summary>Hold a balloon that makes you float gently while you are in the air.</summary>
         public static void BalloonFloat()
         {
-            if (balloon == null || balloon.Object == null)
-                balloon = MakePiece(PrimitiveType.Sphere, Color.red, Vector3.one);
-
+            Ensure(ref balloon, PrimitiveType.Sphere, Color.red);
             if (balloonString == null)
             {
-                balloonString = new GameObject("Nova_BalloonString").AddComponent<LineRenderer>();
-                balloonString.material = VertexColored;
-                balloonString.positionCount = 2;
+                balloonString = MakeLine("Nova_BalloonString", 0.005f);
                 balloonString.startColor = balloonString.endColor = Color.white;
             }
 
+            float scale = Scale;
             Transform hand = GorillaTagger.Instance.leftHandTransform;
-            Vector3 sway = new Vector3(Mathf.Sin(Time.time * 1.3f), 0f, Mathf.Cos(Time.time * 1.1f)) * (0.08f * Scale);
-            Vector3 top = hand.position + Vector3.up * (0.6f * Scale) + sway;
+            Vector3 sway = new Vector3(Mathf.Sin(Time.time * 1.3f), 0f, Mathf.Cos(Time.time * 1.1f)) * (0.08f * scale);
+            Vector3 top = hand.position + Vector3.up * (0.6f * scale) + sway;
 
             balloon.Object.transform.position = top;
-            balloon.Object.transform.localScale = new Vector3(0.28f, 0.34f, 0.28f) * Scale;
+            balloon.Object.transform.localScale = new Vector3(0.28f, 0.34f, 0.28f) * scale;
             SetAlpha(balloon, Color.HSVToRGB(Time.time * 0.05f % 1f, 0.8f, 1f), 0.85f);
 
-            balloonString.startWidth = balloonString.endWidth = 0.005f * Scale;
+            balloonString.startWidth = balloonString.endWidth = 0.005f * scale;
             balloonString.SetPosition(0, hand.position);
-            balloonString.SetPosition(1, top - Vector3.up * (0.17f * Scale));
+            balloonString.SetPosition(1, top - Vector3.up * (0.17f * scale));
 
             if (!Extras.Grounded())
                 Extras.Body.linearVelocity += Vector3.up * (6f * Time.deltaTime);
@@ -201,13 +161,9 @@ namespace Nova.Mods
 
         public static void DisableBalloonFloat()
         {
-            if (balloon != null)
-                Destroy(balloon.Object);
+            Discard(balloon);
             balloon = null;
-
-            if (balloonString != null)
-                Object.Destroy(balloonString.gameObject);
-            balloonString = null;
+            DestroyLine(ref balloonString);
         }
 
         private static Piece carpet;
@@ -221,31 +177,27 @@ namespace Nova.Mods
 
             if (!carpetRiding)
             {
-                if (carpet != null)
+                if (carpet != null && carpet.Alive)
                     carpet.Object.SetActive(false);
                 return;
             }
 
-            if (carpet == null || carpet.Object == null)
-                carpet = MakePiece(PrimitiveType.Cube, MyColor, Vector3.one);
-
+            Ensure(ref carpet, PrimitiveType.Cube, MyColor);
             carpet.Object.SetActive(true);
 
-            Vector3 look = Head.forward;
-            Extras.Body.linearVelocity = LookFlat() * 5f + Vector3.up * (look.y * 4f);
+            Extras.Body.linearVelocity = LookFlat() * 5f + Vector3.up * (Head.forward.y * 4f);
 
             carpet.Object.transform.SetPositionAndRotation(
                 Extras.BodyPosition + Vector3.down * (0.55f * Scale),
                 Quaternion.LookRotation(LookFlat()) * Quaternion.Euler(0f, 0f, Mathf.Sin(Time.time * 3f) * 3f));
             carpet.Object.transform.localScale = new Vector3(0.9f, 0.03f, 1.3f) * Scale;
-            SetAlpha(carpet, Color.HSVToRGB(Time.time * 0.1f % 1f, 0.6f, 1f), 0.9f);
+            SetAlpha(carpet, MyColor, 0.9f);
         }
 
         public static void DisableMagicCarpet()
         {
             carpetRiding = false;
-            if (carpet != null)
-                Destroy(carpet.Object);
+            Discard(carpet);
             carpet = null;
         }
 
@@ -265,6 +217,14 @@ namespace Nova.Mods
 
             if (rightTrigger < 0.5f)
             {
+                // A tap that drew nothing leaves nothing behind, so it can't push real
+                // drawings out of the list.
+                if (currentStroke != null && currentStroke.positionCount <= 1)
+                {
+                    strokes.Remove(currentStroke);
+                    Object.Destroy(currentStroke.gameObject);
+                }
+
                 currentStroke = null;
                 return;
             }
@@ -279,12 +239,9 @@ namespace Nova.Mods
                     strokes.RemoveAt(0);
                 }
 
-                currentStroke = new GameObject("Nova_PaintStroke").AddComponent<LineRenderer>();
-                currentStroke.material = VertexColored;
-                currentStroke.useWorldSpace = true;
+                currentStroke = MakeLine("Nova_PaintStroke", 0.012f * Scale);
                 currentStroke.numCapVertices = 4;
                 currentStroke.numCornerVertices = 2;
-                currentStroke.startWidth = currentStroke.endWidth = 0.012f * Scale;
                 currentStroke.startColor = currentStroke.endColor = MyColor;
                 currentStroke.positionCount = 1;
                 currentStroke.SetPosition(0, tip);
@@ -321,17 +278,15 @@ namespace Nova.Mods
 
             if (laser == null)
             {
-                laser = new GameObject("Nova_Laser").AddComponent<LineRenderer>();
-                laser.material = VertexColored;
-                laser.positionCount = 2;
+                laser = MakeLine("Nova_Laser", 0.004f);
                 laser.startColor = laser.endColor = new Color(1f, 0.1f, 0.1f, 0.8f);
             }
 
-            if (laserDot == null || laserDot.Object == null)
-                laserDot = MakePiece(PrimitiveType.Sphere, Color.red, Vector3.one);
+            Ensure(ref laserDot, PrimitiveType.Sphere, Color.red);
 
-            bool hit = Physics.Raycast(hand.position, hand.forward, out RaycastHit ray, 50f, NoInvisLayerMask());
-            Vector3 end = hit ? ray.point : hand.position + hand.forward * 50f;
+            float range = 50f * Scale;
+            bool hit = Physics.Raycast(hand.position, hand.forward, out RaycastHit ray, range, NoInvisLayerMask());
+            Vector3 end = hit ? ray.point : hand.position + hand.forward * range;
 
             laser.startWidth = laser.endWidth = 0.004f * Scale;
             laser.SetPosition(0, hand.position);
@@ -344,38 +299,33 @@ namespace Nova.Mods
 
         public static void DisableLaserPointer()
         {
-            if (laser != null)
-                Object.Destroy(laser.gameObject);
-            laser = null;
-
-            if (laserDot != null)
-                Destroy(laserDot.Object);
+            DestroyLine(ref laser);
+            Discard(laserDot);
             laserDot = null;
         }
 
-        private static GameObject flashlight;
+        private static Light flashlight;
 
         /// <summary>A torch in your right hand.</summary>
         public static void HandFlashlight()
         {
             if (flashlight == null)
             {
-                flashlight = new GameObject("Nova_Flashlight");
-                Light light = flashlight.AddComponent<Light>();
-                light.type = LightType.Spot;
-                light.range = 20f;
-                light.spotAngle = 45f;
-                light.intensity = 2.5f;
+                flashlight = new GameObject("Nova_Flashlight").AddComponent<Light>();
+                flashlight.type = LightType.Spot;
+                flashlight.spotAngle = 45f;
+                flashlight.intensity = 2.5f;
             }
 
             var hand = ControllerUtilities.GetTrueRightHand();
+            flashlight.range = 20f * Scale;
             flashlight.transform.SetPositionAndRotation(hand.position, Quaternion.LookRotation(hand.forward));
         }
 
         public static void DisableHandFlashlight()
         {
             if (flashlight != null)
-                Object.Destroy(flashlight);
+                Object.Destroy(flashlight.gameObject);
             flashlight = null;
         }
 
@@ -388,9 +338,9 @@ namespace Nova.Mods
                 return;
 
             var hand = ControllerUtilities.GetTrueRightHand();
-            Vector3 target = Physics.Raycast(hand.position, hand.forward, out RaycastHit hit, 40f, NoInvisLayerMask())
+            Vector3 target = Physics.Raycast(hand.position, hand.forward, out RaycastHit hit, 40f * Scale, NoInvisLayerMask())
                 ? hit.point
-                : hand.position + hand.forward * 15f;
+                : hand.position + hand.forward * (15f * Scale);
 
             CoroutineManager.instance.StartCoroutine(FlyBolt(hand.position, target));
         }
@@ -403,16 +353,16 @@ namespace Nova.Mods
 
             while (Time.time - start < duration)
             {
-                if (bolt.Object == null)
+                if (!bolt.Alive)
                     yield break;
 
                 bolt.Object.transform.position = Vector3.Lerp(from, to, (Time.time - start) / duration);
-                SetAlpha(bolt, Color.HSVToRGB(Time.time * 3f % 1f, 0.6f, 1f), 1f);
+                SetColor(bolt, Color.HSVToRGB(Time.time * 3f % 1f, 0.6f, 1f));
                 yield return null;
             }
 
-            Destroy(bolt.Object);
-            Burst(to, 60, 3f, 0.3f);
+            Discard(bolt);
+            Burst(to, 60, 3f, falling: false);
         }
 
         // ── Cute and silly ──────────────────────────────────────────────────────
@@ -425,26 +375,30 @@ namespace Nova.Mods
         public static void BubbleBlower()
         {
             float now = Time.time;
+            float scale = Scale;
 
             if (rightPrimary && now >= nextBubble)
             {
                 nextBubble = now + 0.1f;
                 var hand = ControllerUtilities.GetTrueRightHand();
 
-                Piece bubble;
+                // Once there are enough, the oldest bubble is reused for the newest.
+                Piece bubble = null;
                 if (bubbles.Count >= MaxBubbles)
                 {
                     bubble = bubbles[0];
                     bubbles.RemoveAt(0);
                 }
-                else
+
+                if (bubble == null || !bubble.Alive)
                     bubble = MakePiece(PrimitiveType.Sphere, Color.white, Vector3.one);
 
                 bubble.Born = now;
                 bubble.Life = Random.Range(3f, 5f);
-                bubble.Size = Random.Range(0.05f, 0.12f) * Scale;
+                bubble.Size = Random.Range(0.05f, 0.12f) * scale;
+                bubble.Seed = Random.value * 100f;
                 bubble.Velocity = hand.forward * 0.8f + Vector3.up * 0.2f;
-                bubble.Object.transform.position = hand.position + hand.forward * (0.08f * Scale);
+                bubble.Object.transform.position = hand.position + hand.forward * (0.08f * scale);
                 bubble.Object.SetActive(true);
                 bubbles.Add(bubble);
             }
@@ -452,28 +406,27 @@ namespace Nova.Mods
             for (int i = bubbles.Count - 1; i >= 0; i--)
             {
                 Piece bubble = bubbles[i];
-                float age = now - bubble.Born;
-
-                if (bubble.Object == null)
+                if (!bubble.Alive)
                 {
                     bubbles.RemoveAt(i);
                     continue;
                 }
 
-                if (age >= bubble.Life)
+                if (now - bubble.Born >= bubble.Life)
                 {
-                    Burst(bubble.Object.transform.position, 6, 0.6f, 0f);
-                    Destroy(bubble.Object);
+                    Burst(bubble.Object.transform.position, 6, 0.6f, falling: false);
+                    Discard(bubble);
                     bubbles.RemoveAt(i);
                     continue;
                 }
 
-                // Slows down, rises, and wobbles as it drifts.
+                // Slows down, rises, and wobbles as it drifts, each on its own rhythm.
+                float seed = bubble.Seed;
                 bubble.Velocity = Vector3.Lerp(bubble.Velocity, Vector3.up * 0.25f, Time.deltaTime * 1.5f);
-                Vector3 wobble = new Vector3(Mathf.Sin(now * 3f + i), 0f, Mathf.Cos(now * 2.5f + i)) * 0.05f;
-                bubble.Object.transform.position += (bubble.Velocity + wobble) * Time.deltaTime;
+                Vector3 wobble = new Vector3(Mathf.Sin(now * 3f + seed), 0f, Mathf.Cos(now * 2.5f + seed)) * 0.05f;
+                bubble.Object.transform.position += (bubble.Velocity + wobble) * (Time.deltaTime * scale);
                 bubble.Object.transform.localScale = Vector3.one * bubble.Size;
-                SetAlpha(bubble, Color.HSVToRGB((now * 0.2f + i * 0.07f) % 1f, 0.25f, 1f), 0.35f);
+                SetAlpha(bubble, Color.HSVToRGB((now * 0.2f + seed * 0.01f) % 1f, 0.25f, 1f), 0.35f);
             }
         }
 
@@ -481,32 +434,33 @@ namespace Nova.Mods
 
         private static readonly List<Piece> butterflies = new List<Piece>();
 
+        private static Piece MakeButterfly()
+        {
+            Piece butterfly = MakePiece(PrimitiveType.Cube, Color.white, Vector3.one);
+            butterfly.Object.transform.position = Head.position + Random.insideUnitSphere * (0.5f * Scale);
+            return butterfly;
+        }
+
         /// <summary>A few butterflies fluttering around you.</summary>
         public static void Butterflies()
         {
             while (butterflies.Count < 4)
-            {
-                Piece butterfly = MakePiece(PrimitiveType.Cube, Color.white, Vector3.one);
-                butterfly.Size = Random.value * 100f;
-                butterfly.Object.transform.position = Head.position;
-                butterflies.Add(butterfly);
-            }
+                butterflies.Add(MakeButterfly());
 
             float now = Time.time;
+            float scale = Scale;
+
             for (int i = 0; i < butterflies.Count; i++)
             {
-                Piece butterfly = butterflies[i];
-                if (butterfly.Object == null)
-                {
-                    butterflies[i] = MakePiece(PrimitiveType.Cube, Color.white, Vector3.one);
-                    continue;
-                }
+                if (!butterflies[i].Alive)
+                    butterflies[i] = MakeButterfly();
 
-                float seed = butterfly.Size;
+                Piece butterfly = butterflies[i];
+                float seed = butterfly.Seed;
                 Vector3 target = Head.position + new Vector3(
                     (Mathf.PerlinNoise(seed, now * 0.3f) - 0.5f) * 2.4f,
                     (Mathf.PerlinNoise(seed + 10f, now * 0.3f) - 0.3f) * 1.2f,
-                    (Mathf.PerlinNoise(seed + 20f, now * 0.3f) - 0.5f) * 2.4f) * Scale;
+                    (Mathf.PerlinNoise(seed + 20f, now * 0.3f) - 0.5f) * 2.4f) * scale;
 
                 Transform body = butterfly.Object.transform;
                 Vector3 step = Vector3.Lerp(body.position, target, Time.deltaTime * 1.5f) - body.position;
@@ -514,7 +468,7 @@ namespace Nova.Mods
 
                 // Wings beat by squashing the body flat and open again.
                 float flap = Mathf.Abs(Mathf.Sin(now * 14f + seed));
-                body.localScale = new Vector3(0.1f * (0.25f + flap), 0.004f, 0.06f) * Scale;
+                body.localScale = new Vector3(0.1f * (0.25f + flap), 0.004f, 0.06f) * scale;
                 if (step.sqrMagnitude > 0.0000001f)
                     body.rotation = Quaternion.LookRotation(step.normalized);
 
@@ -524,26 +478,22 @@ namespace Nova.Mods
 
         public static void DisableButterflies() => ClearPieces(butterflies);
 
-        private static readonly List<Piece> cloudPuffs = new List<Piece>();
+        private static readonly Piece[] cloudPuffs = new Piece[4];
         private static ParticleSystem rain;
 
         /// <summary>A little rain cloud that follows you around.</summary>
         public static void RainCloud()
         {
-            Vector3 centre = Head.position + Vector3.up * (0.55f * Scale);
+            float scale = Scale;
+            Vector3 centre = Head.position + Vector3.up * (0.55f * scale);
 
-            if (cloudPuffs.Count == 0)
-                for (int i = 0; i < 4; i++)
-                    cloudPuffs.Add(MakePiece(PrimitiveType.Sphere, new Color(0.55f, 0.58f, 0.62f, 0.9f), Vector3.one));
-
-            for (int i = 0; i < cloudPuffs.Count; i++)
+            for (int i = 0; i < cloudPuffs.Length; i++)
             {
-                if (cloudPuffs[i].Object == null)
-                    continue;
+                Ensure(ref cloudPuffs[i], PrimitiveType.Sphere, new Color(0.55f, 0.58f, 0.62f, 0.9f));
 
                 float offset = (i - 1.5f) * 0.12f;
-                cloudPuffs[i].Object.transform.position = centre + new Vector3(offset, Mathf.Sin(Time.time + i) * 0.02f + (i % 2) * 0.05f, (i % 2 - 0.5f) * 0.06f) * Scale;
-                cloudPuffs[i].Object.transform.localScale = Vector3.one * ((0.16f + (i % 2) * 0.05f) * Scale);
+                cloudPuffs[i].Object.transform.position = centre + new Vector3(offset, Mathf.Sin(Time.time + i) * 0.02f + (i % 2) * 0.05f, (i % 2 - 0.5f) * 0.06f) * scale;
+                cloudPuffs[i].Object.transform.localScale = Vector3.one * ((0.16f + (i % 2) * 0.05f) * scale);
             }
 
             if (rain == null)
@@ -555,7 +505,7 @@ namespace Nova.Mods
                     main.startSpeed = 0f;
                     main.startSize = 0.012f;
                     main.startColor = new Color(0.6f, 0.75f, 1f, 0.9f);
-                    main.gravityModifier = 0.8f;
+                    main.gravityModifier = 0.8f * Scale;
                     main.maxParticles = 150;
 
                     var emission = system.emission;
@@ -566,15 +516,18 @@ namespace Nova.Mods
                     shape.scale = new Vector3(0.4f, 0.02f, 0.2f);
                 });
 
-            rain.transform.position = centre - Vector3.up * (0.08f * Scale);
+            Follow(rain, centre - Vector3.up * (0.08f * scale));
         }
 
         public static void DisableRainCloud()
         {
-            ClearPieces(cloudPuffs);
-            if (rain != null)
-                Object.Destroy(rain.gameObject);
-            rain = null;
+            for (int i = 0; i < cloudPuffs.Length; i++)
+            {
+                Discard(cloudPuffs[i]);
+                cloudPuffs[i] = null;
+            }
+
+            DestroyParticles(ref rain);
         }
 
         private static ParticleSystem fireflies;
@@ -606,15 +559,10 @@ namespace Nova.Mods
                     noise.frequency = 0.4f;
                 });
 
-            fireflies.transform.position = Extras.BodyPosition;
+            Follow(fireflies, Extras.BodyPosition);
         }
 
-        public static void DisableFireflySwarm()
-        {
-            if (fireflies != null)
-                Object.Destroy(fireflies.gameObject);
-            fireflies = null;
-        }
+        public static void DisableFireflySwarm() => DestroyParticles(ref fireflies);
 
         private const int AfterimageCount = 12;
         private static readonly List<Piece> afterimages = new List<Piece>();
@@ -631,32 +579,35 @@ namespace Nova.Mods
                 {
                     Piece copy = MakePiece(PrimitiveType.Sphere, MyColor, Vector3.one);
                     copy.Born = -10f;
+                    copy.Object.SetActive(false);
                     afterimages.Add(copy);
                 }
 
-            if (now >= afterimageTimer && Extras.Body.linearVelocity.sqrMagnitude > 9f)
+            if (now >= afterimageTimer && Extras.Body.linearVelocity.sqrMagnitude > 9f * Scale * Scale)
             {
                 afterimageTimer = now + 0.07f;
+                if (!afterimages[nextAfterimage].Alive)
+                    afterimages[nextAfterimage] = MakePiece(PrimitiveType.Sphere, MyColor, Vector3.one);
+
                 Piece copy = afterimages[nextAfterimage];
                 nextAfterimage = (nextAfterimage + 1) % afterimages.Count;
 
-                if (copy.Object != null)
-                {
-                    copy.Born = now;
-                    copy.Object.transform.position = Head.position;
-                    copy.Object.transform.localScale = Vector3.one * (0.3f * Scale);
-                }
+                copy.Born = now;
+                copy.Object.SetActive(true);
+                copy.Object.transform.position = Head.position;
+                copy.Object.transform.localScale = Vector3.one * (0.3f * Scale);
             }
 
             Color color = MyColor;
             foreach (Piece copy in afterimages)
             {
-                if (copy.Object == null)
+                if (!copy.Alive || !copy.Object.activeSelf)
                     continue;
 
                 float fade = 1f - (now - copy.Born) / 0.5f;
-                copy.Object.SetActive(fade > 0f);
-                if (fade > 0f)
+                if (fade <= 0f)
+                    copy.Object.SetActive(false);
+                else
                     SetAlpha(copy, color, 0.4f * fade);
             }
         }
@@ -664,6 +615,7 @@ namespace Nova.Mods
         public static void DisableAfterimages() => ClearPieces(afterimages);
 
         private static ParticleSystem speedLines;
+        private static float speedLineBudget;
 
         /// <summary>Streaks rush past you when you go fast.</summary>
         public static void SpeedLines()
@@ -679,40 +631,43 @@ namespace Nova.Mods
                     main.startSize = 0.01f;
                     main.startColor = new Color(1f, 1f, 1f, 0.6f);
                     main.maxParticles = 200;
+                    main.scalingMode = ParticleSystemScalingMode.Local;
 
                     var emission = system.emission;
                     emission.enabled = false;
                 });
 
+                speedLines.transform.localScale = Vector3.one;
                 ParticleSystemRenderer streaks = speedLines.GetComponent<ParticleSystemRenderer>();
                 streaks.renderMode = ParticleSystemRenderMode.Stretch;
                 streaks.velocityScale = 0.04f;
                 streaks.lengthScale = 1f;
             }
 
+            float scale = Scale;
             Vector3 velocity = Extras.Body.linearVelocity;
             float speed = velocity.magnitude;
-            if (speed < 6f)
-                return;
-
-            Vector3 ahead = velocity / speed;
-            ParticleSystem.EmitParams streak = new ParticleSystem.EmitParams();
-            int count = Mathf.Min(6, Mathf.CeilToInt((speed - 6f) * 0.5f) + 1);
-
-            for (int i = 0; i < count; i++)
+            if (speed < 6f * scale)
             {
-                streak.position = Head.position + ahead * (2f * Scale) + Random.insideUnitSphere * (1.2f * Scale);
+                speedLineBudget = 0f;
+                return;
+            }
+
+            // Streaks per second, not per frame, so it looks the same at any frame rate.
+            speedLineBudget += Mathf.Min(300f, 30f + (speed / scale - 6f) * 25f) * Time.deltaTime;
+            Vector3 ahead = velocity / speed;
+            ParticleSystem.EmitParams streak = new ParticleSystem.EmitParams { startSize = 0.01f * scale };
+
+            while (speedLineBudget >= 1f)
+            {
+                speedLineBudget -= 1f;
+                streak.position = Head.position + ahead * (2f * scale) + Random.insideUnitSphere * (1.2f * scale);
                 streak.velocity = -ahead * (speed * 1.5f);
                 speedLines.Emit(streak, 1);
             }
         }
 
-        public static void DisableSpeedLines()
-        {
-            if (speedLines != null)
-                Object.Destroy(speedLines.gameObject);
-            speedLines = null;
-        }
+        public static void DisableSpeedLines() => DestroyParticles(ref speedLines);
 
         private const int RoadTiles = 30;
         private static readonly List<Piece> road = new List<Piece>();
@@ -736,27 +691,27 @@ namespace Nova.Mods
             Vector3 velocity = Extras.Body.linearVelocity;
             Vector3 flat = new Vector3(velocity.x, 0f, velocity.z);
 
-            if (now >= tileTimer && !Extras.Grounded() && flat.sqrMagnitude > 4f)
+            if (now >= tileTimer && !Extras.Grounded() && flat.sqrMagnitude > 4f * Scale * Scale)
             {
                 tileTimer = now + 0.1f;
+                if (!road[nextTile].Alive)
+                    road[nextTile] = MakePiece(PrimitiveType.Cube, Color.white, Vector3.one);
+
                 Piece tile = road[nextTile];
                 nextTile = (nextTile + 1) % road.Count;
 
-                if (tile.Object != null)
-                {
-                    tile.Born = now;
-                    tile.Object.SetActive(true);
-                    tile.Object.transform.SetPositionAndRotation(
-                        Extras.BodyPosition + Vector3.down * (0.6f * Scale),
-                        Quaternion.LookRotation(flat.normalized));
-                    tile.Object.transform.localScale = new Vector3(0.6f, 0.02f, 0.45f) * Scale;
-                    tile.Size = now * 0.5f % 1f;
-                }
+                tile.Born = now;
+                tile.Size = now * 0.5f % 1f;
+                tile.Object.SetActive(true);
+                tile.Object.transform.SetPositionAndRotation(
+                    Extras.BodyPosition + Vector3.down * (0.6f * Scale),
+                    Quaternion.LookRotation(flat.normalized));
+                tile.Object.transform.localScale = new Vector3(0.6f, 0.02f, 0.45f) * Scale;
             }
 
             foreach (Piece tile in road)
             {
-                if (tile.Object == null || !tile.Object.activeSelf)
+                if (!tile.Alive || !tile.Object.activeSelf)
                     continue;
 
                 float fade = 1f - (now - tile.Born) / 3f;
@@ -769,19 +724,45 @@ namespace Nova.Mods
 
         public static void DisableRainbowRoad() => ClearPieces(road);
 
+        // ── Balls ───────────────────────────────────────────────────────────────
+
         private const int MaxBalls = 8;
         private static readonly List<Piece> balls = new List<Piece>();
         private static bool ballHeld;
         private static Vector3 lastLeftHand, lastRightHand;
+        private static int ballsFrame = -1;
+
+        // Bouncy Ball and Basketball Hoop share the balls; each says it is on every frame, so
+        // turning one off only clears the balls when the other is not still using them.
+        private static bool bouncyBallOn, hoopOn;
 
         /// <summary>Press B to throw a bouncy ball; hit it with your hands to keep it going.</summary>
+        public static void BouncyBall()
+        {
+            bouncyBallOn = true;
+            UpdateBalls();
+        }
+
+        public static void DisableBouncyBall()
+        {
+            bouncyBallOn = false;
+            if (!hoopOn)
+                ClearPieces(balls);
+        }
+
+        /// <summary>Throws, moves and bounces the balls, once a frame for every mod that uses them.</summary>
         /// <remarks>
         /// The balls are moved here rather than by the physics engine, so they can never
         /// push you or anything else around; they only see the ground and walls.
         /// </remarks>
-        public static void BouncyBall()
+        private static void UpdateBalls()
         {
+            if (ballsFrame == Time.frameCount)
+                return;
+            ballsFrame = Time.frameCount;
+
             float dt = Time.deltaTime;
+            float scale = Scale;
             Vector3 leftHand = GorillaTagger.Instance.leftHandTransform.position;
             Vector3 rightHand = GorillaTagger.Instance.rightHandTransform.position;
             Vector3 leftHandVelocity = dt > 0f ? (leftHand - lastLeftHand) / dt : Vector3.zero;
@@ -792,72 +773,93 @@ namespace Nova.Mods
             if (Pressed(rightSecondary, ref ballHeld))
             {
                 var hand = ControllerUtilities.GetTrueRightHand();
-                Piece ball;
+
+                Piece ball = null;
                 if (balls.Count >= MaxBalls)
                 {
                     ball = balls[0];
                     balls.RemoveAt(0);
                 }
-                else
+
+                if (ball == null || !ball.Alive)
                     ball = MakePiece(PrimitiveType.Sphere, Color.white, Vector3.one);
 
                 ball.Born = Time.time;
-                ball.Size = 0.09f * Scale;
-                ball.Velocity = hand.forward * 7f + Extras.Body.linearVelocity;
-                ball.Object.transform.position = hand.position + hand.forward * (0.15f * Scale);
+                ball.Size = 0.09f * scale;
+                ball.Velocity = hand.forward * (7f * scale) + Extras.Body.linearVelocity;
+                ball.Object.transform.position = hand.position + hand.forward * (0.15f * scale);
                 ball.Object.transform.localScale = Vector3.one * (ball.Size * 2f);
-                SetAlpha(ball, Color.HSVToRGB(Random.value, 0.8f, 1f), 1f);
+                SetColor(ball, Color.HSVToRGB(Random.value, 0.8f, 1f));
                 balls.Add(ball);
             }
 
             int layers = GTPlayer.Instance.locomotionEnabledLayers;
+            float skin = 0.01f * scale;
+
             for (int i = balls.Count - 1; i >= 0; i--)
             {
                 Piece ball = balls[i];
-                if (ball.Object == null || Time.time - ball.Born > 30f)
+                if (!ball.Alive || Time.time - ball.Born > 30f)
                 {
-                    Destroy(ball.Object);
+                    Discard(ball);
                     balls.RemoveAt(i);
                     continue;
                 }
 
                 Transform body = ball.Object.transform;
-                ball.Velocity += Physics.gravity * dt;
+                ball.Anchor = body.position;
+                ball.Velocity += Physics.gravity * (dt * scale);
 
                 // A hand that touches the ball passes on its own speed, like a volleyball.
-                float touch = ball.Size + 0.08f * Scale;
-                if ((body.position - leftHand).sqrMagnitude < touch * touch && leftHandVelocity.sqrMagnitude > 1f)
-                    ball.Velocity = leftHandVelocity * 1.2f + Vector3.up * 1.5f;
-                if ((body.position - rightHand).sqrMagnitude < touch * touch && rightHandVelocity.sqrMagnitude > 1f)
-                    ball.Velocity = rightHandVelocity * 1.2f + Vector3.up * 1.5f;
+                // A just-thrown ball is still beside the throwing hand, so it is left alone
+                // for a moment rather than having the throw overwritten.
+                if (Time.time - ball.Born > 0.25f)
+                {
+                    float touch = ball.Size + 0.08f * scale;
+                    if ((body.position - leftHand).sqrMagnitude < touch * touch && leftHandVelocity.sqrMagnitude > 1f)
+                        ball.Velocity = leftHandVelocity * 1.2f + Vector3.up * (1.5f * scale);
+                    if ((body.position - rightHand).sqrMagnitude < touch * touch && rightHandVelocity.sqrMagnitude > 1f)
+                        ball.Velocity = rightHandVelocity * 1.2f + Vector3.up * (1.5f * scale);
+                }
 
                 Vector3 move = ball.Velocity * dt;
                 float distance = move.magnitude;
 
-                if (distance > 0f && Physics.SphereCast(body.position, ball.Size, move / distance, out RaycastHit hit, distance, layers))
+                if (distance > 0f && Physics.SphereCast(body.position, ball.Size, move / distance, out RaycastHit hit, distance + skin, layers))
                 {
-                    body.position += move / distance * hit.distance;
+                    // Stopping a hair short of the surface keeps the next cast outside it,
+                    // so a resting ball can't sink into the floor.
+                    body.position += move / distance * Mathf.Max(0f, hit.distance - skin) + hit.normal * skin;
                     ball.Velocity = Vector3.Reflect(ball.Velocity, hit.normal) * 0.8f;
+                    if (ball.Velocity.sqrMagnitude < 0.25f * scale * scale && hit.normal.y > 0.7f)
+                        ball.Velocity = Vector3.zero;
                 }
                 else
                     body.position += move;
             }
         }
 
-        public static void DisableBouncyBall() => ClearPieces(balls);
-
         // ── Mini-games ──────────────────────────────────────────────────────────
 
-        /// <summary>A spot on the ground near you, or near you in the air when there is no ground.</summary>
+        /// <summary>A spot on the ground near you that you can reach.</summary>
+        /// <remarks>
+        /// The ray starts just above your head, not far above you, so indoors it finds the
+        /// floor instead of the roof.
+        /// </remarks>
         private static Vector3 RandomSpotNearby(float radius)
         {
+            float scale = Scale;
             Vector2 offset = Random.insideUnitCircle * radius;
-            Vector3 from = Extras.BodyPosition + new Vector3(offset.x, 3f, offset.y) * Scale;
+            Vector3 from = new Vector3(Extras.BodyPosition.x + offset.x * scale, Head.position.y + 0.3f * scale, Extras.BodyPosition.z + offset.y * scale);
 
-            return Physics.Raycast(from, Vector3.down, out RaycastHit hit, 10f * Scale, GTPlayer.Instance.locomotionEnabledLayers)
-                ? hit.point + Vector3.up * (0.5f * Scale)
-                : Extras.BodyPosition + new Vector3(offset.x, 0.3f, offset.y) * Scale;
+            return Physics.Raycast(from, Vector3.down, out RaycastHit hit, 6f * scale, GTPlayer.Instance.locomotionEnabledLayers)
+                ? hit.point + Vector3.up * (0.5f * scale)
+                : Extras.BodyPosition + new Vector3(offset.x, 0.3f, offset.y) * scale;
         }
+
+        /// <summary>Whether something placed for a game has been left too far behind to reach.</summary>
+        private static bool TooFar(Vector3 at, float range) =>
+            (at - Extras.BodyPosition).sqrMagnitude > range * range * Scale * Scale;
 
         private static readonly List<Piece> coins = new List<Piece>();
         private static TextMeshPro coinText;
@@ -875,31 +877,41 @@ namespace Nova.Mods
 
             if (coinText == null)
             {
-                coinText = MakeWristText("Nova_CoinHunt");
-                coinText.color = new Color(1f, 0.85f, 0.2f);
+                coinText = MakeWristText("Nova_CoinHunt", new Color(1f, 0.85f, 0.2f));
                 coinScore = 0;
                 coinText.SafeSetText($"Coins: 0\n<size=70%>Best: {coinBest}</size>");
             }
 
-            float reach = 0.35f * Scale;
+            float scale = Scale;
+            float reach = 0.35f * scale;
             Vector3 head = Head.position;
             Vector3 leftHand = GorillaTagger.Instance.leftHandTransform.position;
             Vector3 rightHand = GorillaTagger.Instance.rightHandTransform.position;
-            float spin = Time.time * 180f;
+            Quaternion spin = Quaternion.Euler(90f, Time.time * 180f, 0f);
 
-            foreach (Piece coin in coins)
+            for (int i = 0; i < coins.Count; i++)
             {
-                if (coin.Object == null)
-                    continue;
+                if (!coins[i].Alive)
+                {
+                    coins[i] = MakePiece(PrimitiveType.Cylinder, new Color(1f, 0.8f, 0.1f, 1f), Vector3.one);
+                    coins[i].Object.transform.position = RandomSpotNearby(8f);
+                }
 
-                Transform body = coin.Object.transform;
-                body.rotation = Quaternion.Euler(90f, spin, 0f);
-                body.localScale = new Vector3(0.18f, 0.015f, 0.18f) * Scale;
+                Transform body = coins[i].Object.transform;
+                body.rotation = spin;
+                body.localScale = new Vector3(0.18f, 0.015f, 0.18f) * scale;
+
+                // Coins left behind when you move on come with you.
+                if (TooFar(body.position, 15f))
+                {
+                    body.position = RandomSpotNearby(8f);
+                    continue;
+                }
 
                 Vector3 at = body.position;
                 if ((at - head).sqrMagnitude < reach * reach || (at - leftHand).sqrMagnitude < reach * reach || (at - rightHand).sqrMagnitude < reach * reach)
                 {
-                    Burst(at, 20, 2f, 0.4f);
+                    Burst(at, 20, 2f, falling: true);
                     body.position = RandomSpotNearby(8f);
                     coinScore++;
                     coinBest = Mathf.Max(coinBest, coinScore);
@@ -913,9 +925,7 @@ namespace Nova.Mods
         public static void DisableCoinHunt()
         {
             ClearPieces(coins);
-            if (coinText != null)
-                Object.Destroy(coinText.gameObject);
-            coinText = null;
+            DestroyText(ref coinText);
         }
 
         private static readonly List<Piece> targets = new List<Piece>();
@@ -927,48 +937,54 @@ namespace Nova.Mods
         /// <summary>Targets float around you; aim with your right hand and pull the trigger to hit them.</summary>
         public static void TargetPractice()
         {
+            float scale = Scale;
+
             while (targets.Count < 5)
             {
                 Piece target = MakePiece(PrimitiveType.Cylinder, Color.red, Vector3.one);
-                target.Size = 0.25f * Scale;
                 PlaceTarget(target);
                 targets.Add(target);
             }
 
             if (targetText == null)
             {
-                targetText = MakeWristText("Nova_TargetPractice");
-                targetText.color = new Color(1f, 0.4f, 0.4f);
+                targetText = MakeWristText("Nova_TargetPractice", new Color(1f, 0.4f, 0.4f));
                 targetScore = 0;
                 targetText.SafeSetText($"Targets: 0\n<size=70%>Best: {targetBest}</size>");
             }
 
             if (aimLine == null)
             {
-                aimLine = new GameObject("Nova_AimLine").AddComponent<LineRenderer>();
-                aimLine.material = VertexColored;
-                aimLine.positionCount = 2;
+                aimLine = MakeLine("Nova_AimLine", 0.004f);
                 aimLine.startColor = new Color(1f, 1f, 1f, 0.6f);
                 aimLine.endColor = new Color(1f, 1f, 1f, 0f);
             }
 
             var hand = ControllerUtilities.GetTrueRightHand();
-            aimLine.startWidth = aimLine.endWidth = 0.004f * Scale;
+            aimLine.startWidth = aimLine.endWidth = 0.004f * scale;
             aimLine.SetPosition(0, hand.position);
-            aimLine.SetPosition(1, hand.position + hand.forward * (12f * Scale));
+            aimLine.SetPosition(1, hand.position + hand.forward * (12f * scale));
 
-            // Targets turn to face you and bob gently.
-            foreach (Piece target in targets)
+            // Targets turn to face you, bob gently, and come along if you move away.
+            for (int i = 0; i < targets.Count; i++)
             {
-                if (target.Object == null)
-                    continue;
+                if (!targets[i].Alive)
+                {
+                    targets[i] = MakePiece(PrimitiveType.Cylinder, Color.red, Vector3.one);
+                    PlaceTarget(targets[i]);
+                }
 
+                Piece target = targets[i];
                 Transform body = target.Object.transform;
+
+                if (TooFar(body.position, 14f))
+                    PlaceTarget(target);
+
                 Vector3 toMe = Head.position - body.position;
                 if (toMe.sqrMagnitude > 0.0001f)
                     body.rotation = Quaternion.LookRotation(toMe) * Quaternion.Euler(90f, 0f, 0f);
-                body.position += Vector3.up * (Mathf.Sin(Time.time * 2f + target.Born) * 0.1f * Time.deltaTime);
-                body.localScale = new Vector3(target.Size * 2f, 0.01f * Scale, target.Size * 2f);
+                body.position += Vector3.up * (Mathf.Sin(Time.time * 2f + target.Seed) * 0.1f * scale * Time.deltaTime);
+                body.localScale = new Vector3(target.Size * 2f, 0.01f * scale, target.Size * 2f);
             }
 
             if (Pressed(rightTrigger > 0.5f, ref targetHeld))
@@ -979,9 +995,6 @@ namespace Nova.Mods
 
                 foreach (Piece target in targets)
                 {
-                    if (target.Object == null)
-                        continue;
-
                     Vector3 toTarget = target.Object.transform.position - hand.position;
                     float along = Vector3.Dot(toTarget, hand.forward);
                     if (along <= 0f || along >= nearest)
@@ -996,7 +1009,7 @@ namespace Nova.Mods
 
                 if (struck != null)
                 {
-                    Burst(struck.Object.transform.position, 40, 3f, 0.3f);
+                    Burst(struck.Object.transform.position, 40, 3f, falling: true);
                     PlaceTarget(struck);
                     targetScore++;
                     targetBest = Mathf.Max(targetBest, targetScore);
@@ -1009,23 +1022,18 @@ namespace Nova.Mods
 
         private static void PlaceTarget(Piece target)
         {
+            float scale = Scale;
             Vector2 around = Random.insideUnitCircle.normalized * Random.Range(4f, 10f);
-            target.Born = Random.value * 10f;
-            target.Object.transform.position = Head.position + new Vector3(around.x, Random.Range(-0.5f, 2f), around.y) * Scale;
-
-            // Red and white rings, so they read as targets.
-            target.Renderer.material.color = Random.value < 0.5f ? new Color(1f, 0.15f, 0.15f) : new Color(1f, 0.45f, 0.1f);
+            target.Size = 0.25f * scale;
+            target.Object.transform.position = Head.position + new Vector3(around.x, Random.Range(-0.5f, 2f), around.y) * scale;
+            SetColor(target, Random.value < 0.5f ? new Color(1f, 0.15f, 0.15f) : new Color(1f, 0.45f, 0.1f));
         }
 
         public static void DisableTargetPractice()
         {
             ClearPieces(targets);
-            if (targetText != null)
-                Object.Destroy(targetText.gameObject);
-            targetText = null;
-            if (aimLine != null)
-                Object.Destroy(aimLine.gameObject);
-            aimLine = null;
+            DestroyText(ref targetText);
+            DestroyLine(ref aimLine);
         }
 
         // ── Utility ─────────────────────────────────────────────────────────────

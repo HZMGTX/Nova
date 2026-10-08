@@ -40,8 +40,21 @@ namespace Nova.Mods
         internal static Rigidbody Body => GorillaTagger.Instance.rigidbody;
         internal static Vector3 BodyPosition => GorillaTagger.Instance.bodyCollider.transform.position;
 
-        internal static bool Grounded() =>
-            Physics.Raycast(BodyPosition, Vector3.down, 1.1f, GTPlayer.Instance.locomotionEnabledLayers);
+        private static int groundedFrame = -1;
+        private static bool groundedThisFrame;
+
+        /// <summary>Whether you are standing on something, checked once a frame however many mods ask.</summary>
+        /// <remarks>The ray grows and shrinks with you, so a big or tiny gorilla is judged the same way.</remarks>
+        internal static bool Grounded()
+        {
+            if (groundedFrame != Time.frameCount)
+            {
+                groundedFrame = Time.frameCount;
+                groundedThisFrame = Physics.Raycast(BodyPosition, Vector3.down, 1.1f * GTPlayer.Instance.scale, GTPlayer.Instance.locomotionEnabledLayers);
+            }
+
+            return groundedThisFrame;
+        }
 
         // ── Movement ────────────────────────────────────────────────────────────
 
@@ -175,7 +188,9 @@ namespace Nova.Mods
 
         internal static Material Glow(Color color)
         {
-            Material material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            // Sprites/Default is the fallback if the game ever stops shipping URP Unlit.
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default");
+            Material material = new Material(shader);
             material.SetFloat("_Surface", 1);
             material.SetFloat("_Blend", 0);
             material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
@@ -190,7 +205,13 @@ namespace Nova.Mods
         internal static GameObject Primitive(PrimitiveType type, Color color, Vector3 scale)
         {
             GameObject made = GameObject.CreatePrimitive(type);
-            Object.Destroy(made.GetComponent<Collider>());
+
+            // Destroying waits until the end of the frame; disabling takes effect now, so a
+            // fresh primitive never bumps you for that one frame.
+            Collider collider = made.GetComponent<Collider>();
+            collider.enabled = false;
+            Object.Destroy(collider);
+
             made.transform.localScale = scale;
             made.GetComponent<Renderer>().material = Glow(color);
             return made;
@@ -332,7 +353,7 @@ namespace Nova.Mods
 
             float radius = Mathf.Lerp(0.2f, 3f, age);
             Color color = VRRig.LocalRig.playerColor;
-            pulse.GetComponent<Renderer>().material.color = new Color(color.r, color.g, color.b, 0.5f * (1f - age));
+            pulse.GetComponent<Renderer>().sharedMaterial.color = new Color(color.r, color.g, color.b, 0.5f * (1f - age));
             pulse.transform.localScale = new Vector3(radius, 0.005f, radius);
             pulse.transform.position = BodyPosition + Vector3.down * 0.55f;
         }
