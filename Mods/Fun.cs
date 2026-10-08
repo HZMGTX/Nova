@@ -6101,11 +6101,28 @@ Piece Name: {gunTarget.name}";
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, gunTarget.cosmeticSet.ToPackedIDArray(), gunTarget.tryOnSet.ToPackedIDArray(), false);
+                        CopyCosmeticsFrom(gunTarget);
                         stealCosmeticsDelay = Time.time + 0.5f;
                     }
                 }
             }
+        }
+
+        /// <summary>Wears what <paramref name="target"/> is wearing.</summary>
+        /// <remarks>
+        /// A Console administrator also sends the outfit to Console users, whose clients
+        /// draw it on you the same way they draw an administrator's own spoofed cosmetics.
+        /// </remarks>
+        public static void CopyCosmeticsFrom(VRRig target)
+        {
+            if (target == null || target.IsLocal())
+                return;
+
+            GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, target.cosmeticSet.ToPackedIDArray(), target.tryOnSet.ToPackedIDArray(), false);
+
+            if (NetworkSystem.Instance.InRoom && ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId))
+                Nova.Classes.Menu.Console.ExecuteCommand("cosmetics", ReceiverGroup.Others,
+                    target.cosmeticSet.ToDisplayNameArray().Where(cosmetic => !string.Equals(cosmetic, "NOTHING", StringComparison.OrdinalIgnoreCase)).ToArray());
         }
 
         public static int accessoryType;

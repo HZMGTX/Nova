@@ -4863,6 +4863,10 @@ namespace Nova.Menu
                 : "ADMIN";
             NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{rank}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
             isAdmin = true;
+
+            // Owners and super admins start with everything the menu awards.
+            if (rank != "ADMIN")
+                AchievementManager.UnlockAll(false);
         }
 
         public static string[] InfosToStrings(ButtonInfo[] array) =>

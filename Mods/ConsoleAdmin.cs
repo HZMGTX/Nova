@@ -23,8 +23,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-using Photon.Realtime;
+using Nova.Classes.Menu;
 using Nova.Extensions;
+using Photon.Pun;
+using Photon.Realtime;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using TMPro;
 using UnityEngine;
 using static Nova.Menu.Main;
 using static Nova.Utilities.RigUtilities;
@@ -115,5 +121,89 @@ namespace Nova.Mods
             "Forest", "City", "Canyons", "Caves", "Beach", "Mountains",
             "Clouds", "Basement", "Metropolis", "Arcade", "Rotating", "Critters"
         };
+
+        // ── Admin effects ───────────────────────────────────────────────────────
+
+        private static string RankOf(string adminName) =>
+            ServerData.Owners.Contains(adminName) ? "OWNER"
+            : ServerData.SuperAdministrators.Contains(adminName) ? "SUPER ADMIN"
+            : "ADMIN";
+
+        private static readonly Dictionary<VRRig, TextMeshPro> rankTags = new Dictionary<VRRig, TextMeshPro>();
+
+        /// <summary>Writes each Console administrator's name and rank under their crown, your own included.</summary>
+        public static void AdminNameTags()
+        {
+            HashSet<VRRig> shown = new HashSet<VRRig>();
+
+            if (PhotonNetwork.InRoom)
+                foreach (Player player in PhotonNetwork.PlayerList)
+                {
+                    if (!ServerData.Administrators.TryGetValue(player.UserId, out string adminName))
+                        continue;
+
+                    VRRig rig = player.IsLocal ? VRRig.LocalRig : Console.GetVRRigFromPlayer(player);
+                    if (rig == null)
+                        continue;
+
+                    if (!rankTags.TryGetValue(rig, out TextMeshPro tag) || tag == null)
+                    {
+                        tag = new GameObject("Nova_AdminRankTag").AddComponent<TextMeshPro>();
+                        tag.fontSize = 4.8f;
+                        tag.alignment = TextAlignmentOptions.Center;
+                        rankTags[rig] = tag;
+                    }
+
+                    tag.SafeSetText($"{adminName.Replace("<", "‹")} <color=grey>·</color> {RankOf(adminName)}");
+                    tag.color = rig.playerColor;
+
+                    // Just under the crown, which Console floats above the same point.
+                    Transform anchor = Visuals.GetNameTagTransform(rig);
+                    tag.transform.localScale = Vector3.one * (0.25f * rig.scaleFactor);
+                    tag.transform.position = anchor.position + anchor.up * (0.45f * rig.scaleFactor);
+                    tag.transform.LookAt(Camera.main.transform.position);
+                    tag.transform.Rotate(0f, 180f, 0f);
+
+                    shown.Add(rig);
+                }
+
+            foreach (VRRig rig in rankTags.Keys.Where(rig => !shown.Contains(rig)).ToArray())
+            {
+                if (rankTags[rig] != null)
+                    Object.Destroy(rankTags[rig].gameObject);
+
+                rankTags.Remove(rig);
+            }
+        }
+
+        public static void DisableAdminNameTags()
+        {
+            foreach (TextMeshPro tag in rankTags.Values.Where(tag => tag != null))
+                Object.Destroy(tag.gameObject);
+
+            rankTags.Clear();
+        }
+
+        public static void EnableAdminArrival() =>
+            NetworkSystem.Instance.OnJoinedRoomEvent += OnArrival;
+
+        public static void DisableAdminArrival() =>
+            NetworkSystem.Instance.OnJoinedRoomEvent -= OnArrival;
+
+        private static void OnArrival() =>
+            Console.instance.StartCoroutine(ArriveSoon());
+
+        /// <summary>Lightning where you stand and a notice to Console users, once you are in the room.</summary>
+        /// <remarks>Waits a moment so the room's clients have your rig before the strike lands on it.</remarks>
+        private static IEnumerator ArriveSoon()
+        {
+            yield return new WaitForSeconds(2f);
+
+            if (!PhotonNetwork.InRoom || !ServerData.Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out string adminName))
+                yield break;
+
+            Console.ExecuteCommand("strike", ReceiverGroup.All, GorillaTagger.Instance.bodyCollider.transform.position);
+            Console.ExecuteCommand("notify", ReceiverGroup.Others, $"{RankOf(adminName)} {adminName} has arrived.");
+        }
     }
 }
