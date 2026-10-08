@@ -2871,7 +2871,7 @@ namespace Nova.Menu
 
             new[] // Room Mod Checker [56]
             {
-                new ButtonInfo { buttonText = "Exit Room Mod Checker", method =() => CurrentCategoryName = "Important Mods", isTogglable = false, toolTip = "Returns you back to the important mods.", legal = true}
+                new ButtonInfo { buttonText = "Exit Room Mod Checker", method =() => CurrentCategoryName = "Safety Mods", isTogglable = false, toolTip = "Returns you back to the safety mods.", legal = true}
             },
 
             new[] // Room Mod Checker Player [57]

@@ -128,7 +128,7 @@ namespace Nova.Mods
         {
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Room Mod Checker", method = () => Buttons.CurrentCategoryName = "Important Mods", isTogglable = false, toolTip = "Returns you back to the important mods.", legal = true },
+                new ButtonInfo { buttonText = "Exit Room Mod Checker", method = () => Buttons.CurrentCategoryName = "Safety Mods", isTogglable = false, toolTip = "Returns you back to the safety mods.", legal = true },
                 new ButtonInfo { buttonText = Prefix + "Rescan", overlapText = "Rescan Room", method = Scan, isTogglable = false, toolTip = "Checks everyone again. If you are a Console administrator this also asks Console users which menu they run.", legal = true }
             };
 
