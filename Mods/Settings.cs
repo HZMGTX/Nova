@@ -904,14 +904,22 @@ goto restart
 :update
 echo Found menu file: ""%MENU_FILE%""
 
-set ""DOWNLOAD_NAME=Poison-Menu""
+rem Release assets are uploaded as ""Poison Menu.dll"", which GitHub serves as Poison.Menu.dll.
+set ""DOWNLOAD_NAME=Poison.Menu""
 echo %MENU_FILE% | find /I ""Legal"" >nul
-if %ERRORLEVEL%==0 set ""DOWNLOAD_NAME=Poison-Menu-Legal""
+if %ERRORLEVEL%==0 set ""DOWNLOAD_NAME=Poison.Menu.Legal""
 
 echo Downloading latest release of %DOWNLOAD_NAME%...
 
-curl -L -o ""%MENU_FILE%"" ^
+rem Downloaded beside the menu rather than over it: -f stops a 404 page being saved as
+rem the DLL, and the running game still holds the old file open.
+curl -f -L -o ""%MENU_FILE%.new"" ^
 ""https://github.com/heycanihavethis/Poison/releases/latest/download/%DOWNLOAD_NAME%.dll""
+if errorlevel 1 (
+    echo Download failed, keeping your current menu.
+    if exist ""%MENU_FILE%.new"" del ""%MENU_FILE%.new""
+    goto restart
+)
 
 :WAIT_LOOP
 tasklist /FI ""IMAGENAME eq Gorilla Tag.exe"" | find /I ""Gorilla Tag.exe"" >nul
@@ -919,6 +927,8 @@ if %ERRORLEVEL%==0 (
     timeout /t 1 >nul
     goto WAIT_LOOP
 )
+
+move /Y ""%MENU_FILE%.new"" ""%MENU_FILE%"" >nul
 
 :restart
 echo Launching Gorilla Tag...
@@ -966,19 +976,31 @@ if [ -z ""$MENU_FILE"" ]; then
 else
     echo ""Found menu file: $MENU_FILE""
 
-    DOWNLOAD_NAME=""Poison-Menu""
+    # Release assets are uploaded as ""Poison Menu.dll"", which GitHub serves as Poison.Menu.dll.
+    DOWNLOAD_NAME=""Poison.Menu""
     if echo ""$MENU_FILE"" | grep -qi ""Legal""; then
-        DOWNLOAD_NAME=""Poison-Menu-Legal""
+        DOWNLOAD_NAME=""Poison.Menu.Legal""
     fi
 
     echo ""Downloading latest release of $DOWNLOAD_NAME...""
-    curl -L -o ""$MENU_FILE"" \
-    ""https://github.com/heycanihavethis/Poison/releases/latest/download/${DOWNLOAD_NAME}.dll""
+    # Downloaded beside the menu rather than over it: -f stops a 404 page being saved as
+    # the DLL, and the running game still holds the old file open.
+    if curl -f -L -o ""$MENU_FILE.new"" \
+    ""https://github.com/heycanihavethis/Poison/releases/latest/download/${DOWNLOAD_NAME}.dll""; then
+        PENDING=""$MENU_FILE.new""
+    else
+        echo ""Download failed, keeping your current menu.""
+        rm -f ""$MENU_FILE.new""
+    fi
 fi
 
 while pgrep -f ""GorillaTag.exe"" > /dev/null; do
     sleep 1
 done
+
+if [ -n ""$PENDING"" ]; then
+    mv -f ""$PENDING"" ""$MENU_FILE""
+fi
 
 echo ""Launching Gorilla Tag...""
 xdg-open ""steam://run/1533390""
