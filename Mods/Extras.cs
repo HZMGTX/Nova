@@ -37,10 +37,10 @@ namespace Nova.Mods
     /// <summary>Movement, fun and visual mods added alongside the originals.</summary>
     public static class Extras
     {
-        private static Rigidbody Body => GorillaTagger.Instance.rigidbody;
-        private static Vector3 BodyPosition => GorillaTagger.Instance.bodyCollider.transform.position;
+        internal static Rigidbody Body => GorillaTagger.Instance.rigidbody;
+        internal static Vector3 BodyPosition => GorillaTagger.Instance.bodyCollider.transform.position;
 
-        private static bool Grounded() =>
+        internal static bool Grounded() =>
             Physics.Raycast(BodyPosition, Vector3.down, 1.1f, GTPlayer.Instance.locomotionEnabledLayers);
 
         // ── Movement ────────────────────────────────────────────────────────────
@@ -169,7 +169,7 @@ namespace Nova.Mods
 
         // ── Shared visual helpers ───────────────────────────────────────────────
 
-        private static Material Glow(Color color)
+        internal static Material Glow(Color color)
         {
             Material material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
             material.SetFloat("_Surface", 1);
@@ -183,7 +183,7 @@ namespace Nova.Mods
             return material;
         }
 
-        private static GameObject Primitive(PrimitiveType type, Color color, Vector3 scale)
+        internal static GameObject Primitive(PrimitiveType type, Color color, Vector3 scale)
         {
             GameObject made = GameObject.CreatePrimitive(type);
             Object.Destroy(made.GetComponent<Collider>());
@@ -192,7 +192,7 @@ namespace Nova.Mods
             return made;
         }
 
-        private static void Clear(ref GameObject made)
+        internal static void Clear(ref GameObject made)
         {
             if (made != null)
                 Object.Destroy(made);

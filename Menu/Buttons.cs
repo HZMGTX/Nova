@@ -75,6 +75,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Master Mods", method =() => CurrentCategoryName = "Master Mods", isTogglable = false, toolTip = "Opens the master mods."},
                 new ButtonInfo { buttonText = "Overpowered Mods", method =() => CurrentCategoryName = "Overpowered Mods", isTogglable = false, toolTip = "Opens the overpowered mods."},
                 new ButtonInfo { buttonText = "Experimental Mods", method =() => CurrentCategoryName = "Experimental Mods", isTogglable = false, toolTip = "Opens the experimental mods.", legal = true},
+                new ButtonInfo { buttonText = "Custom Mods", method =() => CurrentCategoryName = "Custom Mods", isTogglable = false, toolTip = "Opens Nova's own custom mods.", legal = true},
                 new ButtonInfo { buttonText = "Detected Mods", overlapText = "<color=red>Detected Mods</color>", method = Detected.EnterDetectedTab, isTogglable = false, toolTip = "Opens the detected mods."},
 
                 new ButtonInfo { buttonText = "Achievements", method = AchievementManager.EnterAchievementTab, isTogglable = false, toolTip = "Opens the achievements page.", legal = true},
@@ -2879,6 +2880,31 @@ namespace Nova.Menu
             new[] // Room Mod Checker Player [57]
             {
                 new ButtonInfo { buttonText = "Exit Room Mod Checker Player", method = RoomModChecker.Open, isTogglable = false, toolTip = "Returns you back to the mod checker.", legal = true}
+            },
+
+            new[] // Custom Mods [58]
+            {
+                new ButtonInfo { buttonText = "Exit Custom Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
+
+                new ButtonInfo { buttonText = "Rope Swing <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = Custom.RopeSwing, disableMethod = Custom.DisableRopeSwing, toolTip = "Hold your right trigger to fire a rope from your hand and swing on it. Squeeze fully to reel in."},
+                new ButtonInfo { buttonText = "Arm Glide", method = Custom.ArmGlide, toolTip = "Spread your arms wide in the air to glide the way you look."},
+                new ButtonInfo { buttonText = "Air Dash <color=grey>[</color><color=green>B</color><color=grey>]</color>", method = Custom.AirDash, toolTip = "Press B in the air to burst the way you look, once per jump."},
+                new ButtonInfo { buttonText = "Hover <color=grey>[</color><color=green>LG</color><color=grey>]</color>", method = Custom.Hover, toolTip = "Hold your left grip in the air to hang where you are."},
+                new ButtonInfo { buttonText = "Bouncy Landing", method = Custom.BouncyLanding, toolTip = "Hard landings bounce you back up."},
+
+                new ButtonInfo { buttonText = "Wings", method = Custom.Wings, disableMethod = Custom.DisableWings, toolTip = "Glowing wings on your back that flap while you are in the air. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Pet Orb", method = Custom.PetOrb, disableMethod = Custom.DisablePetOrb, toolTip = "A glowing orb in your colour that floats along beside you. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Lightsaber", method = Custom.Lightsaber, disableMethod = Custom.DisableLightsaber, toolTip = "A glowing blade in your colour out of your right hand. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Sparkle Hands", method = Custom.SparkleHands, disableMethod = Custom.DisableSparkleHands, toolTip = "Rainbow sparkles trail from both hands. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Fireworks <color=grey>[</color><color=green>B</color><color=grey>]</color>", method = Custom.Fireworks, toolTip = "Press B to launch a firework from your hand. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Confetti Popper <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Custom.ConfettiPopper, toolTip = "Press A to pop confetti from your hand. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Glowing Footprints", method = Custom.GlowingFootprints, disableMethod = Custom.DisableGlowingFootprints, toolTip = "Glowing prints where you walk that fade after a few seconds. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Disco Lights", method = Custom.DiscoLights, disableMethod = Custom.DisableDiscoLights, toolTip = "Three coloured lights circle you. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Glow Aura", method = Custom.GlowAura, disableMethod = Custom.DisableGlowAura, toolTip = "A soft light in your colour around you. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Personal Snow", method = Custom.PersonalSnow, disableMethod = Custom.DisablePersonalSnow, toolTip = "Snow falls just around you. Only you see it.", legal = true},
+
+                new ButtonInfo { buttonText = "Wrist Watch", method = Custom.WristWatch, disableMethod = Custom.DisableWristWatch, toolTip = "Shows the time, your speed and the way you face above your left wrist.", legal = true},
+                new ButtonInfo { buttonText = "Stopwatch <color=grey>[</color><color=green>X</color><color=grey>]</color>", method = Custom.Stopwatch, disableMethod = Custom.DisableStopwatch, toolTip = "Press X to start or stop a stopwatch on your wrist, and Y to reset it.", legal = true}
             }
         };
 
@@ -2940,7 +2966,8 @@ namespace Nova.Menu
             "Console Asset Control",
             "Admin World Controls",
             "Room Mod Checker",
-            "Room Mod Checker Player"
+            "Room Mod Checker Player",
+            "Custom Mods"
         };
 
         public static int _currentCategoryIndex;
