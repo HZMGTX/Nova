@@ -38,7 +38,7 @@ namespace Nova.Mods
     /// <remarks>
     /// Everything here acts on you alone: how you move, and things only you see.
     /// </remarks>
-    public static class Custom
+    public static partial class Custom
     {
         public const string Category = "Custom Mods";
 
@@ -625,11 +625,13 @@ namespace Nova.Mods
         }
 
         /// <summary>Floats text above your left wrist, turned to face you.</summary>
-        private static void PlaceOnWrist(TextMeshPro text, float height)
+        private static void PlaceOnWrist(TextMeshPro text, float height, bool rightWrist = false)
         {
+            Transform wrist = rightWrist ? GorillaTagger.Instance.rightHandTransform : GorillaTagger.Instance.leftHandTransform;
+
             text.SafeSetFont(activeFont);
             text.transform.localScale = Vector3.one * (0.08f * Scale);
-            text.transform.position = GorillaTagger.Instance.leftHandTransform.position + Vector3.up * (height * Scale);
+            text.transform.position = wrist.position + Vector3.up * (height * Scale);
             text.transform.LookAt(Camera.main.transform.position);
             text.transform.Rotate(0f, 180f, 0f);
         }
