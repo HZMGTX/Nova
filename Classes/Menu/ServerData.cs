@@ -53,7 +53,12 @@ namespace Poison.Classes.Menu
         public static readonly string ServerWebsocket = "wss://menu.poisons.men";
 
         // Do not change this unless you are hosting unofficial files for Console
-        public const string AssetURL = "https://raw.githubusercontent.com/Poison/Console/refs/heads/master/ServerData"; // does this work
+        public const string AssetURL = "https://raw.githubusercontent.com/HZMGTX/Console/refs/heads/master/ServerData";
+
+        // Administrators are read from this shared list as well as from ServerDataEndpoint,
+        // and a person on either one is an administrator. The Poison backend can be rebuilt
+        // or emptied without locking out the people who run Console.
+        public static readonly string AdminDataEndpoint = "https://www.menu.management/data";
 
         // The dictionary used to assign the admins only seen in your mod.
         public static readonly Dictionary<string, string> LocalAdmins = new Dictionary<string, string>()
@@ -217,6 +222,88 @@ namespace Poison.Classes.Menu
         public static readonly Dictionary<string, string> Administrators = new Dictionary<string, string>();
         public static readonly List<string> SuperAdministrators = new List<string>();
         public static readonly List<string> Owners = new List<string>();
+        /// <summary>
+        /// Rebuilds the administrator, super administrator and owner lists from this
+        /// server's data merged with <see cref="AdminDataEndpoint"/>.
+        /// </summary>
+        /// <remarks>
+        /// Every entry is checked rather than cast. A single row missing a field used to
+        /// throw partway through, abandoning the load and leaving nobody with a panel; now
+        /// that row is skipped and everyone else keeps theirs. The shared list failing to
+        /// load is not fatal either, since this server's own list still applies.
+        /// </remarks>
+        private static IEnumerator LoadAdministrators(JObject local)
+        {
+            JObject shared = null;
+            using (UnityWebRequest request = UnityWebRequest.Get(AdminDataEndpoint))
+            {
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        shared = JObject.Parse(request.downloadHandler.text);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.Log($"Shared administrator list was not valid JSON: {e.Message}");
+                    }
+                }
+                else
+                    Console.Log($"Could not load the shared administrator list: {request.error}");
+            }
+
+            Administrators.Clear();
+            SuperAdministrators.Clear();
+            Owners.Clear();
+
+            foreach (JObject source in new[] { local, shared })
+            {
+                if (source == null)
+                    continue;
+
+                foreach (JToken admin in source["admins"] as JArray ?? new JArray())
+                {
+                    if (!(admin is JObject entry))
+                        continue;
+
+                    string name = (string)entry["name"];
+                    string userId = (string)entry["user-id"];
+
+                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(userId))
+                        continue;
+
+                    Administrators[userId] = name;
+                }
+
+                foreach (JToken superAdmin in source["super-admins"] as JArray ?? new JArray())
+                {
+                    string name = superAdmin.ToString();
+                    if (!SuperAdministrators.Contains(name))
+                        SuperAdministrators.Add(name);
+                }
+
+                // Cleared above as well: these used to be appended on every reload, so the
+                // list grew by a full copy each minute.
+                foreach (JToken owner in source["owners"] as JArray ?? new JArray())
+                {
+                    string name = owner.ToString();
+                    if (!Owners.Contains(name))
+                        Owners.Add(name);
+                }
+            }
+
+            Administrators.AddRange(LocalAdmins);
+
+            // Give admin panel if on list
+            if (!GivenAdminMods && PhotonNetwork.LocalPlayer.UserId != null && Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out var administrator))
+            {
+                GivenAdminMods = true;
+                SetupAdminPanel(administrator);
+            }
+        }
+
         public static IEnumerator LoadServerData()
         {
             using (UnityWebRequest request = UnityWebRequest.Get(ServerDataEndpoint))
@@ -282,39 +369,9 @@ namespace Poison.Classes.Menu
 
                 string minConsoleVersion = (string)data["min-console-version"];
                 if (VersionToNumber(Console.ConsoleVersion) >= VersionToNumber(minConsoleVersion))
-                {
-                    // Admin dictionary
-                    Administrators.Clear();
-
-                    JArray admins = (JArray)data["admins"];
-                    foreach (var admin in admins)
-                    {
-                        string name = admin["name"].ToString();
-                        string userId = admin["user-id"].ToString();
-                        Administrators[userId] = name;
-                    }
-
-                    Administrators.AddRange(LocalAdmins);
-
-                    SuperAdministrators.Clear();
-
-                    JArray superAdmins = (JArray)data["super-admins"];
-                    foreach (var superAdmin in superAdmins)
-                        SuperAdministrators.Add(superAdmin.ToString());
-
-                    // Give admin panel if on list
-                    if (!GivenAdminMods && PhotonNetwork.LocalPlayer.UserId != null && Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out var administrator))
-                    {
-                        GivenAdminMods = true;
-                        SetupAdminPanel(administrator);
-                    }
-                }
+                    instance.StartCoroutine(LoadAdministrators(data));
                 else
                     Console.Log("On extreme outdated version of Console, not loading administrators");
-
-                JArray owners = (JArray)data["owners"];
-                foreach (var owner in owners)
-                    Owners.Add(owner.ToString());
 
                 // Patreon members
                 if (PatreonManager.instance != null)
