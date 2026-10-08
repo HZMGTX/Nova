@@ -239,14 +239,14 @@ namespace Poison.Mods
         {
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Console Assets", method = () => Buttons.CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods." },
-                new ButtonInfo { buttonText = Prefix + "Spawned", overlapText = "Spawned Assets", method = OpenSpawned, isTogglable = false, toolTip = "Shows every Console asset currently in the room." },
-                new ButtonInfo { buttonText = Prefix + "Favourites", overlapText = $"Favourites <color=grey>[{Favourites.Count}]</color>", method = OpenFavourites, isTogglable = false, toolTip = "Objects you have favourited, ready to spawn." },
-                new ButtonInfo { buttonText = Prefix + "Recent", overlapText = $"Recently Spawned <color=grey>[{recent.Count}]</color>", method = OpenRecent, isTogglable = false, toolTip = "The last objects you spawned." },
-                new ButtonInfo { buttonText = Prefix + "RespawnLast", overlapText = "Respawn Last", method = RespawnLast, isTogglable = false, toolTip = "Spawns the last object you spawned again." },
-                new ButtonInfo { buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: in front of you, at your right hand, or at your feet." },
-                new ButtonInfo { buttonText = Prefix + "ShowIncompatible", overlapText = $"Show Bundles That Won't Load: {(showIncompatible ? "On" : "Off")}", method = ToggleIncompatible, isTogglable = false, toolTip = "Lists bundles built with a newer Unity than the game, which cannot load." },
-                new ButtonInfo { buttonText = Prefix + "Key", overlapText = $"<color=green>●</color> works  <color=yellow>●</color> older  <color=red>●</color> won't load", label = true }
+                new ButtonInfo { legal = true, buttonText = "Exit Console Assets", method = () => Buttons.CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Spawned", overlapText = "Spawned Assets", method = OpenSpawned, isTogglable = false, toolTip = "Shows every Console asset currently in the room." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Favourites", overlapText = $"Favourites <color=grey>[{Favourites.Count}]</color>", method = OpenFavourites, isTogglable = false, toolTip = "Objects you have favourited, ready to spawn." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Recent", overlapText = $"Recently Spawned <color=grey>[{recent.Count}]</color>", method = OpenRecent, isTogglable = false, toolTip = "The last objects you spawned." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "RespawnLast", overlapText = "Respawn Last", method = RespawnLast, isTogglable = false, toolTip = "Spawns the last object you spawned again." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: in front of you, at your right hand, or at your feet." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "ShowIncompatible", overlapText = $"Show Bundles That Won't Load: {(showIncompatible ? "On" : "Off")}", method = ToggleIncompatible, isTogglable = false, toolTip = "Lists bundles built with a newer Unity than the game, which cannot load." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Key", overlapText = $"<color=green>●</color> works  <color=yellow>●</color> older  <color=red>●</color> won't load", label = true }
             };
 
             int hidden = 0;
@@ -270,7 +270,7 @@ namespace Poison.Mods
             }
 
             if (hidden > 0)
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Hidden", overlapText = $"<color=grey>{hidden} hidden: built for a newer Unity than this game</color>", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Hidden", overlapText = $"<color=grey>{hidden} hidden: built for a newer Unity than this game</color>", label = true });
 
             Buttons.buttons[Buttons.GetCategory(BundleCategory)] = buttons.ToArray();
             Buttons.CurrentCategoryName = BundleCategory;
@@ -282,8 +282,8 @@ namespace Poison.Mods
 
             Buttons.buttons[Buttons.GetCategory(ObjectCategory)] = new[]
             {
-                new ButtonInfo { buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
-                new ButtonInfo { buttonText = Prefix + "Loading", overlapText = $"Downloading {bundle.Name}...", label = true }
+                new ButtonInfo { legal = true, buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Loading", overlapText = $"Downloading {bundle.Name}...", label = true }
             };
             Buttons.CurrentCategoryName = ObjectCategory;
 
@@ -310,10 +310,10 @@ namespace Poison.Mods
 
                     Buttons.buttons[Buttons.GetCategory(ObjectCategory)] = new[]
                     {
-                        new ButtonInfo { buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
-                        new ButtonInfo { buttonText = Prefix + "Failed", overlapText = "This bundle would not load.", label = true },
-                        new ButtonInfo { buttonText = Prefix + "Reason", overlapText = $"<color=grey>{reason}</color>", label = true },
-                        new ButtonInfo { buttonText = Prefix + "Fit", overlapText = $"<color=grey>{DescribeFit(bundle)}</color>", label = true }
+                        new ButtonInfo { legal = true, buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
+                        new ButtonInfo { legal = true, buttonText = Prefix + "Failed", overlapText = "This bundle would not load.", label = true },
+                        new ButtonInfo { legal = true, buttonText = Prefix + "Reason", overlapText = $"<color=grey>{reason}</color>", label = true },
+                        new ButtonInfo { legal = true, buttonText = Prefix + "Fit", overlapText = $"<color=grey>{DescribeFit(bundle)}</color>", label = true }
                     };
                     yield break;
                 }
@@ -324,13 +324,13 @@ namespace Poison.Mods
 
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." }
+                new ButtonInfo { legal = true, buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." }
             };
 
             // A scene bundle carries no loadable assets and throws if asked for them.
             if (loaded.isStreamedSceneAssetBundle)
             {
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Scene", overlapText = "This bundle holds a scene, not objects.", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Scene", overlapText = "This bundle holds a scene, not objects.", label = true });
                 Buttons.buttons[Buttons.GetCategory(ObjectCategory)] = buttons.ToArray();
                 yield break;
             }
@@ -347,9 +347,9 @@ namespace Poison.Mods
             GameObject[] objects = request.allAssets.OfType<GameObject>().ToArray();
 
             if (objects.Length == 0)
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Empty", overlapText = "This bundle holds no objects.", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Empty", overlapText = "This bundle holds no objects.", label = true });
             else
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Hint", overlapText = "<color=grey>Tap to spawn. The Spawn Gun fires the last one.</color>", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Hint", overlapText = "<color=grey>Tap to spawn. The Spawn Gun fires the last one.</color>", label = true });
 
             foreach (GameObject asset in objects)
             {
@@ -641,12 +641,12 @@ namespace Poison.Mods
         {
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
-                new ButtonInfo { buttonText = Prefix + "Title", overlapText = title, label = true }
+                new ButtonInfo { legal = true, buttonText = "Exit Console Objects", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Title", overlapText = title, label = true }
             };
 
             if (entries.Count == 0)
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "None", overlapText = empty, label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "None", overlapText = empty, label = true });
 
             foreach (var (bundle, asset) in entries)
             {
@@ -672,13 +672,13 @@ namespace Poison.Mods
         {
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Spawned Assets", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." }
+                new ButtonInfo { legal = true, buttonText = "Exit Spawned Assets", method = OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list." }
             };
 
             Console.ConsoleAsset[] assets = Console.consoleAssets.Values.ToArray();
 
             if (assets.Length == 0)
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Nothing", overlapText = "Nothing has been spawned.", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Nothing", overlapText = "Nothing has been spawned.", label = true });
 
             foreach (Console.ConsoleAsset asset in assets)
             {
@@ -693,8 +693,8 @@ namespace Poison.Mods
                 });
             }
 
-            buttons.Add(new ButtonInfo { buttonText = Prefix + "RemoveMine", overlapText = "Remove My Assets", method = DestroyMine, isTogglable = false, toolTip = "Removes only the assets you spawned." });
-            buttons.Add(new ButtonInfo { buttonText = Prefix + "RemoveAll", overlapText = "Remove Every Asset", method = DestroyAll, isTogglable = false, toolTip = "Removes every Console asset in the room." });
+            buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "RemoveMine", overlapText = "Remove My Assets", method = DestroyMine, isTogglable = false, toolTip = "Removes only the assets you spawned." });
+            buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "RemoveAll", overlapText = "Remove Every Asset", method = DestroyAll, isTogglable = false, toolTip = "Removes every Console asset in the room." });
 
             Buttons.buttons[Buttons.GetCategory(SpawnedCategory)] = buttons.ToArray();
             Buttons.CurrentCategoryName = SpawnedCategory;
@@ -710,14 +710,15 @@ namespace Poison.Mods
 
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Asset Control", method = OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets." },
-                new ButtonInfo { buttonText = Prefix + "Selected", overlapText = $"{assetName} <color=grey>(the Move Gun moves this)</color>", label = true },
+                new ButtonInfo { legal = true, buttonText = "Exit Asset Control", method = OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Selected", overlapText = $"{assetName} <color=grey>(the Move Gun moves this)</color>", label = true },
 
                 Control("BringToMe", "Bring To Me", () => Move(id, InFront()), "Moves the asset in front of you."),
                 Control("ToHand", "Move To My Hand", () => Move(id, GorillaTagger.Instance.rightHandTransform.position), "Moves the asset to your right hand."),
                 Control("ToFeet", "Drop At My Feet", () => Move(id, GorillaTagger.Instance.bodyCollider.transform.position), "Moves the asset to where you are standing."),
                 Control("Raise", "Raise", () => Nudge(id, Vector3.up * 0.5f), "Lifts the asset half a metre."),
                 Control("Lower", "Lower", () => Nudge(id, Vector3.down * 0.5f), "Drops the asset half a metre."),
+                Control("Glide", "Glide To Me", () => Glide(id), "Slides the asset smoothly to in front of you."),
                 Control("Face", "Face Me", () => FaceSpawner(id), "Turns the asset to face you."),
                 Control("Spin", "Turn 90 Degrees", () => Turn(id, 90f), "Rotates the asset a quarter turn."),
                 Control("Upright", "Stand Upright", () => Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, Quaternion.identity), "Clears any tilt on the asset."),
@@ -726,6 +727,13 @@ namespace Poison.Mods
                 Control("Smaller", "Smaller", () => Scale(id, 0.8f), "Shrinks the asset by a fifth."),
                 Control("Double", "Double Size", () => Scale(id, 2f), "Doubles the asset's size."),
                 Control("ResetSize", "Reset Size", () => SetScale(id, Vector3.one), "Returns the asset to its original size."),
+
+                Control("Red", "Paint Red", () => Recolor(id, Color.red), "Recolours the asset red."),
+                Control("Blue", "Paint Blue", () => Recolor(id, new Color(0.2f, 0.4f, 1f)), "Recolours the asset blue."),
+                Control("Green", "Paint Green", () => Recolor(id, Color.green), "Recolours the asset green."),
+                Control("Purple", "Paint Purple", () => Recolor(id, new Color(0.6f, 0.2f, 1f)), "Recolours the asset purple."),
+                Control("White", "Paint White", () => Recolor(id, Color.white), "Recolours the asset white."),
+                Control("MyColour", "Paint My Colour", () => Recolor(id, VRRig.LocalRig.playerColor), "Recolours the asset to match you."),
 
                 Control("Head", "Attach To My Head", () => Anchor(id, 0), "Sticks the asset to your head."),
                 Control("LeftHand", "Attach To My Left Hand", () => Anchor(id, 1), "Sticks the asset to your left hand."),
@@ -745,17 +753,17 @@ namespace Poison.Mods
         }
 
         private static ButtonInfo Control(string key, string text, Action action, string toolTip) =>
-            new ButtonInfo { buttonText = Prefix + "Control:" + key, overlapText = text, method = action, isTogglable = false, toolTip = toolTip };
+            new ButtonInfo { legal = true, buttonText = Prefix + "Control:" + key, overlapText = text, method = action, isTogglable = false, toolTip = toolTip };
 
         private static void OpenAnchorPlayers(int id)
         {
             List<ButtonInfo> buttons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Attach To A Player", method = OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets." }
+                new ButtonInfo { legal = true, buttonText = "Exit Attach To A Player", method = OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets." }
             };
 
             if (!NetworkSystem.Instance.InRoom || NetworkSystem.Instance.PlayerListOthers.Length == 0)
-                buttons.Add(new ButtonInfo { buttonText = Prefix + "Alone", overlapText = "Nobody else is here.", label = true });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "Alone", overlapText = "Nobody else is here.", label = true });
             else
                 foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
                 {
@@ -792,6 +800,37 @@ namespace Poison.Mods
         {
             if (TryGet(id, out Console.ConsoleAsset asset))
                 Move(id, asset.assetObject.transform.position + offset);
+        }
+
+        private static void Glide(int id)
+        {
+            if (TryGet(id, out Console.ConsoleAsset asset))
+                Console.ExecuteCommand("asset-smoothtp", ReceiverGroup.All, id, 1.5f, InFront(), asset.assetObject.transform.rotation);
+        }
+
+        /// <summary>Recolours the first renderer in the asset.</summary>
+        /// <remarks>
+        /// Console colours only the exact object it is given, and an asset's root is often
+        /// an empty holder, so the first child that actually renders is found here and
+        /// named by its path from the root, which is the same on every client.
+        /// </remarks>
+        private static void Recolor(int id, Color color)
+        {
+            if (!TryGet(id, out Console.ConsoleAsset asset))
+                return;
+
+            Renderer renderer = asset.assetObject.GetComponentInChildren<Renderer>();
+            if (renderer == null)
+            {
+                NotificationManager.SendNotification("This asset has nothing that can be recoloured.", 3000);
+                return;
+            }
+
+            string path = "";
+            for (Transform part = renderer.transform; part != null && part != asset.assetObject.transform; part = part.parent)
+                path = path.Length == 0 ? part.name : part.name + "/" + path;
+
+            Console.ExecuteCommand("asset-setcolor", ReceiverGroup.All, id, path, color.r, color.g, color.b, color.a);
         }
 
         private static void FaceSpawner(int id)
