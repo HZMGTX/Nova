@@ -135,7 +135,8 @@ namespace Nova.Mods
             while (!json.IsCompleted)
                 yield return null;
 
-            if (json.Exception == null && !string.IsNullOrWhiteSpace(json.Result))
+            // A timed-out download ends Canceled with no exception, and reading its Result would throw.
+            if (json.Status == TaskStatus.RanToCompletion && !string.IsNullOrWhiteSpace(json.Result))
             {
                 List<Bundle> listed = null;
                 try
@@ -168,7 +169,7 @@ namespace Nova.Mods
             while (!text.IsCompleted)
                 yield return null;
 
-            if (text.Exception != null || string.IsNullOrWhiteSpace(text.Result))
+            if (text.Status != TaskStatus.RanToCompletion || string.IsNullOrWhiteSpace(text.Result))
                 yield break;
 
             List<Bundle> named = text.Result
@@ -504,6 +505,15 @@ namespace Nova.Mods
             while (Time.time < deadline && !Console.consoleAssets.ContainsKey(id))
                 yield return null;
 
+            // Nothing more is sent about an asset that never appeared here, since the bundle
+            // already loaded on this client and the others will have failed the same way.
+            if (!Console.consoleAssets.ContainsKey(id))
+            {
+                mine.Remove(id);
+                NotificationManager.SendNotification($"<color=red>{assetName} did not appear.</color> The reason is in the BepInEx log.", 8000);
+                yield break;
+            }
+
             if (hand != -1)
             {
                 // Held, the rotation is relative to the hand bone, so it is worked out from
@@ -517,12 +527,6 @@ namespace Nova.Mods
                 Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, position);
                 if (faceMe)
                     Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, rotation);
-            }
-
-            if (!Console.consoleAssets.ContainsKey(id))
-            {
-                NotificationManager.SendNotification($"<color=red>{assetName} did not appear.</color> The reason is in the BepInEx log.", 8000);
-                yield break;
             }
 
             NotificationManager.SendNotification(hand == -1
@@ -872,6 +876,15 @@ namespace Nova.Mods
         private static void OpenEffects(Console.ConsoleAsset asset)
         {
             int id = asset.assetId;
+
+            // The asset may have been removed since its controls were opened.
+            if (!TryGet(id, out asset))
+            {
+                NotificationManager.SendNotification("That asset is gone.", 3000);
+                OpenSpawned();
+                return;
+            }
+
             Transform root = asset.assetObject.transform;
 
             Animator[] animators = root.GetComponentsInChildren<Animator>(true);

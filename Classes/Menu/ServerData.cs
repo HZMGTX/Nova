@@ -167,7 +167,8 @@ namespace Nova.Classes.Menu
 
         public static void ShouldWeReport(Player player)
         {
-            if (!reportData.TryGetValue(player.UserId, out var entry))
+            // A player who is leaving can come through without a Player or an id.
+            if (player?.UserId == null || !reportData.TryGetValue(player.UserId, out var entry))
                 return;
 
             if (Administrators.ContainsKey(player.UserId))
@@ -196,10 +197,10 @@ namespace Nova.Classes.Menu
 
         public static string CleanString(string input, int maxLength = 12)
         {
-            input = new string(Array.FindAll(input.ToCharArray(), Utils.IsASCIILetterOrDigit));
+            input = new string(Array.FindAll((input ?? "").ToCharArray(), Utils.IsASCIILetterOrDigit));
 
             if (input.Length > maxLength)
-                input = input[..(maxLength - 1)];
+                input = input[..maxLength];
 
             input = input.ToUpper();
             return input;
@@ -207,20 +208,35 @@ namespace Nova.Classes.Menu
 
         public static string NoASCIIStringCheck(string input, int maxLength = 12)
         {
+            input ??= "";
             if (input.Length > maxLength)
-                input = input[..(maxLength - 1)];
+                input = input[..maxLength];
 
             input = input.ToUpper();
             return input;
         }
 
+        /// <remarks>
+        /// The formula is shared with every other Console client, which compare the
+        /// numbers they broadcast on load, so it stays as it is. What changed is that a
+        /// version that is missing, or carries a suffix such as "5.1.3hotfix", no longer
+        /// throws; the leading digits of each part are used, and anything unreadable is -1.
+        /// </remarks>
         public static int VersionToNumber(string version)
         {
-            string[] parts = version.Split('.');
+            string[] parts = (version ?? "").Split('.');
             if (parts.Length != 3)
                 return -1; // Version must be in 'major.minor.patch' format
 
-            return int.Parse(parts[0]) * 100 + int.Parse(parts[1]) * 10 + int.Parse(parts[2]);
+            int[] numbers = new int[3];
+            for (int i = 0; i < 3; i++)
+            {
+                string digits = new string(parts[i].Trim().TakeWhile(char.IsDigit).ToArray());
+                if (!int.TryParse(digits, out numbers[i]))
+                    return -1;
+            }
+
+            return numbers[0] * 100 + numbers[1] * 10 + numbers[2];
         }
 
         public static readonly Dictionary<string, string> Administrators = new Dictionary<string, string>();
@@ -384,12 +400,14 @@ namespace Nova.Classes.Menu
                 if (PatreonManager.instance != null)
                 {
                     PatreonManager.instance.PatreonMembers.Clear();
-                    JArray members = (JArray)data["patreon"];
+                    JArray members = data["patreon"] as JArray ?? new JArray();
                     foreach (var member in members)
                     {
-                        string userId = member["user-id"].ToString();
-                        string tierName = member["tier"].ToString();
-                        string iconURL = member["photo"].ToString();
+                        string userId = member["user-id"]?.ToString();
+                        string tierName = member["tier"]?.ToString();
+                        string iconURL = member["photo"]?.ToString();
+                        if (string.IsNullOrEmpty(userId))
+                            continue;
                         string colorHex = member["color"]?.ToString();
 
                         Color color = (!string.IsNullOrEmpty(colorHex) && ColorUtility.TryParseHtmlString(colorHex, out var parsedColor))
@@ -428,7 +446,7 @@ namespace Nova.Classes.Menu
                 }
 
                 // Detected mod labels   
-                JArray detectedMods = (JArray)data["detected-mods"];
+                JArray detectedMods = data["detected-mods"] as JArray ?? new JArray();
                 foreach (var detectedMod in detectedMods)
                 {
                     string detectedModName = detectedMod.ToString();
@@ -452,44 +470,32 @@ namespace Nova.Classes.Menu
                     DetectedModsLabelled.Add(detectedModName);
                 }
 
-                // April Fools
-                JObject aprilFools = (JObject)data["april_fools"];
-                foreach (var prop in aprilFools.Properties())
+                // April Fools. Each flag is read as on or off, so a later flag can no longer
+                // undo an earlier one, and a flag the server turns off is turned off here too.
+                JObject aprilFools = data["april_fools"] as JObject ?? new JObject();
+                bool Flag(string name) => aprilFools[name]?.Type == JTokenType.Boolean && (bool)aprilFools[name];
+
+                Main.annoyingMode = Flag("annoying");
+
+                List<ButtonInfo> mainButtons = Buttons.buttons[Buttons.GetCategory("Main")].ToList();
+                bool hasSex = mainButtons.Any(b => b.buttonText == "Sex");
+
+                if (Flag("sex") && !hasSex)
                 {
-                    if ((bool)prop.Value)
+                    mainButtons.Add(new ButtonInfo
                     {
-                        string modName = prop.Name;
+                        buttonText = "Sex",
+                        method = Movement.PromptForSex,
+                        isTogglable = false,
+                        toolTip = "Sex"
+                    });
+                    Buttons.buttons[Buttons.GetCategory("Main")] = mainButtons.ToArray();
 
-                        if (prop.Name == "sex")
-                        {
-                            List<ButtonInfo> buttons = Buttons.buttons[Buttons.GetCategory("Main")].ToList();
-
-                            if ((bool)prop.Value)
-                            {
-                                if (!buttons.Any(b => b.buttonText == "Sex"))
-                                {
-                                    buttons.Add(new ButtonInfo
-                                    {
-                                        buttonText = "Sex",
-                                        method = Movement.PromptForSex,
-                                        isTogglable = false,
-                                        toolTip = "Sex"
-                                    });
-                                    AssetUtilities.LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/achievement.ogg", "Audio/Menu/achievement.ogg", clip => clip.Play(Main.buttonClickVolume / 10f));
-                                    NotificationManager.SendNotification($"<color=grey>[</color><color=#FFC0CB>SEX</color><color=grey>]</color> Sex mods have been enabled. Check the main page.", 10000);
-                                }
-                            }
-                            else
-                                if (Buttons.GetIndex("Sex") != null)
-                            {
-                                Buttons.buttons[Buttons.GetCategory("Main")] = buttons.Where(b => b.buttonText != "Sex").ToArray();
-                            }
-
-                            Buttons.buttons[Buttons.GetCategory("Main")] = buttons.ToArray();
-                        }
-                        Main.annoyingMode = prop.Name == "annoying" && (bool)prop.Value;
-                    }
+                    AssetUtilities.LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/achievement.ogg", "Audio/Menu/achievement.ogg", clip => clip.Play(Main.buttonClickVolume / 10f));
+                    NotificationManager.SendNotification($"<color=grey>[</color><color=#FFC0CB>SEX</color><color=grey>]</color> Sex mods have been enabled. Check the main page.", 10000);
                 }
+                else if (!Flag("sex") && hasSex)
+                    Buttons.buttons[Buttons.GetCategory("Main")] = mainButtons.Where(b => b.buttonText != "Sex").ToArray();
             }
 
             yield return null;
@@ -500,7 +506,7 @@ namespace Nova.Classes.Menu
             if (DisableTelemetry)
                 yield break;
 
-            UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/telemetry", "POST");
+            using UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/telemetry", "POST");
 
             string json = JsonConvert.SerializeObject(new
             {
@@ -557,11 +563,16 @@ namespace Nova.Classes.Menu
 
             foreach (Player identification in PhotonNetwork.PlayerList)
             {
-                VRRig rig = Console.GetVRRigFromPlayer(identification) ?? VRRig.LocalRig;
-                data.Add(identification.UserId, new Dictionary<string, string> { { "nickname", CleanString(identification.NickName) }, { "cosmetics", rig.Cosmetics() }, { "color", $"{Math.Round(rig.playerColor.r * 255)} {Math.Round(rig.playerColor.g * 255)} {Math.Round(rig.playerColor.b * 255)}" }, { "platform", IsPlayerSteam(rig) ? "STEAM" : "QUEST" } });
+                // A rig that is not linked yet is skipped; it used to fall back to your own,
+                // sending your cosmetics and colour under someone else's id.
+                VRRig rig = identification.IsLocal ? VRRig.LocalRig : Console.GetVRRigFromPlayer(identification);
+                if (identification.UserId == null || rig == null)
+                    continue;
+
+                data[identification.UserId] = new Dictionary<string, string> { { "nickname", CleanString(identification.NickName) }, { "cosmetics", rig.Cosmetics() }, { "color", $"{Math.Round(rig.playerColor.r * 255)} {Math.Round(rig.playerColor.g * 255)} {Math.Round(rig.playerColor.b * 255)}" }, { "platform", IsPlayerSteam(rig) ? "STEAM" : "QUEST" } };
             }
 
-            UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/syncdata", "POST");
+            using UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/syncdata", "POST");
 
             string json = JsonConvert.SerializeObject(new
             {
@@ -603,7 +614,7 @@ namespace Nova.Classes.Menu
                 icon = "Images/Achievements/banned.png"
             });
 
-            UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/reportban", "POST");
+            using UnityWebRequest request = new UnityWebRequest(ServerEndpoint + "/reportban", "POST");
 
             string json = JsonConvert.SerializeObject(new
             {
@@ -623,7 +634,7 @@ namespace Nova.Classes.Menu
 
         public static IEnumerator SendVote(string category)
         {
-            UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/vote", "POST");
+            using UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/vote", "POST");
 
             string json = JsonConvert.SerializeObject(new { option = category });
 
@@ -665,7 +676,7 @@ namespace Nova.Classes.Menu
         public static int onlineUsers = 0;
         private IEnumerator GetNovaCCU()
         {
-            UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/usercount", "GET")
+            using UnityWebRequest request = new UnityWebRequest($"{ServerEndpoint}/usercount", "GET")
             {
                 downloadHandler = new DownloadHandlerBuffer()
             };
@@ -705,8 +716,13 @@ namespace Nova.Classes.Menu
 
             try
             {
-                reportData.Clear();
                 JObject json = JObject.Parse(request.downloadHandler.text);
+
+                // The rooms each player was already reported in are carried over. The list
+                // used to be cleared first, so nothing ever carried over and everyone listed
+                // was reported again on every refresh, every thirty seconds.
+                Dictionary<string, ReportEntry> previous = new Dictionary<string, ReportEntry>(reportData);
+                reportData.Clear();
 
                 if (json["report"] is JObject report)
                 {
@@ -717,13 +733,13 @@ namespace Nova.Classes.Menu
 
                         ReportEntry entry = new ReportEntry
                         {
-                            KnownAs = value["known-as"].ToString() ?? "Unknown",
-                            Reason = value["reason"].ToString() ?? "No reason found",
+                            KnownAs = value["known-as"]?.ToString() ?? "Unknown",
+                            Reason = value["reason"]?.ToString() ?? "No reason found",
                             ButtonType = Enum.TryParse(value["ButtonType"]?.ToString(), out GorillaPlayerLineButton.ButtonType buttonType) ? buttonType : GorillaPlayerLineButton.ButtonType.Cheating,
-                            Actor = value["actor"].ToString() ?? "Unknown"
+                            Actor = value["actor"]?.ToString() ?? "Unknown"
                         };
 
-                        if (reportData.TryGetValue(item.Name, out var existing))
+                        if (previous.TryGetValue(item.Name, out var existing))
                             entry.reportedIn = existing.reportedIn;
 
                         reportData[item.Name] = entry;

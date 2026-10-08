@@ -76,8 +76,11 @@ namespace Nova.Mods
                 Vector3 direction = head.forward;
                 float distance = 4f;
 
-                if (Physics.Raycast(head.position, direction, out RaycastHit hit, distance, NoInvisLayerMask()))
-                    distance = Mathf.Max(0f, hit.distance - 0.5f);
+                // The body is what moves, so its path is checked as well as the view; a
+                // clear view over a low wall used to put the body through it.
+                foreach (Vector3 origin in new[] { head.position, BodyPosition })
+                    if (Physics.Raycast(origin, direction, out RaycastHit hit, distance, NoInvisLayerMask()))
+                        distance = Mathf.Max(0f, hit.distance - 0.5f);
 
                 TeleportPlayer(BodyPosition + direction * distance);
             }
@@ -147,8 +150,9 @@ namespace Nova.Mods
         /// <summary>Both triggers held bleed your speed away, down to a hover.</summary>
         public static void AirBrake()
         {
+            // Scaled by frame time so it brakes the same at 72 and 144 frames a second.
             if (leftTrigger > 0.5f && rightTrigger > 0.5f)
-                Body.linearVelocity *= 0.8f;
+                Body.linearVelocity *= Mathf.Pow(0.8f, Time.deltaTime * 72f);
         }
 
         // ── Sound ───────────────────────────────────────────────────────────────
@@ -192,10 +196,18 @@ namespace Nova.Mods
             return made;
         }
 
+        /// <summary>Destroys something these mods made, along with the material it was given.</summary>
         internal static void Clear(ref GameObject made)
         {
             if (made != null)
+            {
+                foreach (Renderer renderer in made.GetComponentsInChildren<Renderer>(true))
+                    if (renderer.sharedMaterial != null)
+                        Object.Destroy(renderer.sharedMaterial);
+
                 Object.Destroy(made);
+            }
+
             made = null;
         }
 
@@ -206,7 +218,9 @@ namespace Nova.Mods
         /// <summary>A soft gold ring floating above your head.</summary>
         public static void Halo()
         {
-            halo ??= Primitive(PrimitiveType.Cylinder, new Color(1f, 0.9f, 0.4f, 0.75f), new Vector3(0.35f, 0.01f, 0.35f));
+            // Unity's own null check, so something destroyed elsewhere is made again.
+            if (halo == null)
+                halo = Primitive(PrimitiveType.Cylinder, new Color(1f, 0.9f, 0.4f, 0.75f), new Vector3(0.35f, 0.01f, 0.35f));
             halo.transform.position = GorillaTagger.Instance.headCollider.transform.position + Vector3.up * 0.3f;
         }
 
@@ -257,8 +271,10 @@ namespace Nova.Mods
         /// <summary>Fading streaks behind both hands, in your own colour.</summary>
         public static void HandTrails()
         {
-            leftTrail ??= Trail(GorillaTagger.Instance.leftHandTransform);
-            rightTrail ??= Trail(GorillaTagger.Instance.rightHandTransform);
+            if (leftTrail == null)
+                leftTrail = Trail(GorillaTagger.Instance.leftHandTransform);
+            if (rightTrail == null)
+                rightTrail = Trail(GorillaTagger.Instance.rightHandTransform);
         }
 
         public static void DisableHandTrails()
@@ -267,11 +283,18 @@ namespace Nova.Mods
             Clear(ref rightTrail);
         }
 
-        private static void SetFog(Color color) =>
-            ZoneShaderSettings.activeInstance.SetGroundFogValue(color, 0f, float.MaxValue, 0f);
+        // Between zones there may be no active shader settings to change.
+        private static void SetFog(Color color)
+        {
+            if (ZoneShaderSettings.activeInstance != null)
+                ZoneShaderSettings.activeInstance.SetGroundFogValue(color, 0f, float.MaxValue, 0f);
+        }
 
-        private static void ResetFog() =>
-            ZoneShaderSettings.activeInstance.CopySettings(ZoneShaderSettings.defaultsInstance);
+        private static void ResetFog()
+        {
+            if (ZoneShaderSettings.activeInstance != null && ZoneShaderSettings.defaultsInstance != null)
+                ZoneShaderSettings.activeInstance.CopySettings(ZoneShaderSettings.defaultsInstance);
+        }
 
         /// <summary>Fog that drifts slowly through every colour.</summary>
         public static void RainbowFog() =>
@@ -297,7 +320,8 @@ namespace Nova.Mods
         /// <summary>A ring that ripples out from your feet every second.</summary>
         public static void PulseRing()
         {
-            pulse ??= Primitive(PrimitiveType.Cylinder, Color.white, Vector3.one);
+            if (pulse == null)
+                pulse = Primitive(PrimitiveType.Cylinder, Color.white, Vector3.one);
 
             float age = Time.time - pulseStart;
             if (age > 1f)

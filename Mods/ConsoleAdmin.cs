@@ -131,10 +131,14 @@ namespace Nova.Mods
 
         private static readonly Dictionary<VRRig, TextMeshPro> rankTags = new Dictionary<VRRig, TextMeshPro>();
 
+        // Reused every frame rather than allocated, since this runs for as long as it is on.
+        private static readonly HashSet<VRRig> shownTags = new HashSet<VRRig>();
+        private static readonly List<VRRig> staleTags = new List<VRRig>();
+
         /// <summary>Writes each Console administrator's name and rank under their crown, your own included.</summary>
         public static void AdminNameTags()
         {
-            HashSet<VRRig> shown = new HashSet<VRRig>();
+            shownTags.Clear();
 
             if (PhotonNetwork.InRoom)
                 foreach (Player player in PhotonNetwork.PlayerList)
@@ -154,7 +158,15 @@ namespace Nova.Mods
                         rankTags[rig] = tag;
                     }
 
-                    tag.SafeSetText($"{adminName.Replace("<", "‹")} <color=grey>·</color> {RankOf(adminName)}");
+                    // The label only changes when the admin lists do, so it is built once per
+                    // tag and kept in the object's name, not formatted again every frame.
+                    string label = adminName + "\u0001" + RankOf(adminName);
+                    if (tag.name != label)
+                    {
+                        tag.name = label;
+                        tag.SafeSetText($"{adminName.Replace("<", "‹")} <color=grey>·</color> {RankOf(adminName)}");
+                    }
+
                     tag.color = rig.playerColor;
 
                     // Just under the crown, which Console floats above the same point.
@@ -164,10 +176,15 @@ namespace Nova.Mods
                     tag.transform.LookAt(Camera.main.transform.position);
                     tag.transform.Rotate(0f, 180f, 0f);
 
-                    shown.Add(rig);
+                    shownTags.Add(rig);
                 }
 
-            foreach (VRRig rig in rankTags.Keys.Where(rig => !shown.Contains(rig)).ToArray())
+            staleTags.Clear();
+            foreach (VRRig rig in rankTags.Keys)
+                if (!shownTags.Contains(rig))
+                    staleTags.Add(rig);
+
+            foreach (VRRig rig in staleTags)
             {
                 if (rankTags[rig] != null)
                     Object.Destroy(rankTags[rig].gameObject);

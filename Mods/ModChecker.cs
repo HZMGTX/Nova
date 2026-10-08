@@ -258,26 +258,60 @@ namespace Nova.Mods
         {
             alerted.Clear();
             NetworkSystem.Instance.OnPlayerJoined += OnJoined;
+            NetworkSystem.Instance.OnJoinedRoomEvent += OnJoinedRoom;
 
             if (PhotonNetwork.InRoom)
                 foreach (Player player in PhotonNetwork.PlayerListOthers)
                     Alert(player);
         }
 
-        public static void DisableAlerts() =>
+        public static void DisableAlerts()
+        {
             NetworkSystem.Instance.OnPlayerJoined -= OnJoined;
+            NetworkSystem.Instance.OnJoinedRoomEvent -= OnJoinedRoom;
+        }
+
+        // Each room starts fresh: someone you were warned about before is worth a warning
+        // in the new room too, and everyone already there is checked once you arrive.
+        private static void OnJoinedRoom()
+        {
+            alerted.Clear();
+            Console.instance.StartCoroutine(AlertRoomSoon());
+        }
+
+        private static IEnumerator AlertRoomSoon()
+        {
+            foreach (float wait in AlertDelays)
+            {
+                yield return new WaitForSeconds(wait);
+
+                if (!PhotonNetwork.InRoom)
+                    yield break;
+
+                foreach (Player player in PhotonNetwork.PlayerListOthers)
+                    Alert(player);
+            }
+        }
 
         private static void OnJoined(NetPlayer joined) =>
             Console.instance.StartCoroutine(AlertSoon(joined.UserId));
 
-        // Mods publish their properties a moment after joining, not with the join itself.
+        // Mods publish their properties a moment after joining, not with the join itself,
+        // and some take longer than others, so a player is looked at twice.
+        private static readonly float[] AlertDelays = { 3f, 7f };
+
         private static IEnumerator AlertSoon(string userId)
         {
-            yield return new WaitForSeconds(3f);
+            foreach (float wait in AlertDelays)
+            {
+                yield return new WaitForSeconds(wait);
 
-            Player player = PhotonNetwork.PlayerListOthers.FirstOrDefault(p => p.UserId == userId);
-            if (player != null)
+                Player player = PhotonNetwork.PlayerListOthers.FirstOrDefault(p => p.UserId == userId);
+                if (player == null)
+                    yield break;
+
                 Alert(player);
+            }
         }
 
         private static void Alert(Player player)
