@@ -842,7 +842,16 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Intercourse All", aliases = new[] { "Sex All" }, enableMethod = Movement.IntercourseAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, with sounds."},
 
                 new ButtonInfo { buttonText = "Head Gun", aliases = new[] { "Blowjob Gun" }, method = Movement.HeadGun, toolTip = "Makes you thrust whoever your hand desires, but lower, with sounds."},
-                new ButtonInfo { buttonText = "Head All", aliases = new[] { "Blowjob All" }, enableMethod = Movement.HeadAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, but lower, with sounds."}
+                new ButtonInfo { buttonText = "Head All", aliases = new[] { "Blowjob All" }, enableMethod = Movement.HeadAll, method = Movement.IntercourseNoises, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Makes you thrust everyone in the room, but lower, with sounds."},
+
+                new ButtonInfo { buttonText = "Double Jump <color=grey>[</color><color=green>B</color><color=grey>]</color>", method = Extras.DoubleJump, toolTip = "Press B in the air for one extra jump, refilled when you land."},
+                new ButtonInfo { buttonText = "Blink Forward <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Extras.BlinkForward, toolTip = "Press A to jump four metres the way you are looking, stopping short of walls."},
+                new ButtonInfo { buttonText = "Ground Pound <color=grey>[</color><color=green>LT</color><color=grey>]</color>", method = Extras.GroundPound, toolTip = "Pull your left trigger in the air to slam straight down."},
+                new ButtonInfo { buttonText = "Super Jump <color=grey>[</color><color=green>Y</color><color=grey>]</color>", method = Extras.SuperJump, toolTip = "Press Y while standing to launch far higher than a normal jump."},
+                new ButtonInfo { buttonText = "Rocket Hands <color=grey>[</color><color=green>RT</color><color=grey>]</color>", method = Extras.RocketHands, toolTip = "Hold your right trigger to be pushed the way your right hand points."},
+                new ButtonInfo { buttonText = "Wall Kick <color=grey>[</color><color=green>X</color><color=grey>]</color>", method = Extras.WallKick, toolTip = "Press X next to a wall to kick off it and upward."},
+                new ButtonInfo { buttonText = "Feather Fall", method = Extras.FeatherFall, toolTip = "Caps how fast you fall, so long drops end gently."},
+                new ButtonInfo { buttonText = "Air Brake <color=grey>[</color><color=green>LT+RT</color><color=grey>]</color>", method = Extras.AirBrake, toolTip = "Hold both triggers to bleed your speed away, down to a hover."}
             },
 
             new[] { // Advantage Mods [10]
@@ -1056,6 +1065,9 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Info Watch Time", enableMethod =() => Visuals.infoWatchTime = true, disableMethod =() => Visuals.infoWatchTime = false, toolTip = "Shows the current time on the Info Watch mod."},
                 new ButtonInfo { buttonText = "Info Watch Clipboard", enableMethod =() => Visuals.infoWatchClip = true, disableMethod =() => Visuals.infoWatchClip = false, toolTip = "Shows your clipboard on the Info Watch mod."},
                 new ButtonInfo { buttonText = "Info Watch Code", enableMethod =() => Visuals.infoWatchCode = true, disableMethod =() => Visuals.infoWatchCode = false, toolTip = "Shows the lobby code on the Info Watch mod."},
+
+                new ButtonInfo { buttonText = "Rainbow Fog", method = Extras.RainbowFog, disableMethod = Extras.DisableFog, toolTip = "Fog that drifts slowly through every colour. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Disco Fog", method = Extras.DiscoFog, disableMethod = Extras.DisableFog, toolTip = "Fog that snaps to a new colour four times a second. Only you see it.", legal = true}
             },
 
             new[] { // Fun Mods [12]
@@ -1697,6 +1709,13 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Narrate Creation Date On Touch", method = Fun.NarrateCreationDateOnTouch, toolTip = "Gets the creation date of players you touch accounts and speaks it through your microphone." },
 
                 new ButtonInfo { buttonText = "Grab Player Info", method = Fun.GrabPlayerInfo, isTogglable = false, toolTip = "Saves every player's name, color, and player ID as a text file and opens it." },
+
+                new ButtonInfo { buttonText = "Halo", method = Extras.Halo, disableMethod = Extras.DisableHalo, toolTip = "A soft gold ring floats above your head. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Orbiting Orbs", method = Extras.OrbitingOrbs, disableMethod = Extras.DisableOrbitingOrbs, toolTip = "Three glowing orbs circle your head. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Hand Trails", method = Extras.HandTrails, disableMethod = Extras.DisableHandTrails, toolTip = "Fading streaks follow both hands in your colour. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Pulse Ring", method = Extras.PulseRing, disableMethod = Extras.DisablePulseRing, toolTip = "A ring ripples out from your feet every second. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Headlamp", method = Extras.Headlamp, disableMethod = Extras.DisableHeadlamp, toolTip = "A torch strapped to your head. Only you see the light.", legal = true},
+                new ButtonInfo { buttonText = "Tilted Head", method = Extras.TiltedHead, disableMethod = Extras.DisableTiltedHead, toolTip = "Tips your head on its side, as everyone sees it."}
             },
 
             new[] { // Rebind Settings [13]
@@ -2296,10 +2315,10 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Exit Admin Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
                 new ButtonInfo { buttonText = "Mod Givers", method =() => CurrentCategoryName = "Mod Givers", isTogglable = false, toolTip = "Opens the mod givers page.", legal = true},
-                new ButtonInfo { buttonText = "Console Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Browse the asset bundles Console hosts and spawn them into the room."},
-                new ButtonInfo { buttonText = "Console Spawn Gun", method = ConsoleAssets.SpawnGun, toolTip = "Hold grip to aim, pull trigger to spawn your last Console asset where you point."},
-                new ButtonInfo { buttonText = "Console Move Gun", method = ConsoleAssets.MoveGun, toolTip = "Hold grip to aim, pull trigger to move the selected Console asset where you point."},
-                new ButtonInfo { buttonText = "Console Delete Gun", method = ConsoleAssets.DeleteGun, toolTip = "Hold grip to aim, pull trigger to remove the Console asset you point at."},
+                new ButtonInfo { buttonText = "Console Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Browse the asset bundles Console hosts and spawn them into the room.", legal = true},
+                new ButtonInfo { buttonText = "Console Spawn Gun", method = ConsoleAssets.SpawnGun, toolTip = "Hold grip to aim, pull trigger to spawn your last Console asset where you point.", legal = true},
+                new ButtonInfo { buttonText = "Console Move Gun", method = ConsoleAssets.MoveGun, toolTip = "Hold grip to aim, pull trigger to move the selected Console asset where you point.", legal = true},
+                new ButtonInfo { buttonText = "Console Delete Gun", method = ConsoleAssets.DeleteGun, toolTip = "Hold grip to aim, pull trigger to remove the Console asset you point at.", legal = true},
 
                 new ButtonInfo { buttonText = "Get Menu Users", method = Experimental.GetMenuUsers, isTogglable = false, toolTip = "Detects who is using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Auto Get Menu Users", enableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent += Experimental.GetMenuUsers, disableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent -= Experimental.GetMenuUsers, isTogglable = true, toolTip = "Detects who is using the menu on room join.", legal = true},
@@ -2412,6 +2431,14 @@ namespace Poison.Menu
 
                 new ButtonInfo { buttonText = "Admin Platform Exclude Gun", method =() => Experimental.AdminPlatToggleGun(true), toolTip = "Puts a player who is included for platform networking to be excluded.", legal = true},
                 new ButtonInfo { buttonText = "Admin Platform Include Gun", method =() => Experimental.AdminPlatToggleGun(false), toolTip = "Puts a player who is excluded for platform networking to be included.", legal = true},
+
+                new ButtonInfo { buttonText = "Admin World Controls", method =() => CurrentCategoryName = "Admin World Controls", isTogglable = false, toolTip = "Change the time, weather and fog for everyone, or send everyone to a map.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake Gun", method = ConsoleAdmin.ShakeGun, toolTip = "Shakes the camera of whoever your hand desires if they're using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Shake All", method = ConsoleAdmin.ShakeAll, isTogglable = false, toolTip = "Shakes the camera of everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Earthquake All", method = ConsoleAdmin.EarthquakeAll, isTogglable = false, toolTip = "Shakes everyone using Console hard for five seconds.", legal = true},
+                new ButtonInfo { buttonText = "Admin Smooth Bring Gun", method = ConsoleAdmin.SmoothBringGun, toolTip = "Glides whoever your hand desires over to you if they're using Console.", legal = true},
+                new ButtonInfo { buttonText = "Admin Smooth Bring All", method = ConsoleAdmin.SmoothBringAll, isTogglable = false, toolTip = "Glides everyone using Console over to you.", legal = true},
+                new ButtonInfo { buttonText = "Admin Global Voice", enableMethod = ConsoleAdmin.GlobalVoiceOn, disableMethod = ConsoleAdmin.GlobalVoiceOff, toolTip = "Everyone using Console hears you from anywhere in the map.", legal = true}
             },
 
             new[] { // Enabled Mods [24]
@@ -2787,22 +2814,50 @@ namespace Poison.Menu
             // bundle and which spawned object you picked.
             new[] // Console Assets [51]
             {
-                new ButtonInfo { buttonText = "Exit Console Assets", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods."}
+                new ButtonInfo { buttonText = "Exit Console Assets", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods.", legal = true}
             },
 
             new[] // Console Objects [52]
             {
-                new ButtonInfo { buttonText = "Exit Console Objects", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+                new ButtonInfo { buttonText = "Exit Console Objects", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list.", legal = true}
             },
 
             new[] // Spawned Assets [53]
             {
-                new ButtonInfo { buttonText = "Exit Spawned Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+                new ButtonInfo { buttonText = "Exit Spawned Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list.", legal = true}
             },
 
             new[] // Console Asset Control [54]
             {
-                new ButtonInfo { buttonText = "Exit Asset Control", method = ConsoleAssets.OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets."}
+                new ButtonInfo { buttonText = "Exit Asset Control", method = ConsoleAssets.OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets.", legal = true}
+            },
+
+            new[] // Admin World Controls [55]
+            {
+                new ButtonInfo { buttonText = "Exit Admin World Controls", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods.", legal = true},
+                new ButtonInfo { buttonText = "Morning For Everyone", method =() => ConsoleAdmin.TimeForEveryone(1), isTogglable = false, toolTip = "Sets the time of day to morning for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Day For Everyone", method =() => ConsoleAdmin.TimeForEveryone(3), isTogglable = false, toolTip = "Sets the time of day to day for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Evening For Everyone", method =() => ConsoleAdmin.TimeForEveryone(7), isTogglable = false, toolTip = "Sets the time of day to evening for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Night For Everyone", method =() => ConsoleAdmin.TimeForEveryone(0), isTogglable = false, toolTip = "Sets the time of day to night for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Rain For Everyone", method =() => ConsoleAdmin.WeatherForEveryone(true), isTogglable = false, toolTip = "Makes it rain for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Clear Weather For Everyone", method =() => ConsoleAdmin.WeatherForEveryone(false), isTogglable = false, toolTip = "Stops the rain for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Purple Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0.6f, 0.2f, 1f, 0.2f)), isTogglable = false, toolTip = "Fills the map with purple fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Red Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(1f, 0.1f, 0.1f, 0.2f)), isTogglable = false, toolTip = "Fills the map with red fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Green Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0.1f, 1f, 0.3f, 0.2f)), isTogglable = false, toolTip = "Fills the map with green fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Black Fog For Everyone", method =() => ConsoleAdmin.FogForEveryone(new Color(0f, 0f, 0f, 0.6f)), isTogglable = false, toolTip = "Fills the map with black fog for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Reset Fog For Everyone", method = ConsoleAdmin.ResetFogForEveryone, isTogglable = false, toolTip = "Puts the fog back to normal for everyone using Console.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Forest", method =() => ConsoleAdmin.SendEveryoneTo("Forest"), isTogglable = false, toolTip = "Sends everyone using Console to Forest.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To City", method =() => ConsoleAdmin.SendEveryoneTo("City"), isTogglable = false, toolTip = "Sends everyone using Console to City.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Canyons", method =() => ConsoleAdmin.SendEveryoneTo("Canyons"), isTogglable = false, toolTip = "Sends everyone using Console to Canyons.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Caves", method =() => ConsoleAdmin.SendEveryoneTo("Caves"), isTogglable = false, toolTip = "Sends everyone using Console to Caves.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Beach", method =() => ConsoleAdmin.SendEveryoneTo("Beach"), isTogglable = false, toolTip = "Sends everyone using Console to Beach.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Mountains", method =() => ConsoleAdmin.SendEveryoneTo("Mountains"), isTogglable = false, toolTip = "Sends everyone using Console to Mountains.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Clouds", method =() => ConsoleAdmin.SendEveryoneTo("Clouds"), isTogglable = false, toolTip = "Sends everyone using Console to Clouds.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Basement", method =() => ConsoleAdmin.SendEveryoneTo("Basement"), isTogglable = false, toolTip = "Sends everyone using Console to Basement.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Metropolis", method =() => ConsoleAdmin.SendEveryoneTo("Metropolis"), isTogglable = false, toolTip = "Sends everyone using Console to Metropolis.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Arcade", method =() => ConsoleAdmin.SendEveryoneTo("Arcade"), isTogglable = false, toolTip = "Sends everyone using Console to Arcade.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Rotating", method =() => ConsoleAdmin.SendEveryoneTo("Rotating"), isTogglable = false, toolTip = "Sends everyone using Console to Rotating.", legal = true},
+                new ButtonInfo { buttonText = "Send Everyone To Critters", method =() => ConsoleAdmin.SendEveryoneTo("Critters"), isTogglable = false, toolTip = "Sends everyone using Console to Critters.", legal = true}
             }
         };
 
@@ -2861,7 +2916,8 @@ namespace Poison.Menu
             "Console Assets",
             "Console Objects",
             "Spawned Assets",
-            "Console Asset Control"
+            "Console Asset Control",
+            "Admin World Controls"
         };
 
         public static int _currentCategoryIndex;
