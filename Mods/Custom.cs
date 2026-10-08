@@ -38,7 +38,7 @@ namespace Nova.Mods
     /// <remarks>
     /// Everything here acts on you alone: how you move, and things only you see.
     /// </remarks>
-    public static class Custom
+    public static partial class Custom
     {
         public const string Category = "Custom Mods";
 
@@ -77,8 +77,8 @@ namespace Nova.Mods
                 return;
 
             // Primitives carry their own material instance, which outlives the object.
-            if (made.TryGetComponent(out Renderer renderer))
-                Object.Destroy(renderer.material);
+            if (made.TryGetComponent(out Renderer renderer) && renderer.sharedMaterial != null && renderer.sharedMaterial != vertexColored)
+                Object.Destroy(renderer.sharedMaterial);
 
             Object.Destroy(made);
         }
@@ -198,10 +198,11 @@ namespace Nova.Mods
             if (!leftGrab || Extras.Grounded())
                 return;
 
-            Extras.Body.AddForce(-Physics.gravity, ForceMode.Acceleration);
-
+            // Worked in velocity and frame time, so it holds you the same at any frame rate;
+            // a force added every frame piles up between physics steps on faster headsets.
             Vector3 velocity = Extras.Body.linearVelocity;
-            velocity.y *= 0.9f;
+            velocity -= Physics.gravity * Time.deltaTime;
+            velocity.y = Mathf.MoveTowards(velocity.y, 0f, 20f * Time.deltaTime);
             Extras.Body.linearVelocity = velocity;
         }
 
@@ -624,11 +625,13 @@ namespace Nova.Mods
         }
 
         /// <summary>Floats text above your left wrist, turned to face you.</summary>
-        private static void PlaceOnWrist(TextMeshPro text, float height)
+        private static void PlaceOnWrist(TextMeshPro text, float height, bool rightWrist = false)
         {
+            Transform wrist = rightWrist ? GorillaTagger.Instance.rightHandTransform : GorillaTagger.Instance.leftHandTransform;
+
             text.SafeSetFont(activeFont);
             text.transform.localScale = Vector3.one * (0.08f * Scale);
-            text.transform.position = GorillaTagger.Instance.leftHandTransform.position + Vector3.up * (height * Scale);
+            text.transform.position = wrist.position + Vector3.up * (height * Scale);
             text.transform.LookAt(Camera.main.transform.position);
             text.transform.Rotate(0f, 180f, 0f);
         }
@@ -643,15 +646,25 @@ namespace Nova.Mods
         }
 
         private static TextMeshPro watch;
+        private static float watchNextText;
 
         /// <summary>The time, your speed and the way you face, above your left wrist.</summary>
         public static void WristWatch()
         {
             if (watch == null)
+            {
                 watch = MakeWristText("Nova_WristWatch");
+                watch.color = Color.white;
+                watchNextText = 0f;
+            }
 
-            watch.SafeSetText($"{DateTime.Now:HH:mm}\n<size=70%>{Extras.Body.linearVelocity.magnitude:0.0} m/s  ·  {Heading()}</size>");
-            watch.color = Color.white;
+            // The text changes ten times a second; rebuilding it every frame only made garbage.
+            if (Time.time >= watchNextText)
+            {
+                watchNextText = Time.time + 0.1f;
+                watch.SafeSetText($"{DateTime.Now:HH:mm}\n<size=70%>{Extras.Body.linearVelocity.magnitude:0.0} m/s  ·  {Heading()}</size>");
+            }
+
             PlaceOnWrist(watch, 0.12f);
         }
 
@@ -663,7 +676,7 @@ namespace Nova.Mods
         }
 
         private static TextMeshPro stopwatchText;
-        private static float stopwatchStart, stopwatchElapsed;
+        private static float stopwatchStart, stopwatchElapsed, stopwatchNextText;
         private static bool stopwatchRunning, stopwatchHeld, stopwatchResetHeld;
 
         /// <summary>X starts and stops a stopwatch on your wrist; Y resets it.</summary>
@@ -691,9 +704,14 @@ namespace Nova.Mods
             if (stopwatchText == null)
                 stopwatchText = MakeWristText("Nova_Stopwatch");
 
-            TimeSpan time = TimeSpan.FromSeconds(stopwatchElapsed + (stopwatchRunning ? Time.time - stopwatchStart : 0f));
-            stopwatchText.SafeSetText($"{(int)time.TotalMinutes:00}:{time.Seconds:00}.{time.Milliseconds / 10:00}");
-            stopwatchText.color = stopwatchRunning ? Color.green : Color.white;
+            // Hundredths can't be read at a glance anyway; twenty updates a second is plenty.
+            if (Time.time >= stopwatchNextText)
+            {
+                stopwatchNextText = Time.time + 0.05f;
+                TimeSpan time = TimeSpan.FromSeconds(stopwatchElapsed + (stopwatchRunning ? Time.time - stopwatchStart : 0f));
+                stopwatchText.SafeSetText($"{(int)time.TotalMinutes:00}:{time.Seconds:00}.{time.Milliseconds / 10:00}");
+                stopwatchText.color = stopwatchRunning ? Color.green : Color.white;
+            }
 
             // Sits above the watch when both are on.
             PlaceOnWrist(stopwatchText, watch != null ? 0.2f : 0.12f);

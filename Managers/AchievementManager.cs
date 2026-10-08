@@ -26,6 +26,7 @@
 using Nova.Classes.Menu;
 using Nova.Extensions;
 using Nova.Menu;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -45,11 +46,24 @@ namespace Nova.Managers
                 if (_achievements != null) return _achievements;
                 _achievements = new List<Achievement>();
 
-                string[] files = Directory.GetFiles($"{PluginInfo.BaseDirectory}/Achievements");
-                foreach (string file in files)
+                string directory = $"{PluginInfo.BaseDirectory}/Achievements";
+                if (!Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+
+                // One damaged file is skipped instead of stopping the rest from loading, which
+                // used to show earned achievements as locked and award them all over again.
+                foreach (string file in Directory.GetFiles(directory, "*.json"))
                 {
-                    if (file.EndsWith(".json"))
-                        _achievements.Add(Achievement.FromJObject(JObject.Parse(File.ReadAllText(file))));
+                    try
+                    {
+                        Achievement achievement = Achievement.FromJObject(JObject.Parse(File.ReadAllText(file)));
+                        if (!string.IsNullOrEmpty(achievement.name))
+                            _achievements.Add(achievement);
+                    }
+                    catch (Exception e)
+                    {
+                        LogManager.LogError($"Skipped an unreadable achievement file {Path.GetFileName(file)}: {e.Message}");
+                    }
                 }
 
                 return _achievements;
@@ -85,7 +99,7 @@ namespace Nova.Managers
 
             List<ButtonInfo> achievementButtons = new List<ButtonInfo>
             {
-                new ButtonInfo { buttonText = "Exit Achievements", method = () => Buttons.CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page." },
+                new ButtonInfo { buttonText = "Exit Achievements", method = () => Buttons.CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true },
                 new ButtonInfo { buttonText = "AchievementCount", overlapText = $"{unlocked} of {shown.Length} unlocked", label = true, legal = true }
             };
 

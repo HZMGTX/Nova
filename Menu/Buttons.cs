@@ -2904,7 +2904,33 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Personal Snow", method = Custom.PersonalSnow, disableMethod = Custom.DisablePersonalSnow, toolTip = "Snow falls just around you. Only you see it.", legal = true},
 
                 new ButtonInfo { buttonText = "Wrist Watch", method = Custom.WristWatch, disableMethod = Custom.DisableWristWatch, toolTip = "Shows the time, your speed and the way you face above your left wrist.", legal = true},
-                new ButtonInfo { buttonText = "Stopwatch <color=grey>[</color><color=green>X</color><color=grey>]</color>", method = Custom.Stopwatch, disableMethod = Custom.DisableStopwatch, toolTip = "Press X to start or stop a stopwatch on your wrist, and Y to reset it.", legal = true}
+                new ButtonInfo { buttonText = "Stopwatch <color=grey>[</color><color=green>X</color><color=grey>]</color>", method = Custom.Stopwatch, disableMethod = Custom.DisableStopwatch, toolTip = "Press X to start or stop a stopwatch on your wrist, and Y to reset it.", legal = true},
+
+                new ButtonInfo { buttonText = "Jetpack <color=grey>[</color><color=green>LT</color><color=grey>]</color>", method = Custom.Jetpack, disableMethod = Custom.DisableJetpack, toolTip = "Hold your left trigger to fly up on a jetpack with a flame under you."},
+                new ButtonInfo { buttonText = "Ice Skates", method = Custom.IceSkates, toolTip = "The ground turns to ice, so you keep sliding instead of stopping."},
+                new ButtonInfo { buttonText = "Trampoline Feet", method = Custom.TrampolineFeet, toolTip = "Every landing bounces you back up, like the floor is a trampoline."},
+                new ButtonInfo { buttonText = "Balloon Float", method = Custom.BalloonFloat, disableMethod = Custom.DisableBalloonFloat, toolTip = "Hold a balloon in your left hand that makes you float gently in the air."},
+                new ButtonInfo { buttonText = "Magic Carpet <color=grey>[</color><color=green>Y</color><color=grey>]</color>", method = Custom.MagicCarpet, disableMethod = Custom.DisableMagicCarpet, toolTip = "Press Y to hop on a magic carpet that flies the way you look. Press Y again to hop off."},
+
+                new ButtonInfo { buttonText = "Air Paint <color=grey>[</color><color=green>RT</color><color=grey>]</color>", method = Custom.AirPaint, toolTip = "Hold your right trigger to draw glowing lines in the air. Only you see them. Shares the trigger with Rope Swing, Magic Wand and Target Practice.", legal = true},
+                new ButtonInfo { buttonText = "Clear Air Paint", method = Custom.ClearAirPaint, isTogglable = false, toolTip = "Wipes everything you have drawn with Air Paint.", legal = true},
+                new ButtonInfo { buttonText = "Laser Pointer", method = Custom.LaserPointer, disableMethod = Custom.DisableLaserPointer, toolTip = "A red laser from your right hand with a dot where it lands. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Hand Flashlight", method = Custom.HandFlashlight, disableMethod = Custom.DisableHandFlashlight, toolTip = "A torch in your right hand. Only you see its light.", legal = true},
+                new ButtonInfo { buttonText = "Magic Wand <color=grey>[</color><color=green>RT</color><color=grey>]</color>", method = Custom.MagicWand, toolTip = "Pull your right trigger to fire a sparkle bolt that bursts where it hits. Only you see it.", legal = true},
+
+                new ButtonInfo { buttonText = "Bubble Blower <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Custom.BubbleBlower, disableMethod = Custom.DisableBubbleBlower, toolTip = "Hold A to blow bubbles from your right hand. Only you see them. Shares A with Confetti Popper.", legal = true},
+                new ButtonInfo { buttonText = "Butterflies", method = Custom.Butterflies, disableMethod = Custom.DisableButterflies, toolTip = "A few butterflies flutter around you. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Rain Cloud", method = Custom.RainCloud, disableMethod = Custom.DisableRainCloud, toolTip = "A little rain cloud follows you around. Only you see it.", legal = true},
+                new ButtonInfo { buttonText = "Firefly Swarm", method = Custom.FireflySwarm, disableMethod = Custom.DisableFireflySwarm, toolTip = "Glowing fireflies drift around you. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Afterimages", method = Custom.Afterimages, disableMethod = Custom.DisableAfterimages, toolTip = "Fading copies of your head trail behind you when you move fast. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Speed Lines", method = Custom.SpeedLines, disableMethod = Custom.DisableSpeedLines, toolTip = "Streaks rush past you when you go fast. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Rainbow Road", method = Custom.RainbowRoad, disableMethod = Custom.DisableRainbowRoad, toolTip = "Rainbow tiles appear under you while you fly through the air. Only you see them.", legal = true},
+                new ButtonInfo { buttonText = "Bouncy Ball <color=grey>[</color><color=green>B</color><color=grey>]</color>", method = Custom.BouncyBall, disableMethod = Custom.DisableBouncyBall, toolTip = "Press B to throw a bouncy ball, and hit it with your hands to keep it going. Only you see them. Shares B with Air Dash and Fireworks.", legal = true},
+
+                new ButtonInfo { buttonText = "Coin Hunt", method = Custom.CoinHunt, disableMethod = Custom.DisableCoinHunt, toolTip = "Coins appear around you. Touch them with your hands or head to collect them; your score is on your right wrist.", legal = true},
+                new ButtonInfo { buttonText = "Target Practice <color=grey>[</color><color=green>RT</color><color=grey>]</color>", method = Custom.TargetPractice, disableMethod = Custom.DisableTargetPractice, toolTip = "Targets float around you. Aim with your right hand and pull the trigger to hit them; your score is on your right wrist.", legal = true},
+
+                new ButtonInfo { buttonText = "Turn Off All Custom Mods", method = Custom.TurnOffAll, isTogglable = false, toolTip = "Turns off every Custom mod that is on, and clears your air paintings.", legal = true}
             }
         };
 
