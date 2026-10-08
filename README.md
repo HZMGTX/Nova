@@ -6,7 +6,7 @@
 
 <p align="center">
 	<a href="https://github.com/HZMGTX/Nova/releases"><img src="https://img.shields.io/github/v/release/HZMGTX/Nova?label=version&style=for-the-badge"></a>
-	<a href="https://github.com/HZMGTX/Nova/releases/latest"><img src="https://img.shields.io/github/downloads/HZMGTX/Nova/latest/Nova.Menu.dll?style=for-the-badge"></a>
+	<a href="https://github.com/HZMGTX/Nova/releases/latest"><img src="https://img.shields.io/github/downloads/HZMGTX/Nova/latest?style=for-the-badge"></a>
 	<a href="https://discord.gg/EFTCVQe8Gx"><img src="https://img.shields.io/badge/discord-join-blueviolet?style=for-the-badge&logo=discord"></a>
 </p>
 
