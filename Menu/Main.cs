@@ -4856,7 +4856,12 @@ namespace Nova.Menu
             List<ButtonInfo> buttons = Buttons.buttons[Buttons.GetCategory("Main")].ToList();
             buttons.Add(new ButtonInfo { buttonText = "Admin Mods", method = () => Buttons.CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Opens the admin mods." });
             Buttons.buttons[Buttons.GetCategory("Main")] = buttons.ToArray();
-            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{(playername == "snake" ? "OWNER" : "ADMIN")}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
+            // The rank comes from the server's lists rather than a name written in here, so
+            // whoever the server names as owner or super admin is greeted as one.
+            string rank = ServerData.Owners.Contains(playername) ? "OWNER"
+                : ServerData.SuperAdministrators.Contains(playername) ? "SUPER ADMIN"
+                : "ADMIN";
+            NotificationManager.SendNotification($"<color=grey>[</color><color=purple>{rank}</color><color=grey>]</color> Welcome, {playername}! Admin mods have been enabled.", 10000);
             isAdmin = true;
         }
 

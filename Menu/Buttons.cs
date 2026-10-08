@@ -1090,6 +1090,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Flip Hands", aliases = new[] { "Fish Arms" }, method = Fun.FlipHands, toolTip = "Swaps your hands, left is right and right is left."},
                 new ButtonInfo { buttonText = "Loud Hand Taps", method = Fun.LoudHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really loud."},
                 new ButtonInfo { buttonText = "Silent Hand Taps", aliases = new[] { "No Hand Taps" }, method = Fun.SilentHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet."},
+                new ButtonInfo { buttonText = "Quiet Hand Taps", method = Extras.QuietHandTaps, disableMethod = Fun.FixHandTaps, toolTip = "Keeps your hand taps but turns them down to a whisper."},
                 new ButtonInfo { buttonText = "Instant Hand Taps", method =() => GorillaTagger.Instance.tapCoolDown = 0f, disableMethod =() => GorillaTagger.Instance.tapCoolDown = 0.33f, toolTip = "Removes the hand tap cooldown."},
                 new ButtonInfo { buttonText = "Silent Hand Taps on Tag", aliases = new[] { "No Hand Taps on Tag" }, method = Fun.SilentHandTapsOnTag, disableMethod = Fun.FixHandTaps, toolTip = "Makes your hand taps really quiet when you're tagged, good for ambush."},
 
@@ -2442,6 +2443,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Admin Earthquake All", method = ConsoleAdmin.EarthquakeAll, isTogglable = false, toolTip = "Shakes everyone using Console hard for five seconds.", legal = true},
                 new ButtonInfo { buttonText = "Admin Smooth Bring Gun", method = ConsoleAdmin.SmoothBringGun, toolTip = "Glides whoever your hand desires over to you if they're using Console.", legal = true},
                 new ButtonInfo { buttonText = "Admin Smooth Bring All", method = ConsoleAdmin.SmoothBringAll, isTogglable = false, toolTip = "Glides everyone using Console over to you.", legal = true},
+                new ButtonInfo { buttonText = "Hide My Admin Tag", enableMethod =() => Console.ShowOwnIndicator = false, disableMethod =() => Console.ShowOwnIndicator = true, toolTip = "Stops drawing your own admin tag above you. Others still see it.", legal = true},
                 new ButtonInfo { buttonText = "Admin Global Voice", enableMethod = ConsoleAdmin.GlobalVoiceOn, disableMethod = ConsoleAdmin.GlobalVoiceOff, toolTip = "Everyone using Console hears you from anywhere in the map.", legal = true}
             },
 

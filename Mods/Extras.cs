@@ -25,6 +25,7 @@
 
 using GorillaLocomotion;
 using GorillaTag.Rendering;
+using Nova.Patches.Menu;
 using Nova.Utilities;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -148,6 +149,22 @@ namespace Nova.Mods
         {
             if (leftTrigger > 0.5f && rightTrigger > 0.5f)
                 Body.linearVelocity *= 0.8f;
+        }
+
+        // ── Sound ───────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Hand taps you can still hear, at a whisper. Silent Hand Taps turns them off
+        /// entirely; this keeps them on and drops the volume.
+        /// </summary>
+        public static void QuietHandTaps()
+        {
+            EffectDataPatch.enabled = true;
+            EffectDataPatch.tapsEnabled = true;
+            EffectDataPatch.doOverride = true;
+            EffectDataPatch.overrideVolume = 0.02f;
+            EffectDataPatch.tapMultiplier = 1;
+            GorillaTagger.Instance.handTapVolume = 0.02f;
         }
 
         // ── Shared visual helpers ───────────────────────────────────────────────

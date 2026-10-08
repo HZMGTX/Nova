@@ -539,6 +539,9 @@ namespace Nova.Classes.Menu
         public static VRRig adminRigTarget;
 
         public static readonly List<Player> excludedCones = new List<Player>();
+
+        /// <summary>Draws your own admin indicator too, not only other administrators'.</summary>
+        public static bool ShowOwnIndicator = true;
         public static readonly Dictionary<VRRig, GameObject> conePool = new Dictionary<VRRig, GameObject>();
 
         public static Material adminConeMaterial;
@@ -580,7 +583,7 @@ namespace Nova.Classes.Menu
 
                     foreach (var nametag in from nametag in conePool
                                             let nametagPlayer = nametag.Key.Creator?.GetPlayerRef()
-                                            where !VRRigExtensions.ActiveRigs.Contains(nametag.Key) ||
+                                            where (nametag.Key == VRRig.LocalRig ? !ShowOwnIndicator : !VRRigExtensions.ActiveRigs.Contains(nametag.Key)) ||
                                  nametagPlayer == null ||
                                  !ServerData.Administrators.ContainsKey(nametagPlayer.UserId) ||
                                  excludedCones.Contains(nametagPlayer)
@@ -597,12 +600,13 @@ namespace Nova.Classes.Menu
                         ServerData.Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out string localAdminName) &&
                         ServerData.SuperAdministrators.Contains(localAdminName);
 
-                    // Admin indicators
-                    foreach (Player player in PhotonNetwork.PlayerListOthers)
+                    // Admin indicators. Your own is drawn as well while ShowOwnIndicator is on,
+                    // so an administrator sees the same rank everyone else sees above them.
+                    foreach (Player player in ShowOwnIndicator ? PhotonNetwork.PlayerList : PhotonNetwork.PlayerListOthers)
                     {
                         if (!ServerData.Administrators.TryGetValue(player.UserId, out string adminName) ||
                             (!localIsSuperAdmin && excludedCones.Contains(player))) continue;
-                        VRRig playerRig = GetVRRigFromPlayer(player);
+                        VRRig playerRig = player.IsLocal ? VRRig.LocalRig : GetVRRigFromPlayer(player);
                         if (playerRig == null) continue;
                         if (!conePool.TryGetValue(playerRig, out GameObject adminConeObject))
                         {
