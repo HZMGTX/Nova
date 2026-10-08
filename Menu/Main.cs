@@ -6719,7 +6719,7 @@ jgs \_   _/ |Oo\
         public static int buttonClickSound = 8;
         public static int buttonClickVolume = 4;
         public static int buttonOffset = 0;
-        public static int menuButtonIndex = 1;
+        public static int menuButtonIndex = 4; // Left joystick click; a saved choice still overrides this
         public static bool toggleButton;
         public static bool toggleButtonHeld;
         public static bool toggleButtonActive;
