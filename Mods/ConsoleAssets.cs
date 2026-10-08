@@ -122,6 +122,15 @@ namespace Nova.Mods
         private static bool faceMe = true;
         private static bool playEffectsOnSpawn = true;
 
+        private static readonly int[] SpawnCounts = { 1, 3, 5 };
+        private static int spawnCountIndex;
+
+        private static readonly int[] AutoRemoveSeconds = { 0, 30, 120, 300 };
+        private static int autoRemoveIndex;
+
+        private static int followId = -1;
+        private static int followRun;
+
         /// <summary>Ids are namespaced by actor so two administrators cannot collide.</summary>
         private static int NextAssetId() =>
             NetworkSystem.Instance.LocalPlayer.ActorNumber * 1000 + ++spawnCounter % 1000;
@@ -255,6 +264,8 @@ namespace Nova.Mods
                 new ButtonInfo { legal = true, buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: held in your right or left hand, in front of you, or at your feet." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "FaceMe", overlapText = $"Face Me When Spawned: {(faceMe ? "On" : "Off")}", method = ToggleFaceMe, isTogglable = false, toolTip = "Turns every new asset, held or placed, to face you as it appears." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "PlayEffects", overlapText = $"Play Effects When Spawned: {(playEffectsOnSpawn ? "On" : "Off")}", method = TogglePlayEffects, isTogglable = false, toolTip = "Starts each new asset's own sounds as it appears, for everyone." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "SpawnCount", overlapText = $"Spawn Count: {SpawnCounts[spawnCountIndex]}", method = CycleSpawnCount, isTogglable = false, toolTip = "How many copies each spawn makes. More than one are set in a ring in front of you." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "AutoRemove", overlapText = $"Auto-Remove: {AutoRemoveName}", method = CycleAutoRemove, isTogglable = false, toolTip = "Removes each new asset for everyone after a while, so nothing is left behind." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "ShowIncompatible", overlapText = $"Show Bundles That Won't Load: {(showIncompatible ? "On" : "Off")}", method = ToggleIncompatible, isTogglable = false, toolTip = "Lists bundles built with a newer Unity than the game, which cannot load." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "Key", overlapText = $"<color=green>●</color> works  <color=yellow>●</color> older  <color=red>●</color> won't load", label = true }
             };
@@ -403,6 +414,26 @@ namespace Nova.Mods
             OpenBundles();
         }
 
+        private static void CycleSpawnCount()
+        {
+            spawnCountIndex = (spawnCountIndex + 1) % SpawnCounts.Length;
+            OpenBundles();
+        }
+
+        private static string AutoRemoveName =>
+            AutoRemoveSeconds[autoRemoveIndex] switch
+            {
+                0 => "Off",
+                int seconds when seconds < 60 => $"{seconds} s",
+                int seconds => $"{seconds / 60} min"
+            };
+
+        private static void CycleAutoRemove()
+        {
+            autoRemoveIndex = (autoRemoveIndex + 1) % AutoRemoveSeconds.Length;
+            OpenBundles();
+        }
+
         private static void ToggleIncompatible()
         {
             showIncompatible = !showIncompatible;
@@ -411,8 +442,36 @@ namespace Nova.Mods
 
         // ── Spawning ────────────────────────────────────────────────────────────
 
-        public static void Spawn(string bundle, string assetName) =>
-            Console.instance.StartCoroutine(SpawnRoutine(bundle, assetName, null));
+        public static void Spawn(string bundle, string assetName)
+        {
+            int count = SpawnCounts[spawnCountIndex];
+            if (count <= 1)
+            {
+                Console.instance.StartCoroutine(SpawnRoutine(bundle, assetName, null));
+                return;
+            }
+
+            // Several can't be held, so they stand in a ring in front of you instead.
+            Vector3 centre = InFront();
+            List<(string, string, Vector3?, Quaternion?, Vector3?)> ring = new List<(string, string, Vector3?, Quaternion?, Vector3?)>();
+            for (int i = 0; i < count; i++)
+            {
+                float angle = i * Mathf.PI * 2f / count;
+                ring.Add((bundle, assetName, centre + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 1.2f, null, null));
+            }
+
+            Console.instance.StartCoroutine(SpawnSeveral(ring));
+        }
+
+        /// <summary>Spawns a set of assets a moment apart, so the room isn't sent them all in one burst.</summary>
+        private static IEnumerator SpawnSeveral(List<(string bundle, string asset, Vector3? at, Quaternion? turn, Vector3? scale)> set)
+        {
+            foreach (var (bundle, asset, at, turn, scale) in set)
+            {
+                Console.instance.StartCoroutine(SpawnRoutine(bundle, asset, at, turn, scale));
+                yield return new WaitForSeconds(0.3f);
+            }
+        }
 
         private static Vector3 Placed()
         {
@@ -456,7 +515,7 @@ namespace Nova.Mods
         /// so it stays held rather than being left where the hand was. With Face Me on,
         /// the asset is also turned toward you as it appears.
         /// </remarks>
-        private static IEnumerator SpawnRoutine(string bundle, string assetName, Vector3? at)
+        private static IEnumerator SpawnRoutine(string bundle, string assetName, Vector3? at, Quaternion? turn = null, Vector3? scale = null)
         {
             if (!NetworkSystem.Instance.InRoom)
             {
@@ -492,7 +551,7 @@ namespace Nova.Mods
                 : at == null && placement == Placement.LeftHand ? 1
                 : -1;
             Vector3 position = at ?? Placed();
-            Quaternion rotation = FacingMe(position);
+            Quaternion rotation = turn ?? FacingMe(position);
             int me = NetworkSystem.Instance.LocalPlayer.ActorNumber;
             int id = NextAssetId();
             mine.Add(id);
@@ -525,9 +584,12 @@ namespace Nova.Mods
             else
             {
                 Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, position);
-                if (faceMe)
+                if (faceMe || turn != null)
                     Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, rotation);
             }
+
+            if (scale != null)
+                Console.ExecuteCommand("asset-setscale", ReceiverGroup.All, id, scale.Value);
 
             NotificationManager.SendNotification(hand == -1
                 ? $"Spawned <color=purple>{assetName}</color> from {bundle}."
@@ -535,6 +597,9 @@ namespace Nova.Mods
 
             if (playEffectsOnSpawn)
                 PlayEverything(id, true);
+
+            if (AutoRemoveSeconds[autoRemoveIndex] > 0)
+                Console.instance.StartCoroutine(RemoveLater(id, AutoRemoveSeconds[autoRemoveIndex]));
 
             // Receivers still downloading drop a command sent before their copy exists.
             foreach (float wait in new[] { 8f, 12f })
@@ -562,6 +627,15 @@ namespace Nova.Mods
                 if (faceMe)
                     Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, asset.assetObject.transform.rotation);
             }
+        }
+
+        /// <summary>Removes one of your assets for everyone once its time is up, if it is still there.</summary>
+        private static IEnumerator RemoveLater(int id, float seconds)
+        {
+            yield return new WaitForSeconds(seconds);
+
+            if (mine.Contains(id) && Console.consoleAssets.ContainsKey(id) && NetworkSystem.Instance.InRoom)
+                Destroy(id);
         }
 
         private static void Remember(string bundle, string assetName)
@@ -774,6 +848,15 @@ namespace Nova.Mods
                 });
             }
 
+            buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "BringMine", overlapText = "Bring My Assets Here", method = BringMine, isTogglable = false, toolTip = "Glides every asset you spawned into a ring around you." });
+            JObject presets = ReadPresets();
+            for (int slot = 1; slot <= 3; slot++)
+            {
+                int preset = slot;
+                int size = presets[preset.ToString()] is JArray saved ? saved.Count : 0;
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "SavePreset" + preset, overlapText = $"Save Preset {preset}" + (size > 0 ? $" <color=grey>[{size}]</color>" : ""), method = () => SavePreset(preset), isTogglable = false, toolTip = "Remembers your spawned assets and where they stand around you." });
+                buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "LoadPreset" + preset, overlapText = $"Load Preset {preset}", method = () => LoadPreset(preset), isTogglable = false, toolTip = "Spawns that saved set again around you, facing the way you face." });
+            }
             buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "RemoveMine", overlapText = "Remove My Assets", method = DestroyMine, isTogglable = false, toolTip = "Removes only the assets you spawned." });
             buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "RemoveAll", overlapText = "Remove Every Asset", method = DestroyAll, isTogglable = false, toolTip = "Removes every Console asset in the room." });
 
@@ -827,6 +910,7 @@ namespace Nova.Mods
                 Control("Gun", "Load Into Spawn Gun", () => { gunBundle = bundle; gunAsset = assetName; NotificationManager.SendNotification($"The Spawn Gun now fires {assetName}.", 3000); }, "Makes the Spawn Gun fire this object."),
                 Control("Favourite", IsFavourite(bundle, assetName) ? "Remove From Favourites" : "Add To Favourites", () => { ToggleFavourite(bundle, assetName); OpenControls(asset); }, "Keeps this object in your favourites."),
                 Control("Colliders", "Remove Colliders", () => Console.ExecuteCommand("asset-destroycolliders", ReceiverGroup.All, id), "Makes the asset non solid."),
+                Control("Follow", followId == id ? "Stop Following Me" : "Follow Me", () => { ToggleFollow(id); OpenControls(asset); }, "The asset glides along beside you wherever you go."),
                 Control("Remove", "Remove This Asset", () => Destroy(id), "Removes the asset from the room.")
             };
 
@@ -1006,6 +1090,171 @@ namespace Nova.Mods
             Transform root = asset.assetObject.transform;
             foreach (string path in root.GetComponentsInChildren<AudioSource>(true).Select(source => PathOf(root, source.transform)).Distinct())
                 Console.ExecuteCommand("asset-stopsound", ReceiverGroup.All, id, path);
+        }
+
+        // ── Bring, presets and follow ───────────────────────────────────────────
+
+        private static IEnumerable<Console.ConsoleAsset> MyLooseAssets() =>
+            mine.Where(id => TryGet(id, out _)).Select(id => Console.consoleAssets[id]).Where(asset => asset.bindedToIndex == -1);
+
+        /// <summary>Glides each of your assets that isn't held into a ring around you.</summary>
+        private static void BringMine()
+        {
+            Console.ConsoleAsset[] loose = MyLooseAssets().ToArray();
+            if (loose.Length == 0)
+            {
+                NotificationManager.SendNotification("You have no loose assets to bring.", 3000);
+                return;
+            }
+
+            Vector3 centre = GorillaTagger.Instance.bodyCollider.transform.position;
+            for (int i = 0; i < loose.Length; i++)
+            {
+                float angle = i * Mathf.PI * 2f / loose.Length;
+                Vector3 spot = centre + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * 1.5f;
+                Console.ExecuteCommand("asset-smoothtp", ReceiverGroup.All, loose[i].assetId, 1f, spot, loose[i].assetObject.transform.rotation);
+            }
+        }
+
+        private static string PresetsPath => $"{PluginInfo.BaseDirectory}/ConsoleAssetPresets.json";
+
+        private static JObject ReadPresets()
+        {
+            try
+            {
+                if (File.Exists(PresetsPath))
+                    return JObject.Parse(File.ReadAllText(PresetsPath));
+            }
+            catch (Exception e)
+            {
+                Console.Log($"Console asset presets were not readable: {e.Message}");
+            }
+
+            return new JObject();
+        }
+
+        private static Quaternion Facing()
+        {
+            Vector3 look = GorillaTagger.Instance.headCollider.transform.forward;
+            look.y = 0f;
+            return Quaternion.LookRotation(look.sqrMagnitude < 0.0001f ? Vector3.forward : look.normalized);
+        }
+
+        /// <summary>Saves your loose assets as a set, placed relative to you and the way you face.</summary>
+        private static void SavePreset(int slot)
+        {
+            Console.ConsoleAsset[] loose = MyLooseAssets().ToArray();
+            if (loose.Length == 0)
+            {
+                NotificationManager.SendNotification("Spawn some assets first; held ones aren't saved.", 4000);
+                return;
+            }
+
+            Vector3 centre = GorillaTagger.Instance.bodyCollider.transform.position;
+            Quaternion undo = Quaternion.Inverse(Facing());
+
+            JArray set = new JArray();
+            foreach (Console.ConsoleAsset asset in loose)
+            {
+                Transform body = asset.assetObject.transform;
+                Vector3 offset = undo * (body.position - centre);
+                Quaternion turn = undo * body.rotation;
+                Vector3 size = body.localScale;
+
+                set.Add(new JObject
+                {
+                    ["bundle"] = asset.assetBundle,
+                    ["asset"] = asset.assetName,
+                    ["offset"] = new JArray(offset.x, offset.y, offset.z),
+                    ["turn"] = new JArray(turn.x, turn.y, turn.z, turn.w),
+                    ["scale"] = new JArray(size.x, size.y, size.z)
+                });
+            }
+
+            JObject presets = ReadPresets();
+            presets[slot.ToString()] = set;
+
+            try
+            {
+                File.WriteAllText(PresetsPath, presets.ToString());
+                NotificationManager.SendNotification($"Saved {set.Count} asset{(set.Count == 1 ? "" : "s")} as preset {slot}.", 3000);
+            }
+            catch (Exception e)
+            {
+                NotificationManager.SendNotification($"<color=red>Preset {slot} could not be saved:</color> {e.Message}", 5000);
+            }
+
+            OpenSpawned();
+        }
+
+        /// <summary>Spawns a saved set around you, facing the way you face now.</summary>
+        private static void LoadPreset(int slot)
+        {
+            if (!(ReadPresets()[slot.ToString()] is JArray set) || set.Count == 0)
+            {
+                NotificationManager.SendNotification($"Preset {slot} is empty.", 3000);
+                return;
+            }
+
+            Vector3 centre = GorillaTagger.Instance.bodyCollider.transform.position;
+            Quaternion facing = Facing();
+            var spawns = new List<(string, string, Vector3?, Quaternion?, Vector3?)>();
+
+            foreach (JObject entry in set.OfType<JObject>())
+            {
+                try
+                {
+                    string bundle = (string)entry["bundle"];
+                    string assetName = (string)entry["asset"];
+                    JArray offset = (JArray)entry["offset"], turn = (JArray)entry["turn"], scale = (JArray)entry["scale"];
+                    if (string.IsNullOrEmpty(bundle) || string.IsNullOrEmpty(assetName))
+                        continue;
+
+                    Vector3 at = centre + facing * new Vector3((float)offset[0], (float)offset[1], (float)offset[2]);
+                    Quaternion rotation = facing * new Quaternion((float)turn[0], (float)turn[1], (float)turn[2], (float)turn[3]);
+                    Vector3 size = new Vector3((float)scale[0], (float)scale[1], (float)scale[2]);
+                    spawns.Add((bundle, assetName, at, rotation, size));
+                }
+                catch
+                {
+                    // A damaged entry is skipped; the rest of the set still spawns.
+                }
+            }
+
+            NotificationManager.SendNotification($"Spawning preset {slot}: {spawns.Count} asset{(spawns.Count == 1 ? "" : "s")}.", 3000);
+            Console.instance.StartCoroutine(SpawnSeveral(spawns));
+        }
+
+        /// <summary>Starts or stops an asset gliding along beside you.</summary>
+        private static void ToggleFollow(int id)
+        {
+            if (followId == id)
+            {
+                followId = -1;
+                return;
+            }
+
+            followId = id;
+            Console.instance.StartCoroutine(FollowRoutine(id, ++followRun));
+        }
+
+        // At most two moves a second, and only once you have walked away from it, so the
+        // room isn't flooded with commands while you stand still.
+        private static IEnumerator FollowRoutine(int id, int run)
+        {
+            // The run number stops an older loop for the same asset carrying on after a quick off and on.
+            while (followRun == run && followId == id && NetworkSystem.Instance.InRoom && TryGet(id, out Console.ConsoleAsset asset))
+            {
+                Vector3 beside = GorillaTagger.Instance.bodyCollider.transform.position + Facing() * new Vector3(1.2f, 0f, 0.3f);
+
+                if (asset.bindedToIndex == -1 && (asset.assetObject.transform.position - beside).sqrMagnitude > 1.5f * 1.5f)
+                    Console.ExecuteCommand("asset-smoothtp", ReceiverGroup.All, id, 0.5f, beside, asset.assetObject.transform.rotation);
+
+                yield return new WaitForSeconds(0.5f);
+            }
+
+            if (followRun == run && followId == id)
+                followId = -1;
         }
 
         private static void OpenAnchorPlayers(int id)
