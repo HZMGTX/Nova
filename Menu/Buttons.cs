@@ -2296,6 +2296,10 @@ namespace Poison.Menu
                 new ButtonInfo { buttonText = "Exit Admin Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
                 new ButtonInfo { buttonText = "Mod Givers", method =() => CurrentCategoryName = "Mod Givers", isTogglable = false, toolTip = "Opens the mod givers page.", legal = true},
+                new ButtonInfo { buttonText = "Console Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Browse the asset bundles Console hosts and spawn them into the room."},
+                new ButtonInfo { buttonText = "Console Spawn Gun", method = ConsoleAssets.SpawnGun, toolTip = "Hold grip to aim, pull trigger to spawn your last Console asset where you point."},
+                new ButtonInfo { buttonText = "Console Move Gun", method = ConsoleAssets.MoveGun, toolTip = "Hold grip to aim, pull trigger to move the selected Console asset where you point."},
+                new ButtonInfo { buttonText = "Console Delete Gun", method = ConsoleAssets.DeleteGun, toolTip = "Hold grip to aim, pull trigger to remove the Console asset you point at."},
 
                 new ButtonInfo { buttonText = "Get Menu Users", method = Experimental.GetMenuUsers, isTogglable = false, toolTip = "Detects who is using the menu.", legal = true},
                 new ButtonInfo { buttonText = "Auto Get Menu Users", enableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent += Experimental.GetMenuUsers, disableMethod =() => NetworkSystem.Instance.OnJoinedRoomEvent -= Experimental.GetMenuUsers, isTogglable = true, toolTip = "Detects who is using the menu on room join.", legal = true},
@@ -2776,6 +2780,29 @@ namespace Poison.Menu
             new[] // Sound Properties [50]
             {
                 new ButtonInfo { buttonText = "Exit Sound's Properties", method = () => CurrentCategoryName = "Soundboard", isTogglable = false, toolTip = "Returns you back to the Soundboard page.", legal = true}
+            },
+
+            // The four Console asset pages are filled in by Mods/ConsoleAssets.cs as you walk
+            // into them: the bundle list comes from the server, and the rest depend on which
+            // bundle and which spawned object you picked.
+            new[] // Console Assets [51]
+            {
+                new ButtonInfo { buttonText = "Exit Console Assets", method =() => CurrentCategoryName = "Admin Mods", isTogglable = false, toolTip = "Returns you back to the admin mods."}
+            },
+
+            new[] // Console Objects [52]
+            {
+                new ButtonInfo { buttonText = "Exit Console Objects", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+            },
+
+            new[] // Spawned Assets [53]
+            {
+                new ButtonInfo { buttonText = "Exit Spawned Assets", method = ConsoleAssets.OpenBundles, isTogglable = false, toolTip = "Returns you back to the bundle list."}
+            },
+
+            new[] // Console Asset Control [54]
+            {
+                new ButtonInfo { buttonText = "Exit Asset Control", method = ConsoleAssets.OpenSpawned, isTogglable = false, toolTip = "Returns you back to the spawned assets."}
             }
         };
 
@@ -2830,7 +2857,11 @@ namespace Poison.Menu
             "Patreon Mods",
             "Patreon Settings",
             "Voice Changers",
-            "Sound Properties"
+            "Sound Properties",
+            "Console Assets",
+            "Console Objects",
+            "Spawned Assets",
+            "Console Asset Control"
         };
 
         public static int _currentCategoryIndex;

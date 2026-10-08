@@ -119,6 +119,10 @@ namespace Poison.Menu
             {
                 ConsoleObject.AddComponent<FriendManager>();
                 ConsoleObject.AddComponent<PatreonManager>();
+
+                // Picks up bundles added to Console since this build, with their Unity
+                // versions. The browser falls back to the list it shipped with.
+                Console.instance.StartCoroutine(ConsoleAssets.RefreshManifest());
             }
 
             try
