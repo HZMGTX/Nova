@@ -5790,7 +5790,10 @@ exit 0";
             {
                 string data = File.ReadAllText(fileName);
                 string[] lines = data.Split('\n');
-                pcBindings.Clear();
+
+                // The file's bindings are laid over the defaults rather than replacing them,
+                // so a file missing a line (from an older version) keeps that one default
+                // instead of breaking every key the menu reads.
 
                 foreach (string line in lines)
                 {

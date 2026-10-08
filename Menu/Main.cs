@@ -432,13 +432,15 @@ namespace Nova.Menu
 
                 buttonCondition |= isKeyboardCondition;
                 buttonCondition |= inTextInput;
-                buttonCondition &= !Lockdown;
 
                 if (watchMenu)
                     buttonCondition = isKeyboardCondition;
 
                 if (barkMenu)
                     buttonCondition = isKeyboardCondition || barkMenuOpen;
+
+                // Applied last, so the watch and bark menus can't open it during a lockdown.
+                buttonCondition &= !Lockdown;
 
                 if (Hud.InUse)
                 {
@@ -465,16 +467,16 @@ namespace Nova.Menu
                 #region Get Camera
                 try
                 {
-                    if (TPC == null)
+                    // Looked for at most once a second while missing, without throwing, instead
+                    // of two failed searches and two exceptions every frame.
+                    if (TPC == null && Time.time >= nextCameraLookup)
                     {
-                        try
-                        {
-                            TPC = GetObject("Player Objects/Third Person Camera/Shoulder Camera").GetComponent<Camera>();
-                        }
-                        catch
-                        {
-                            TPC = GetObject("Shoulder Camera").GetComponent<Camera>();
-                        }
+                        nextCameraLookup = Time.time + 1f;
+                        GameObject shoulder = GetObject("Player Objects/Third Person Camera/Shoulder Camera");
+                        if (shoulder == null)
+                            shoulder = GetObject("Shoulder Camera");
+                        if (shoulder != null)
+                            TPC = shoulder.GetComponent<Camera>();
                     }
                 }
                 catch { }
@@ -528,7 +530,7 @@ namespace Nova.Menu
 
                 if (adminTime != null && NetworkSystem.Instance.InRoom)
                 {
-                    if (PhotonNetwork.PlayerListOthers.Any(player => ServerData.Administrators.ContainsKey(player.UserId) && !Console.excludedCones.Contains(player)))
+                    if (AdministratorInRoom())
                     {
                         adminTime += Time.unscaledDeltaTime;
                         if (adminTime > 10f)
@@ -795,8 +797,8 @@ namespace Nova.Menu
                     }
                     else if (RecorderPatch.enabled)
                     {
-                        bool enabled = (VoiceManager.Get().AudioClips.Any() && !Sound.disableLocalSoundboard)
-                         || VoiceManager.Get().PostProcessors.Any()
+                        bool enabled = (VoiceManager.Get().AudioClipCount > 0 && !Sound.disableLocalSoundboard)
+                         || VoiceManager.Get().PostProcessors.Count > 0
                          || VoiceManager.Get().Pitch != 1f;
 
                         if (toggleDebugEchoMode != enabled)
@@ -994,7 +996,7 @@ namespace Nova.Menu
                     {
                         if (js.y > 0.5f)
                         {
-                            pageOffset = Mathf.Clamp(pageOffset - 1, 0, DisplayedItemCount - PageSize);
+                            pageOffset = Mathf.Clamp(pageOffset - 1, 0, Mathf.Max(0, DisplayedItemCount - PageSize));
 
                             shouldReload = true;
                             scrollDelay = Time.time + 0.1f;
@@ -1002,7 +1004,7 @@ namespace Nova.Menu
 
                         if (js.y < -0.5f)
                         {
-                            pageOffset = Mathf.Clamp(pageOffset + 1, 0, DisplayedItemCount - PageSize);
+                            pageOffset = Mathf.Clamp(pageOffset + 1, 0, Mathf.Max(0, DisplayedItemCount - PageSize));
 
                             shouldReload = true;
                             scrollDelay = Time.time + 0.1f;
@@ -1037,6 +1039,11 @@ namespace Nova.Menu
                         }
 
                         TextMeshProUGUI watchText = Watches[0].text;
+
+                        // The list can shrink under the selection (a mod turned off on the
+                        // Enabled Mods page); reading past its end used to freeze the watch.
+                        if (watchMenuIndex >= toSortOf.Length || watchMenuIndex < 0)
+                            watchMenuIndex = 0;
 
                         string text = toSortOf[watchMenuIndex].buttonText;
 
@@ -1271,7 +1278,9 @@ namespace Nova.Menu
                                     Toggle(modName, true, true);
                             }
 
-                            if (ToggleBindings) continue;
+                            // A one-shot button fires once per press above; it never becomes
+                            // "enabled", so the hold logic below would fire it every frame.
+                            if (ToggleBindings || !buttonInfo.isTogglable) continue;
                             if ((bindValue && !buttonInfo.enabled) || (!bindValue && buttonInfo.enabled))
                                 Toggle(modName, true, true);
                         }
@@ -1307,10 +1316,15 @@ namespace Nova.Menu
                             GunLine.gameObject.SetActive(false);
                     }
 
-                    List<(long, float, PrimitiveType)> toRemoveVisualize = new List<(long, float, PrimitiveType)>();
+                    // Reused every frame, and anything destroyed elsewhere is dropped rather
+                    // than throwing on every frame from then on.
+                    List<(long, float, PrimitiveType)> toRemoveVisualize = staleVisuals;
+                    toRemoveVisualize.Clear();
                     foreach (KeyValuePair<(long, float, PrimitiveType), GameObject> key in Visuals.visualizePool)
                     {
-                        if (!key.Value.activeSelf)
+                        if (key.Value == null)
+                            toRemoveVisualize.Add(key.Key);
+                        else if (!key.Value.activeSelf)
                         {
                             toRemoveVisualize.Add(key.Key);
                             Destroy(key.Value);
@@ -1321,10 +1335,13 @@ namespace Nova.Menu
                     foreach (var item in toRemoveVisualize)
                         Visuals.visualizePool.Remove(item);
 
-                    List<string> toRemoveLabel = new List<string>();
+                    List<string> toRemoveLabel = staleLabels;
+                    toRemoveLabel.Clear();
                     foreach (KeyValuePair<string, GameObject> label in Visuals.labelDictionary)
                     {
-                        if (!label.Value.activeSelf)
+                        if (label.Value == null)
+                            toRemoveLabel.Add(label.Key);
+                        else if (!label.Value.activeSelf)
                         {
                             toRemoveLabel.Add(label.Key);
                             Destroy(label.Value);
@@ -1350,13 +1367,15 @@ namespace Nova.Menu
                     {
                         if (!(button.enabled || button.label)) continue;
                         if (button.method == null && button.postMethod == null) continue;
-                        if (button.postMethod != null) postActions.Add(button.buttonText);
+
+                        // A detected mod that isn't allowed is skipped on its own. This used to
+                        // return from the whole update, so every mod after it stopped running.
+                        if (button.detected && !allowDetected) continue;
+
+                        if (button.postMethod != null) postActions.Add(button);
                         if (button.firstFrame) button.firstFrame = false;
                         else if (button.method != null)
-                        {
-                            if (button.detected && !allowDetected) return;
-                            InvokeButton(button, button.method.Invoke);
-                        }
+                            InvokeButton(button, button.method);
                     }
                 }
                 #endregion
@@ -1366,17 +1385,41 @@ namespace Nova.Menu
                 LogManager.LogError($"Error with prefix at {exc.StackTrace}: {exc.Message}");
             }
         }
-        private static readonly List<string> postActions = new List<string>();
+        // The buttons themselves, so the right one runs even when two share a name, and no
+        // lookup or delegate is made for each of them every frame.
+        private static readonly List<ButtonInfo> postActions = new List<ButtonInfo>();
+        private static readonly List<(long, float, PrimitiveType)> staleVisuals = new List<(long, float, PrimitiveType)>();
+        private static readonly List<string> staleLabels = new List<string>();
+        private static float nextCameraLookup;
+
+        /// <summary>Whether a Console administrator other than you is in the room, without allocating.</summary>
+        private static bool AdministratorInRoom()
+        {
+            foreach (Player player in PhotonNetwork.CurrentRoom.Players.Values)
+                if (!player.IsLocal && player.UserId != null && ServerData.Administrators.ContainsKey(player.UserId) && !Console.excludedCones.Contains(player))
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>Turns the shoulder camera's virtual camera on or off, if it is there.</summary>
+        private static void SetShoulderCameraActive(bool active)
+        {
+            GameObject shoulder = GetObject("Shoulder Camera");
+            Transform virtualCamera = shoulder != null ? shoulder.transform.Find("CM vcam1") : null;
+            if (virtualCamera != null)
+                virtualCamera.gameObject.SetActive(active);
+        }
+
         public static void Postfix()
         {
             try
             {
-                foreach (string buttonName in postActions)
+                foreach (ButtonInfo button in postActions)
                 {
                     try
                     {
-                        ButtonInfo button = Buttons.GetIndex(buttonName);
-                        try { InvokeButton(button, button.postMethod.Invoke); }
+                        try { InvokeButton(button, button.postMethod); }
                         catch (Exception exc)
                         {
                             LogManager.LogError($"Error with mod postMethod {button.buttonText} at {exc.StackTrace}: {exc.Message}");
@@ -3058,7 +3101,7 @@ namespace Nova.Menu
             }
             if (isKeyboardCondition)
             {
-                GetObject("Shoulder Camera")?.transform.Find("CM vcam1").gameObject.SetActive(false);
+                SetShoulderCameraActive(false);
                 if (TPC != null)
                 {
                     isOnPC = true;
@@ -3214,7 +3257,7 @@ namespace Nova.Menu
             }
             catch { }
 
-            GetObject("Shoulder Camera")?.transform.Find("CM vcam1").gameObject.SetActive(true);
+            SetShoulderCameraActive(true);
             if (dynamicSounds)
                 SoundManager.Play(SoundManager.DefaultSounds["Close"], global: true);
 
@@ -5113,8 +5156,14 @@ namespace Nova.Menu
         /// </remarks>
         public static GameObject GetObject(string find)
         {
+            // A cached object destroyed since (a map reload) is looked up again rather than
+            // handed back dead forever.
             if (objectPool.TryGetValue(find, out GameObject go))
-                return go;
+            {
+                if (go != null)
+                    return go;
+                objectPool.Remove(find);
+            }
 
             GameObject tgo = GameObject.Find(find);
             if (!tgo && find.Contains("/"))
@@ -5950,7 +5999,7 @@ namespace Nova.Menu
 
                         pageNumber--;
                         if (pageNumber < 0)
-                            pageNumber = LastPage;
+                            pageNumber = Mathf.Max(0, LastPage);
                         break;
                     }
                 case "NextPage":
@@ -5959,7 +6008,7 @@ namespace Nova.Menu
                             lastClickedName = "NextPage";
 
                         pageNumber++;
-                        pageNumber %= LastPage + 1;
+                        pageNumber = LastPage < 0 ? 0 : pageNumber % (LastPage + 1);
                         break;
                     }
                 default:
@@ -6026,7 +6075,7 @@ namespace Nova.Menu
                                                     target.rebindKey = BindInput;
                                                     VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
                                                     Preferences.Save();
-                                                    NotificationManager.SendNotification("<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully rebinded mod to {BindInput}.");
+                                                    NotificationManager.SendNotification($"<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully rebinded mod to {BindInput}.");
                                                 }
                                             }
                                             else
@@ -6258,7 +6307,7 @@ namespace Nova.Menu
                                     {
                                         target.rebindKey = BindInput;
                                         VRRig.LocalRig.PlayHandTapLocal(50, rightHand, 0.4f);
-                                        NotificationManager.SendNotification("<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully rebinded mod to {BindInput}.");
+                                        NotificationManager.SendNotification($"<color=grey>[</color><color=purple>BINDS</color><color=grey>]</color> Successfully rebinded mod to {BindInput}.");
                                     }
                                 }
                                 else

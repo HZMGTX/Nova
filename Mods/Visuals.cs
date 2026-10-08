@@ -6282,6 +6282,9 @@ namespace Nova.Mods
 
             foreach (TextMeshPro TextMeshPro in nameTagPool)
             {
+                if (TextMeshPro == null)
+                    continue;
+
                 if (destroy || isNameTagQueued)
                     Object.Destroy(TextMeshPro.gameObject);
                 else
@@ -6349,6 +6352,9 @@ namespace Nova.Mods
 
             foreach (LineRenderer line in linePool)
             {
+                if (line == null)
+                    continue;
+
                 if (destroy || isLineRenderQueued)
                     Object.Destroy(line.gameObject);
                 else
@@ -6357,6 +6363,10 @@ namespace Nova.Mods
 
             if (destroy || isLineRenderQueued)
                 linePool.Clear();
+
+            // Cleared like the name tag pool's flag; left set, every line was destroyed and
+            // made again every frame for the rest of the session after one tracer mod was off.
+            isLineRenderQueued = false;
         }
 
         public static void ConsoleBeacon(string id, string version, string menuName)

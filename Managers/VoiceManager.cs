@@ -111,6 +111,18 @@ namespace Nova.Managers
             StartRecording(device);
         }
 
+        /// <summary>How many clips are playing, without copying the list.</summary>
+        public int AudioClipCount
+        {
+            get
+            {
+                lock (audioClipsLock)
+                {
+                    return audioClips.Count;
+                }
+            }
+        }
+
         /// <summary>
         /// A read-only list of AudioClips currently playing.
         /// </summary>
