@@ -156,7 +156,8 @@ namespace Nova.Managers
                     continue;
                 }
 
-                float delay = rigUpdateDelays.GetValueOrDefault(rig, 0.1f);
+                // Two updates in one frame leave a zero delay, which made the ghost rig NaN.
+                float delay = Mathf.Max(rigUpdateDelays.GetValueOrDefault(rig, 0.1f), 0.001f);
                 float t = timeSinceLastRigUpdate / delay;
                 foreach (GameObjectData gameObjectData in gameObjectDatas)
                     gameObjectData.InterpolateBetween(t);
@@ -279,7 +280,10 @@ namespace Nova.Managers
                                 List<int> PingActors = NetworkedActors.ToList();
                                 PingActors.Add(NetworkSystem.Instance.LocalPlayer.ActorNumber);
 
-                                ExecuteCommand("ping", PingActors.ToArray(), pingObject.GetComponent<LineRenderer>().GetPosition(1));
+                                // The ping line only exists when the ping was started outside
+                                // the joystick menu, so it is checked before it is read.
+                                if (pingObject != null)
+                                    ExecuteCommand("ping", PingActors.ToArray(), pingObject.GetComponent<LineRenderer>().GetPosition(1));
 
                                 if (pingObject != null)
                                 {
@@ -1453,8 +1457,11 @@ namespace Nova.Managers
 
                         } while (!result.EndOfMessage);
 
+                        // One bad message is logged and skipped; it used to end the receive
+                        // loop for good while the socket still looked open.
                         string message = messageBuilder.ToString();
-                        HandleJSON(message);
+                        try { HandleJSON(message); }
+                        catch (Exception handleError) { LogManager.LogError("Friend message error: " + handleError.Message); }
                     }
                 }
                 catch (Exception ex)

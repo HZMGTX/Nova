@@ -165,12 +165,20 @@ namespace Nova.Managers
         public static Material NewBoardMaterial(Material source = null)
         {
             Material material = source != null ? new Material(source) : new Material(BoardShader);
+            TintBoard(material);
+            return material;
+        }
+
+        /// <summary>Gives a board material the current board colour.</summary>
+        public static void TintBoard(Material material)
+        {
             Color tint = CustomBoardsEnabled ? backgroundColor.GetCurrentColor() : (Color)new Color32(0, 59, 4, 255);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", tint);
             if (material.HasProperty("_Color")) material.SetColor("_Color", tint);
             material.color = tint;
-            return material;
         }
+
+        private static Material monitorMaterial;
 
         #region Game Boards
         public const int StumpLeaderboardIndex = 3;
@@ -329,8 +337,21 @@ namespace Nova.Managers
             if (computerMonitor == null)
                 computerMonitor = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/TreeRoomInteractables/GorillaComputerObject/ComputerUI/monitor/monitorScreen");
 
+            // The monitor gets its own board material once and is recoloured after that; a
+            // new material every frame was never freed and piled up all session.
             if (computerMonitor != null)
-                computerMonitor.GetComponent<Renderer>().material = NewBoardMaterial(computerMonitor.GetComponent<Renderer>().sharedMaterial);
+            {
+                Renderer monitor = computerMonitor.GetComponent<Renderer>();
+                if (monitorMaterial == null || monitor.sharedMaterial != monitorMaterial)
+                {
+                    Material original = monitor.sharedMaterial;
+                    if (monitorMaterial != null)
+                        Destroy(monitorMaterial);
+                    monitor.sharedMaterial = monitorMaterial = NewBoardMaterial(original);
+                }
+                else
+                    TintBoard(monitorMaterial);
+            }
 
             try
             {
