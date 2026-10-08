@@ -116,8 +116,10 @@ namespace Nova.Mods
         private static readonly List<(string bundle, string asset)> recent = new List<(string, string)>();
         private static readonly HashSet<int> mine = new HashSet<int>();
 
-        private enum Placement { InFront, RightHand, Feet }
-        private static Placement placement = Placement.InFront;
+        // The hands come first: a new asset goes into your right hand unless you choose otherwise.
+        private enum Placement { RightHand, LeftHand, InFront, Feet }
+        private static Placement placement = Placement.RightHand;
+        private static bool faceMe = true;
 
         /// <summary>Ids are namespaced by actor so two administrators cannot collide.</summary>
         private static int NextAssetId() =>
@@ -248,7 +250,8 @@ namespace Nova.Mods
                 new ButtonInfo { legal = true, buttonText = Prefix + "Favourites", overlapText = $"Favourites <color=grey>[{Favourites.Count}]</color>", method = OpenFavourites, isTogglable = false, toolTip = "Objects you have favourited, ready to spawn." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "Recent", overlapText = $"Recently Spawned <color=grey>[{recent.Count}]</color>", method = OpenRecent, isTogglable = false, toolTip = "The last objects you spawned." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "RespawnLast", overlapText = "Respawn Last", method = RespawnLast, isTogglable = false, toolTip = "Spawns the last object you spawned again." },
-                new ButtonInfo { legal = true, buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: in front of you, at your right hand, or at your feet." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "Placement", overlapText = $"Spawn Position: {PlacementName}", method = CyclePlacement, isTogglable = false, toolTip = "Where new assets appear: held in your right or left hand, in front of you, or at your feet." },
+                new ButtonInfo { legal = true, buttonText = Prefix + "FaceMe", overlapText = $"Face Me When Spawned: {(faceMe ? "On" : "Off")}", method = ToggleFaceMe, isTogglable = false, toolTip = "Turns every new asset, held or placed, to face you as it appears." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "ShowIncompatible", overlapText = $"Show Bundles That Won't Load: {(showIncompatible ? "On" : "Off")}", method = ToggleIncompatible, isTogglable = false, toolTip = "Lists bundles built with a newer Unity than the game, which cannot load." },
                 new ButtonInfo { legal = true, buttonText = Prefix + "Key", overlapText = $"<color=green>●</color> works  <color=yellow>●</color> older  <color=red>●</color> won't load", label = true }
             };
@@ -373,14 +376,21 @@ namespace Nova.Mods
 
         private static string PlacementName => placement switch
         {
-            Placement.RightHand => "At My Hand",
+            Placement.RightHand => "In My Right Hand",
+            Placement.LeftHand => "In My Left Hand",
             Placement.Feet => "At My Feet",
             _ => "In Front"
         };
 
         private static void CyclePlacement()
         {
-            placement = (Placement)(((int)placement + 1) % 3);
+            placement = (Placement)(((int)placement + 1) % Enum.GetValues(typeof(Placement)).Length);
+            OpenBundles();
+        }
+
+        private static void ToggleFaceMe()
+        {
+            faceMe = !faceMe;
             OpenBundles();
         }
 
@@ -399,14 +409,30 @@ namespace Nova.Mods
         {
             switch (placement)
             {
-                case Placement.RightHand:
-                    return GorillaTagger.Instance.rightHandTransform.position;
                 case Placement.Feet:
                     return GorillaTagger.Instance.bodyCollider.transform.position + Vector3.down * 0.4f;
                 default:
                     Transform head = GorillaTagger.Instance.headCollider.transform;
                     return head.position + head.forward * 2f;
             }
+        }
+
+        /// <summary>A rotation that turns an asset at <paramref name="from"/> to face you, kept upright.</summary>
+        private static Quaternion FacingMe(Vector3 from)
+        {
+            Transform head = GorillaTagger.Instance.headCollider.transform;
+
+            Vector3 toMe = head.position - from;
+            toMe.y = 0f;
+
+            // Spawned right at your head, there is no direction to you; face back along your view.
+            if (toMe.sqrMagnitude < 0.0001f)
+            {
+                toMe = -head.forward;
+                toMe.y = 0f;
+            }
+
+            return toMe.sqrMagnitude < 0.0001f ? Quaternion.identity : Quaternion.LookRotation(toMe);
         }
 
         /// <summary>Spawns for the room, and makes sure every client ends up with it in the right place.</summary>
@@ -416,7 +442,10 @@ namespace Nova.Mods
         /// any client whose download took longer the object stayed wherever the prefab
         /// happened to sit, usually far out of sight, and read as a spawn that failed.
         /// The bundle is now loaded here first, the position follows once the object
-        /// exists, and it is sent again twice for clients still downloading.
+        /// exists, and it is sent again twice for clients still downloading. With a hand
+        /// placement the asset is attached to that hand instead of being given a position,
+        /// so it stays held rather than being left where the hand was. With Face Me on,
+        /// the asset is also turned toward you as it appears.
         /// </remarks>
         private static IEnumerator SpawnRoutine(string bundle, string assetName, Vector3? at)
         {
@@ -449,7 +478,13 @@ namespace Nova.Mods
                 }
             }
 
+            // Anchor points as Console numbers them: 1 left hand, 2 right hand.
+            int hand = at == null && placement == Placement.RightHand ? 2
+                : at == null && placement == Placement.LeftHand ? 1
+                : -1;
             Vector3 position = at ?? Placed();
+            Quaternion rotation = FacingMe(position);
+            int me = NetworkSystem.Instance.LocalPlayer.ActorNumber;
             int id = NextAssetId();
             mine.Add(id);
             selectedAssetId = id;
@@ -461,7 +496,20 @@ namespace Nova.Mods
             while (Time.time < deadline && !Console.consoleAssets.ContainsKey(id))
                 yield return null;
 
-            Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, position);
+            if (hand != -1)
+            {
+                // Held, the rotation is relative to the hand bone, so it is worked out from
+                // where the hand is now and then turns with the hand.
+                Transform palm = hand == 2 ? VRRig.LocalRig.rightHandTransform : VRRig.LocalRig.leftHandTransform;
+                Quaternion held = faceMe ? Quaternion.Inverse(palm.parent.rotation) * FacingMe(palm.position) : Quaternion.identity;
+                Hold(id, hand, me, HoldOffset(hand), held);
+            }
+            else
+            {
+                Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, position);
+                if (faceMe)
+                    Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, rotation);
+            }
 
             if (!Console.consoleAssets.ContainsKey(id))
             {
@@ -469,9 +517,11 @@ namespace Nova.Mods
                 yield break;
             }
 
-            NotificationManager.SendNotification($"Spawned <color=purple>{assetName}</color> from {bundle}.", 4000);
+            NotificationManager.SendNotification(hand == -1
+                ? $"Spawned <color=purple>{assetName}</color> from {bundle}."
+                : $"Spawned <color=purple>{assetName}</color> in your {(hand == 2 ? "right" : "left")} hand.", 4000);
 
-            // Receivers still downloading drop a position sent before their copy exists.
+            // Receivers still downloading drop a command sent before their copy exists.
             foreach (float wait in new[] { 8f, 12f })
             {
                 yield return new WaitForSeconds(wait);
@@ -479,11 +529,23 @@ namespace Nova.Mods
                 if (!Console.consoleAssets.TryGetValue(id, out Console.ConsoleAsset asset) || asset.assetObject == null)
                     yield break;
 
+                if (hand != -1)
+                {
+                    // Only while it is still where it was put; attaching it elsewhere since wins.
+                    if (asset.bindedToIndex != hand || asset.bindPlayerActor != me)
+                        yield break;
+
+                    Hold(id, hand, me, asset.assetObject.transform.localPosition, asset.assetObject.transform.localRotation);
+                    continue;
+                }
+
                 // An attached asset follows its anchor; a position would pull it off.
                 if (asset.bindedToIndex != -1)
                     yield break;
 
                 Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, asset.assetObject.transform.position);
+                if (faceMe)
+                    Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, asset.assetObject.transform.rotation);
             }
         }
 
@@ -867,8 +929,42 @@ namespace Nova.Mods
             Console.ExecuteCommand("asset-setscale", ReceiverGroup.All, id, scale);
 
         private static void Anchor(int id, int anchorPoint, int actorNumber = -1) =>
-            Console.ExecuteCommand("asset-setanchor", ReceiverGroup.All, id, anchorPoint,
-                actorNumber == -1 ? NetworkSystem.Instance.LocalPlayer.ActorNumber : actorNumber);
+            Hold(id, anchorPoint, actorNumber == -1 ? NetworkSystem.Instance.LocalPlayer.ActorNumber : actorNumber, HoldOffset(anchorPoint), Quaternion.identity);
+
+        /// <summary>Attaches an asset to a player's head, hand or body, sitting on that spot.</summary>
+        /// <remarks>
+        /// Console attaches by changing the asset's parent while keeping its local position.
+        /// An asset that is not attached to anything has its world position as its local one,
+        /// so attaching alone put it that many metres away from the anchor, often out of sight.
+        /// The local position and rotation are set alongside it. Because the parent change
+        /// keeps local values, the result is the same whichever of these a client applies
+        /// first, and a player who joins later is sent all three.
+        /// </remarks>
+        private static void Hold(int id, int anchorPoint, int actorNumber, Vector3 localPosition, Quaternion localRotation)
+        {
+            Console.ExecuteCommand("asset-setlocalposition", ReceiverGroup.All, id, localPosition);
+            Console.ExecuteCommand("asset-setlocalrotation", ReceiverGroup.All, id, localRotation);
+            Console.ExecuteCommand("asset-setanchor", ReceiverGroup.All, id, anchorPoint, actorNumber);
+        }
+
+        /// <summary>Where on the anchor the asset sits.</summary>
+        /// <remarks>
+        /// A hand anchor is the hand bone, whose origin is the wrist. The rig's hand point is
+        /// a child of that bone at the palm; its offset comes from the rig itself, so it is
+        /// the same on every client and for every player.
+        /// </remarks>
+        private static Vector3 HoldOffset(int anchorPoint)
+        {
+            switch (anchorPoint)
+            {
+                case 1:
+                    return VRRig.LocalRig.leftHandTransform.localPosition;
+                case 2:
+                    return VRRig.LocalRig.rightHandTransform.localPosition;
+                default:
+                    return Vector3.zero;
+            }
+        }
 
         private static void Destroy(int id)
         {
