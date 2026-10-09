@@ -218,7 +218,7 @@ namespace Nova.Mods
                             leftplat = null;
                         else
                             rightplat = null;
-                        if (platformMode == 4 && leftplat == null && rightplat == null)
+                        if (leftplat == null && rightplat == null)
                             ClipCollidersOff("Platforms", false);
 
                         FriendManager.PlatformDespawned(left);

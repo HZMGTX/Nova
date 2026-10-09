@@ -1080,6 +1080,7 @@ namespace Nova.Mods
                 NotificationManager.information.Remove("Nearby");
         }
 
+        private static bool infoOverlayShown;
         public static void InfoOverlayGun()
         {
             if (GetGunInput(false))
@@ -1089,6 +1090,7 @@ namespace Nova.Mods
 
                 if (gunLocked && lockTarget != null)
                 {
+                    infoOverlayShown = true;
                     NotificationManager.information["Name"] = lockTarget.GetName();
                     NotificationManager.information["Color"] = lockTarget.GetColor().ToRGBString();
                     NotificationManager.information["ID"] = lockTarget.GetPlayer().UserId;
@@ -1111,11 +1113,10 @@ namespace Nova.Mods
             }
             else
             {
-                // Cleared here so the keys are only removed once, not on every frame the gun is down.
-                if (gunLocked)
+                // gunLocked/lockTarget are shared with every other gun and reset elsewhere, so track our own keys
+                if (infoOverlayShown)
                 {
-                    gunLocked = false;
-                    lockTarget = null;
+                    infoOverlayShown = false;
 
                     NotificationManager.information.Remove("Name");
                     NotificationManager.information.Remove("Color");
@@ -4152,23 +4153,31 @@ namespace Nova.Mods
             }
         }
 
+        private static bool huntBoneDrawn;
         public static void HuntBoneESP()
         {
             if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
             {
                 // Hidden rather than left frozen where they were drawn last.
                 RemoveStaleBones();
-                foreach (List<LineRenderer> lines in boneESP.Values)
+                // Only on the frame Hunt stops drawing; the Casual/Infection variants share these entries
+                if (huntBoneDrawn)
                 {
-                    foreach (LineRenderer line in lines)
+                    huntBoneDrawn = false;
+                    foreach (List<LineRenderer> lines in boneESP.Values)
                     {
-                        if (line != null)
-                            line.enabled = false;
+                        foreach (LineRenderer line in lines)
+                        {
+                            if (line != null)
+                                line.enabled = false;
+                        }
                     }
                 }
 
                 return;
             }
+
+            huntBoneDrawn = true;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -5077,15 +5086,23 @@ namespace Nova.Mods
             }
         }
 
+        private static bool huntBoxDrawn;
         public static void HuntBoxESP()
         {
             if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
             {
                 // Hidden rather than left frozen where they were drawn last.
                 CleanupRigEntries(boxESP, destroyMaterial: true);
-                HideRigEntries(boxESP);
+                // Only on the frame Hunt stops drawing; the Casual/Infection variants share these entries
+                if (huntBoxDrawn)
+                {
+                    huntBoxDrawn = false;
+                    HideRigEntries(boxESP);
+                }
                 return;
             }
+
+            huntBoxDrawn = true;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -5302,15 +5319,23 @@ namespace Nova.Mods
             }
         }
 
+        private static bool hollowHuntBoxDrawn;
         public static void HollowHuntBoxESP()
         {
             if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
             {
                 // Hidden rather than left frozen where they were drawn last.
                 CleanupRigEntries(hollowBoxESP, destroyMaterial: true);
-                HideRigEntries(hollowBoxESP);
+                // Only on the frame Hunt stops drawing; the Casual/Infection variants share these entries
+                if (hollowHuntBoxDrawn)
+                {
+                    hollowHuntBoxDrawn = false;
+                    HideRigEntries(hollowBoxESP);
+                }
                 return;
             }
+
+            hollowHuntBoxDrawn = true;
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -5503,19 +5528,27 @@ namespace Nova.Mods
             }
         }
 
+        private static bool huntBreadcrumbsDrawn;
         public static void HuntBreadcrumbs()
         {
             if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
             {
                 RemoveStaleBreadcrumbs();
-                foreach (TrailRenderer trail in breadcrumbs.Values)
+                // Only on the frame Hunt stops drawing; the Casual/Infection variants share these entries
+                if (huntBreadcrumbsDrawn)
                 {
-                    if (trail != null)
-                        trail.enabled = false;
+                    huntBreadcrumbsDrawn = false;
+                    foreach (TrailRenderer trail in breadcrumbs.Values)
+                    {
+                        if (trail != null)
+                            trail.enabled = false;
+                    }
                 }
 
                 return;
             }
+
+            huntBreadcrumbsDrawn = true;
 
             RemoveStaleBreadcrumbs();
 

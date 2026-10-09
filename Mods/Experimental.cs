@@ -1848,6 +1848,8 @@ namespace Nova.Mods
                     GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.Others, packedCosmetics, CosmeticsController.instance.tryOnSet.ToPackedIDArray(), false);
                 }
             }
+            else
+                oldCosmetics = null; // Resend to everyone in the next room
         }
 
         public static void OnPlayerJoinSpoof(NetPlayer player)
