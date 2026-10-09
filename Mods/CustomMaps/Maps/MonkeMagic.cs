@@ -88,7 +88,7 @@ namespace Nova.Mods.CustomMaps.Maps
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -140,7 +140,7 @@ namespace Nova.Mods.CustomMaps.Maps
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -157,6 +157,9 @@ namespace Nova.Mods.CustomMaps.Maps
 
         public static void ChangeMaterialAll()
         {
+            if (lockTarget == null)
+                return;
+
             if (Time.time > materialDelay)
             {
                 materialDelay = Time.time + 0.2f;
@@ -181,9 +184,12 @@ namespace Nova.Mods.CustomMaps.Maps
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > lucyDelay)
                     {
+                        if (lockTarget == null)
+                            return;
+
                         lucyDelay = Time.time + 0.2f;
                         PhotonNetwork.RaiseEvent(180, new object[] { "SummonLucy", (double)lockTarget.GetPlayer().ActorNumber }, new RaiseEventOptions { Receivers = ReceiverGroup.All }, SendOptions.SendReliable);
                         RPCProtection();
@@ -230,7 +236,7 @@ namespace Nova.Mods.CustomMaps.Maps
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;

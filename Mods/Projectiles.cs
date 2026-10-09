@@ -58,7 +58,7 @@ namespace Nova.Mods
             public string Name;
             public SnowballThrowable ThrowableLeft;
             public SnowballThrowable ThrowableRight;
-            public SnowballThrowable Throwable => ThrowableRight;
+            public SnowballThrowable Throwable => ThrowableRight != null ? ThrowableRight : ThrowableLeft;
             public int ThrowableIndex => Throwable.throwableMakerIndex;
         }
 
@@ -115,6 +115,8 @@ namespace Nova.Mods
                 {
                     if (--remaining == 0)
                     {
+                        // Throwables resolve in any order, so sort to keep ProjectileMode indices stable
+                        entries.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
                         _cachedProjectileEntries = entries;
                         _isBuildingCache = false;
                         ButtonInfo projectileButton = Buttons.GetIndex("Change Projectile");
@@ -216,12 +218,21 @@ namespace Nova.Mods
             return (IReadOnlyList<ProjectileEntry>)_cachedProjectileEntries ?? Array.Empty<ProjectileEntry>();
         }
 
-        public static ProjectileEntry GetPreferredProjectileEntry() =>
-            GetAll()[ProjectileMode];
+        public static ProjectileEntry GetPreferredProjectileEntry()
+        {
+            IReadOnlyList<ProjectileEntry> entries = GetAll();
+            if (entries.Count == 0)
+                return null;
+
+            int mode = ProjectileMode % entries.Count;
+            if (mode < 0)
+                mode += entries.Count;
+            return entries[mode];
+        }
         public static ProjectileEntry GetGrowingSnowballProjectileEntry()
         {
             ProjectileEntry entry = GetPreferredProjectileEntry();
-            if (entry.Throwable is GrowingSnowballThrowable)
+            if (entry != null && entry.Throwable is GrowingSnowballThrowable)
                 return entry;
             return FindProjectile("Growing Snowball");
         }
@@ -305,9 +316,8 @@ namespace Nova.Mods
 
         public static void ClearNetworkedProjectile(ThrowableHand hand = ThrowableHand.Dynamic, bool serialize = false)
         {
-            if (hand == ThrowableHand.Dynamic)
-                for (int i = 0; i < 2; i++)
-                    UpdateNetworkedProjectile(-1, -1, hand, serialize);
+            if (hand == ThrowableHand.Dynamic || hand == ThrowableHand.Both)
+                UpdateNetworkedProjectile(-1, -1, ThrowableHand.Both, serialize);
             else if (hand == ThrowableHand.Left)
                 UpdateNetworkedProjectile(-1, -1, ThrowableHand.Left, serialize);
             else if (hand == ThrowableHand.Right)
@@ -378,18 +388,19 @@ namespace Nova.Mods
             }
             else
             {
-                if (projDebounceType > 0f)
-                {
-                    projDebounce = Time.time + projDebounceType;
-                    return true;
-                }
-                else
+                if (Time.time < projDebounce)
                     return false;
+
+                projDebounce = Time.time + projDebounceType;
+                return true;
             }
         }
         public static bool clientSided;
         public static void SendProjectile(ProjectileEntry projectile, Vector3 position, Vector3 velocity, Color? color = null, int growingSnowballSize = -1, RaiseEventOptions options = null, ThrowableHand hand = ThrowableHand.Dynamic, bool bypassTeleport = false)
         {
+            if (projectile == null)
+                return;
+
             try
             {
                 projectileFrameSent = Time.frameCount;
@@ -433,25 +444,27 @@ namespace Nova.Mods
                             growingSnowballSize = GrowingSnowball.MaxSizeLevel;
                         // friendSided ? Math.Max(SnowballSize, friendProjectileScale) : SnowballSize;
 
-                        if (NetworkSystem.Instance.InRoom || friendSided)
+                        if (friendSided || (NetworkSystem.Instance.InRoom && !clientSided))
                         {
                             if (friendSided)
                             {
                                 Color32 color32 = color.Value;
+                                float snowballSize = GrowingSnowball.GetValidSizeLevel(SnowballSize);
 
-                                object[] projectileSendData = new object[8];
+                                // Layout read by FriendManager's "sendSnowball" handler
+                                object[] projectileSendData = new object[9];
                                 projectileSendData[0] = "sendSnowball";
                                 projectileSendData[1] = projectile.Name;
-                                projectileSendData[1] = position;
-                                projectileSendData[2] = velocity;
-                                projectileSendData[3] = color32.r;
-                                projectileSendData[4] = color32.g;
-                                projectileSendData[5] = color32.b;
-                                projectileSendData[6] = GrowingSnowball.GetValidSizeLevel(SnowballSize);
-                                projectileSendData[7] = index;
+                                projectileSendData[2] = position;
+                                projectileSendData[3] = velocity;
+                                projectileSendData[4] = color32.r;
+                                projectileSendData[5] = color32.g;
+                                projectileSendData[6] = color32.b;
+                                projectileSendData[7] = snowballSize;
+                                projectileSendData[8] = index;
 
                                 PhotonNetwork.RaiseEvent(FriendManager.FriendByte, projectileSendData, options, SendOptions.SendReliable);
-                                LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.GetValidSizeLevel(SnowballSize), index, color.Value, VRRig.LocalRig);
+                                LaunchLocalGrowingSnowball(projectile.Name, position, velocity, snowballSize, index, color.Value, VRRig.LocalRig);
                             }
                             else if (NetworkSystem.Instance.InRoom)
                             {
@@ -478,7 +491,7 @@ namespace Nova.Mods
                             }
 
                         }
-                        else if (!NetworkSystem.Instance.InRoom || clientSided)
+                        else
                             LaunchLocalGrowingSnowball(projectile.Name, position, velocity, GrowingSnowball.snowballSizeLevels[growingSnowballSize].snowballScale, index, color.Value, VRRig.LocalRig);
                     }
                     else
@@ -513,11 +526,14 @@ namespace Nova.Mods
                             sendEventData.Add(projectileSendData.ToArray());
                         }
 
+                        if (friendSided && NetworkSystem.Instance.InRoom)
+                            PhotonNetwork.RaiseEvent(FriendManager.FriendByte, sendEventData.ToArray(), options, SendOptions.SendReliable);
+
                         if (!NetworkSystem.Instance.InRoom || clientSided || friendSided)
                             LaunchLocalProjectile(position, velocity, (byte)ToProjectileSource(hand), index, true, color32, friendSided ? friendProjectileScale : 1, Throwable.ProjectileHash, VRRig.LocalRig);
                         else
                         {
-                            PhotonNetwork.RaiseEvent(friendSided ? FriendManager.FriendByte : Constants.Network.ROOM_SYSTEM, sendEventData.ToArray(), options, SendOptions.SendReliable);
+                            PhotonNetwork.RaiseEvent(Constants.Network.ROOM_SYSTEM, sendEventData.ToArray(), options, SendOptions.SendReliable);
                             SendSerialize(VRRig.LocalRig.GetPhotonView());
                             RPCProtection();
                         }
@@ -637,7 +653,7 @@ namespace Nova.Mods
         public static string DisplayProjectileDelay(int index) => index == -1 ? "Default" : (index / 20f).ToString();
         public static void ProjectileDelayWarning(bool positive)
         {
-            if (projDebounceType != -1f && (!Buttons.GetIndex("Friend Sided Projectiles").enabled || !Buttons.GetIndex("Client Sided Projectiles").enabled))
+            if (projDebounceType != -1f && !Buttons.GetIndex("Friend Sided Projectiles").enabled && !Buttons.GetIndex("Client Sided Projectiles").enabled)
                 NotificationManager.SendNotification($"<color=grey>[</color><color=red>WARNING</color><color=grey>]</color> Using a projectile delay thats not the default may not work and have the possibility of getting you banned. Use at your own caution.", 5000);
         }
 
@@ -784,7 +800,7 @@ namespace Nova.Mods
                         charvel = RandomVector3(100f);
 
                     if (Buttons.GetIndex("Include Hand Velocity").enabled)
-                        charvel = hands[i] == GorillaTagger.Instance.rightHandTransform
+                        charvel = i == 1
                             ? GTPlayer.Instance.RightHand.velocityTracker.GetAverageVelocity(true, 0)
                             : GTPlayer.Instance.LeftHand.velocityTracker.GetAverageVelocity(true, 0);
 
@@ -811,10 +827,10 @@ namespace Nova.Mods
                         if (Mouse.current.leftButton.isPressed)
                         {
                             Ray ray = TPC.ScreenPointToRay(Mouse.current.position.ReadValue());
-                            Physics.Raycast(ray, out var hit, 512f, NoInvisLayerMask());
-                            charvel = hit.point - GorillaTagger.Instance.rightHandTransform.transform.position;
-                            charvel.Normalize();
-                            charvel *= ShootStrength * 2f;
+                            Vector3 direction = Physics.Raycast(ray, out var hit, 512f, NoInvisLayerMask())
+                                ? (hit.point - GorillaTagger.Instance.rightHandTransform.transform.position).normalized
+                                : ray.direction;
+                            charvel = direction * ShootStrength * 2f;
                         }
                     }
 
@@ -839,10 +855,10 @@ namespace Nova.Mods
                     if (Mouse.current.leftButton.isPressed)
                     {
                         Ray ray = TPC.ScreenPointToRay(Mouse.current.position.ReadValue());
-                        Physics.Raycast(ray, out var hit, 512f, NoInvisLayerMask());
-                        charvel = hit.point - GorillaTagger.Instance.rightHandTransform.transform.position;
-                        charvel.Normalize();
-                        charvel *= ShootStrength * 2f;
+                        Vector3 direction = Physics.Raycast(ray, out var hit, 512f, NoInvisLayerMask())
+                            ? (hit.point - GorillaTagger.Instance.rightHandTransform.transform.position).normalized
+                            : ray.direction;
+                        charvel = direction * ShootStrength * 2f;
                     }
                 }
 
@@ -872,7 +888,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1025,7 +1041,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1059,7 +1075,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1093,7 +1109,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1127,7 +1143,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1161,7 +1177,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1195,7 +1211,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1229,7 +1245,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1259,7 +1275,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1327,7 +1343,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1426,15 +1442,20 @@ namespace Nova.Mods
         }
 
         public static GameObject FountainObject;
+        private static Material fountainMaterial;
         public static void ProjectilePositionalFountain()
         {
             if (rightGrab)
             {
                 if (FountainObject == null)
                 {
+                    if (fountainMaterial != null)
+                        Object.Destroy(fountainMaterial);
+
                     FountainObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     Object.Destroy(FountainObject.GetComponent<SphereCollider>());
                     FountainObject.transform.localScale = new Vector3(0.2f, 0.2f, 0.2f);
+                    fountainMaterial = FountainObject.GetComponent<Renderer>().material;
                 }
                 FountainObject.transform.position = GorillaTagger.Instance.rightHandTransform.position;
             }
@@ -1443,7 +1464,7 @@ namespace Nova.Mods
                 if (rightTrigger > 0.5f)
                     SendProjectile(GetPreferredProjectileEntry(), FountainObject.transform.position, new Vector3(Random.Range(-15f, 15f), Random.Range(20f, 25f), Random.Range(-15f, 15f)));
                 else
-                    FountainObject.GetComponent<Renderer>().material.color = buttonColors[0].GetColor(0);
+                    fountainMaterial.color = buttonColors[0].GetColor(0);
             }
         }
 
@@ -1453,6 +1474,12 @@ namespace Nova.Mods
             {
                 Object.Destroy(FountainObject);
                 FountainObject = null;
+            }
+
+            if (fountainMaterial != null)
+            {
+                Object.Destroy(fountainMaterial);
+                fountainMaterial = null;
             }
         }
 
@@ -1491,7 +1518,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1525,12 +1552,8 @@ namespace Nova.Mods
         public static float GetBoxingDelay(VRRig rig) =>
             boxingDelay.GetValueOrDefault(rig, -1);
 
-        internal static void SetBoxingDelay(VRRig rig)
-        {
-            boxingDelay.Remove(rig);
-
-            boxingDelay.Add(rig, projDebounceType);
-        }
+        internal static void SetBoxingDelay(VRRig rig) =>
+            boxingDelay[rig] = Time.time + Mathf.Max(projDebounceType, 0.1f);
 
         public static void SnowballBoxing()
         {
@@ -1557,7 +1580,7 @@ namespace Nova.Mods
             foreach (VRRig rig in ActiveRigs)
             {
                 if (Time.time < GetBoxingDelay(rig))
-                    return;
+                    continue;
 
                 if (!rig.isOfflineVRRig && rig.rightThumb.calcT > 0.5f)
                 {
@@ -1572,7 +1595,7 @@ namespace Nova.Mods
             foreach (VRRig rig in ActiveRigs)
             {
                 if (Time.time < GetBoxingDelay(rig))
-                    return;
+                    continue;
                 Physics.Raycast(rig.bodyTransform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, out var Ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
 
                 if (!rig.isOfflineVRRig && (Ray.distance > 0.12f && Ray.distance < 0.2f))
@@ -1648,7 +1671,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1679,7 +1702,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1713,8 +1736,9 @@ namespace Nova.Mods
                     Object.Destroy(newCheckpoint.GetComponent<SphereCollider>());
                     newCheckpoint.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
                     newCheckpoint.transform.position = GorillaTagger.Instance.rightHandTransform.position;
-                    newCheckpoint.GetComponent<Renderer>().material.shader = Shader.Find("GUI/Text Shader");
-                    newCheckpoint.GetComponent<Renderer>().material.color = new Color(1f, 0f, 0f, 0.3f);
+                    Material zoneMaterial = newCheckpoint.GetComponent<Renderer>().material;
+                    zoneMaterial.shader = Shader.Find("GUI/Text Shader");
+                    zoneMaterial.color = new Color(1f, 0f, 0f, 0.3f);
                     flingZones.Add(newCheckpoint);
                 }
             }
@@ -1724,7 +1748,7 @@ namespace Nova.Mods
                 foreach (var checkpoint in flingZones.ToList().Where(checkpoint => Vector3.Distance(GorillaTagger.Instance.rightHandTransform.position, checkpoint.transform.position) < 0.5f))
                 {
                     flingZones.Remove(checkpoint);
-                    Object.Destroy(checkpoint);
+                    DestroyFlingZone(checkpoint);
                 }
             }
 
@@ -1738,10 +1762,22 @@ namespace Nova.Mods
             }
         }
 
+        // The zone's material is an instanced clone, so it has to go with the object
+        private static void DestroyFlingZone(GameObject checkpoint)
+        {
+            if (checkpoint == null)
+                return;
+
+            Renderer renderer = checkpoint.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+                Object.Destroy(renderer.sharedMaterial);
+            Object.Destroy(checkpoint);
+        }
+
         public static void DisableSnowballFlingZone()
         {
             foreach (GameObject checkpoint in flingZones)
-                Object.Destroy(checkpoint);
+                DestroyFlingZone(checkpoint);
 
             flingZones.Clear();
         }
@@ -1766,7 +1802,7 @@ namespace Nova.Mods
                     SendProjectile(GetGrowingSnowballProjectileEntry(), lockTarget.headMesh.transform.position + new Vector3(0f, -0.7f, 0f), new Vector3(0f, -500f, 0f));
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1834,7 +1870,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1872,7 +1908,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;

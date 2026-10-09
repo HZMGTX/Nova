@@ -124,6 +124,12 @@ namespace Nova.Mods
 
         public static Vector3 deadPosition = Vector3.zero;
         public static Vector3 lvel = Vector3.zero;
+        public static void DisableFakePowerOff()
+        {
+            deadPosition = Vector3.zero;
+            VRRig.LocalRig.enabled = true;
+        }
+
         public static void FakePowerOff()
         {
             if (leftJoystickClick)
@@ -427,7 +433,14 @@ namespace Nova.Mods
 
         public static void AntiModerator()
         {
-            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && vrrig.Cosmetics().Contains("LBAAK") || vrrig.Cosmetics().Contains("LBAAD") || vrrig.Cosmetics().Contains("LMAPY")))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig =>
+            {
+                if (vrrig.isOfflineVRRig)
+                    return false;
+
+                string c = vrrig.Cosmetics();
+                return c.Contains("LBAAK") || c.Contains("LBAAD") || c.Contains("LMAPY");
+            }))
             {
                 try
                 {
@@ -444,8 +457,8 @@ namespace Nova.Mods
                         {
 
                             r = plr.playerColor.r * 255;
-                            g = plr.playerColor.r * 255;
-                            b = plr.playerColor.r * 255;
+                            g = plr.playerColor.g * 255;
+                            b = plr.playerColor.b * 255;
                         }
                         catch { LogManager.Log("Failed to log colors, rig most likely nonexistent"); }
 
@@ -471,7 +484,14 @@ namespace Nova.Mods
 
         public static void AntiContentCreator()
         {
-            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isOfflineVRRig && Visuals.specialCosmetics.Keys.Any(x => vrrig.Cosmetics().Contains(x))))
+            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig =>
+            {
+                if (vrrig.isOfflineVRRig)
+                    return false;
+
+                string c = vrrig.Cosmetics();
+                return Visuals.specialCosmetics.Keys.Any(x => c.Contains(x));
+            }))
             {
                 try
                 {
@@ -488,8 +508,8 @@ namespace Nova.Mods
                         {
 
                             r = plr.playerColor.r * 255;
-                            g = plr.playerColor.r * 255;
-                            b = plr.playerColor.r * 255;
+                            g = plr.playerColor.g * 255;
+                            b = plr.playerColor.b * 255;
                         }
                         catch { LogManager.Log("Failed to log colors, rig most likely nonexistent"); }
 
@@ -521,7 +541,8 @@ namespace Nova.Mods
 
             foreach (VRRig rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
             {
-                foreach (var cosmetic in Visuals.specialCosmetics.Where(cosmetic => rig.Cosmetics().Contains(cosmetic.Key)))
+                string c = rig.Cosmetics();
+                foreach (var cosmetic in Visuals.specialCosmetics.Where(cosmetic => c.Contains(cosmetic.Key)))
                 {
                     specialRig = rig;
                     specialCosmetic = cosmetic.Value;
