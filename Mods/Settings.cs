@@ -173,17 +173,11 @@ namespace Nova.Mods
             inTextInput = false;
             isKeyboardPc = false;
 
-            if (lKeyReference != null)
-            {
-                Object.Destroy(lKeyReference);
-                lKeyReference = null;
-            }
+            DestroyKeyPointer(lKeyReference);
+            lKeyReference = null;
 
-            if (rKeyReference != null)
-            {
-                Object.Destroy(rKeyReference);
-                rKeyReference = null;
-            }
+            DestroyKeyPointer(rKeyReference);
+            rKeyReference = null;
 
             if (VRKeyboard != null)
             {
@@ -197,6 +191,19 @@ namespace Nova.Mods
                 TPC.transform.position = TPC.transform.parent.position;
                 TPC.transform.rotation = TPC.transform.parent.rotation;
             }
+        }
+
+        // The pointer spheres own a material instance (from .material in SpawnKeyboard or from ColorChanger).
+        private static void DestroyKeyPointer(GameObject pointer)
+        {
+            if (pointer == null)
+                return;
+
+            Renderer renderer = pointer.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != null)
+                Object.Destroy(renderer.sharedMaterial);
+
+            Object.Destroy(pointer);
         }
 
         public static void GlobalReturn()
@@ -329,6 +336,9 @@ namespace Nova.Mods
         public static void ShowDebug()
         {
             int category = Buttons.GetCategory("Temporary Category");
+            DisableTemporaryMods();
+            Buttons.buttons[category] = Array.Empty<ButtonInfo>();
+            nextClipboardRefresh = 0f;
 
             string version = PluginInfo.Version;
             if (PluginInfo.BetaBuild) version = "<color=blue>Beta</color> " + version;
@@ -347,20 +357,36 @@ namespace Nova.Mods
         }
 
         public static bool hideId;
+        private static float nextClipboardRefresh;
         public static void Debug()
         {
+            ButtonInfo colorLabel = Buttons.GetIndex("DebugColor");
+            if (colorLabel == null) // Another page replaced the info screen
+                return;
+
             string red = "<color=red>" + MathF.Floor(PlayerPrefs.GetFloat("redValue") * 255f) + "</color>";
             string green = ", <color=green>" + MathF.Floor(PlayerPrefs.GetFloat("greenValue") * 255f) + "</color>";
             string blue = ", <color=blue>" + MathF.Floor(PlayerPrefs.GetFloat("blueValue") * 255f) + "</color>";
-            Buttons.GetIndex("DebugColor").overlapText = "Color: " + red + green + blue;
+            colorLabel.overlapText = "Color: " + red + green + blue;
 
             string master = NetworkSystem.Instance.InRoom && PhotonNetwork.IsMasterClient ? "<color=red> [Master]</color>" : "";
             Buttons.GetIndex("DebugName").overlapText = PhotonNetwork.LocalPlayer.NickName + master;
 
             Buttons.GetIndex("DebugId").overlapText = "<color=green>ID: </color>" + (hideId ? "Hidden" : PhotonNetwork.LocalPlayer.UserId);
-            Buttons.GetIndex("DebugClip").overlapText = "<color=green>Clip: </color>" + (GUIUtility.systemCopyBuffer.Length > 25 ? GUIUtility.systemCopyBuffer[..25] : GUIUtility.systemCopyBuffer);
+            // Reading the system clipboard is slow, so only refresh it twice a second.
+            if (Time.time > nextClipboardRefresh)
+            {
+                nextClipboardRefresh = Time.time + 0.5f;
+                string clip = GUIUtility.systemCopyBuffer ?? "";
+                Buttons.GetIndex("DebugClip").overlapText = "<color=green>Clip: </color>" + (clip.Length > 25 ? clip[..25] : clip);
+            }
+
             Buttons.GetIndex("DebugFps").overlapText = "<b>" + lastDeltaTime + "</b> FPS <b>" + PhotonNetwork.GetPing() + "</b> Ping";
-            Buttons.GetIndex("DebugRoomA").overlapText = "<color=blue>" + NetworkSystem.Instance.regionNames[NetworkSystem.Instance.currentRegionIndex].ToUpper() + "</color> " + PhotonNetwork.PlayerList.Length + " Players";
+
+            string[] regionNames = NetworkSystem.Instance.regionNames;
+            int regionIndex = NetworkSystem.Instance.currentRegionIndex;
+            string region = regionIndex >= 0 && regionIndex < regionNames.Length ? regionNames[regionIndex].ToUpper() : "?";
+            Buttons.GetIndex("DebugRoomA").overlapText = "<color=blue>" + region + "</color> " + (PhotonNetwork.CurrentRoom?.PlayerCount ?? 0) + " Players";
 
             string priv = NetworkSystem.Instance.InRoom ? NetworkSystem.Instance.SessionIsPrivate ? "Private" : "Public" : "";
             Buttons.GetIndex("DebugRoomB").overlapText = "<color=blue>" + priv + "</color> " + (NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.Name : "Not in room");
@@ -369,6 +395,7 @@ namespace Nova.Mods
         {
             int category = Buttons.GetCategory("Temporary Category");
 
+            Buttons.RemoveButton(category, "Exit Info Screen");
             Buttons.RemoveButton(category, "DebugMenuName");
             Buttons.RemoveButton(category, "DebugColor");
             Buttons.RemoveButton(category, "DebugName");
@@ -422,11 +449,32 @@ namespace Nova.Mods
             Buttons.CurrentCategoryName = "Players";
         }
 
+        // Turns off mods still running on the Temporary Category page before it gets replaced, since their
+        // buttons become unreachable and their disableMethod would never run. Toggles without a per-frame
+        // method (like the category visibility switches) are preferences, not running mods, so they stay.
+        private static void DisableTemporaryMods()
+        {
+            foreach (ButtonInfo button in Buttons.buttons[Buttons.GetCategory("Temporary Category")])
+            {
+                if (button == null || !button.enabled || !button.isTogglable)
+                    continue;
+                if (button.method == null && button.postMethod == null)
+                    continue;
+
+                button.enabled = false;
+                try { button.disableMethod?.Invoke(); }
+                catch (Exception e) { LogManager.LogError($"Error with mod disableMethod {button.buttonText}: {e.Message}"); }
+            }
+        }
+
         public static void NavigatePlayer(NetPlayer player)
         {
+            if (player == null)
+                return;
+
             string targetName = player.NickName;
 
-            VRRig playerRig = GetVRRigFromPlayer(player) ?? null;
+            VRRig playerRig = GetVRRigFromPlayer(player);
 
             List<ButtonInfo> buttons = new List<ButtonInfo> {
                 new ButtonInfo {
@@ -683,6 +731,7 @@ namespace Nova.Mods
                     }
                 );
 
+            DisableTemporaryMods();
             Buttons.buttons[Buttons.GetCategory("Temporary Category")] = buttons.ToArray();
             Buttons.CurrentCategoryName = "Temporary Category";
         }
@@ -692,6 +741,9 @@ namespace Nova.Mods
 
         public static void SpectatePlayer(VRRig rig)
         {
+            if (rig == null)
+                return;
+
             CleanupSpectateCamera();
 
             spectateCameraObject = new GameObject("Nova_SpectateCamera");
@@ -730,12 +782,18 @@ namespace Nova.Mods
         public static HashSet<VRRig> Blocked = new HashSet<VRRig>();
         public static void BlockPlayer(VRRig rig)
         {
+            if (rig == null)
+                return;
+
             Blocked.Add(rig);
             rig.DeactivateAllRenderers();
             rig.voiceAudio.volume = 0f;
         }
         public static void UnblockPlayer(VRRig rig)
         {
+            if (rig == null)
+                return;
+
             Blocked.Remove(rig);
             rig.ReactivateAllRenderers();
             rig.voiceAudio.volume = 1f;
@@ -834,7 +892,11 @@ namespace Nova.Mods
             foreach (KeyValuePair<string, List<string>> bind in ModBindings)
             {
                 foreach (string modName in bind.Value)
-                    Buttons.GetIndex(modName).customBind = null;
+                {
+                    ButtonInfo button = Buttons.GetIndex(modName);
+                    if (button != null)
+                        button.customBind = null;
+                }
 
                 bind.Value.Clear();
             }
@@ -3726,11 +3788,9 @@ exit 0";
             ReadCustomTheme();
         }
 
-        public static void FixTheme()
-        {
-            themeType--;
-            Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-        }
+        // Re-applies the selected theme. cycleValue would step to the next one, since it ignores themeType.
+        public static void FixTheme() =>
+            Buttons.GetIndex("Change Menu Theme")?.onValueChanged?.Invoke();
 
         public static void CustomMenuBackground()
         {
@@ -3835,11 +3895,8 @@ exit 0";
                 activeFont = chosenFont;
         }
 
-        public static void DisableCustomFont()
-        {
-            fontCycle--;
-            Buttons.GetIndex("Change Font Type").cycleValue(true);
-        }
+        public static void DisableCustomFont() =>
+            Buttons.GetIndex("Change Font Type")?.onValueChanged?.Invoke();
 
         public static void ApplyPageType(int index) { pageButtonType = index; buttonOffset = index == 2 ? 2 : 0; }
         public static void ApplyPageSize(int index) => _pageSize = index;
@@ -3981,7 +4038,7 @@ exit 0";
 
             if (krec != null && krec.IsRunning && Time.time > dRestartTime)
             {
-                DictationRestart();
+                CoroutineManager.instance.StartCoroutine(DictationRestart());
                 dRestartTime = Time.time + 1f;
             }
         }
@@ -4058,27 +4115,36 @@ exit 0";
 
         public static void DisorganizeMenu()
         {
-            if (!disorganized)
-            {
-                disorganized = true;
-                foreach (ButtonInfo[] buttonArray in Buttons.buttons)
-                {
-                    if (buttonArray.Length > 0)
-                    {
-                        for (int i = 0; i < buttonArray.Length; i++)
-                            Buttons.buttons[Buttons.GetCategory("Main")] = Buttons.buttons[Buttons.GetCategory("Main")].Concat(new[] { buttonArray[i] }).ToArray();
+            if (disorganized)
+                return;
 
-                        Array.Clear(buttonArray, 0, buttonArray.Length);
-                    }
+            disorganized = true;
+            int mainCategory = Buttons.GetCategory("Main");
+
+            // Main's own buttons come first, then every other category; emptied categories get an empty
+            // array because the mod loop and GetIndex don't expect null entries.
+            List<ButtonInfo> allButtons = new List<ButtonInfo>(Buttons.buttons[mainCategory]);
+            for (int category = 0; category < Buttons.buttons.Length; category++)
+            {
+                if (category == mainCategory)
+                    continue;
+
+                foreach (ButtonInfo button in Buttons.buttons[category])
+                {
+                    if (button != null)
+                        allButtons.Add(button);
                 }
+
+                Buttons.buttons[category] = Array.Empty<ButtonInfo>();
             }
+
+            Buttons.buttons[mainCategory] = allButtons.ToArray();
         }
 
         public static void AnnoyingModeOff()
         {
             annoyingMode = false;
-            themeType--;
-            Buttons.GetIndex("Change Menu Theme").cycleValue(true);
+            FixTheme();
         }
 
         public static void DisablePageButtons()
@@ -4097,6 +4163,17 @@ exit 0";
 
         public static void CustomMenuName()
         {
+            static void Apply()
+            {
+                doCustomName = true;
+                if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt"))
+                    File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt", "Your Text Here");
+                customMenuName = File.ReadAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt");
+            }
+
+            // Applied on every enable (including when preferences load at startup); only the prompt waits.
+            Apply();
+
             if (Time.time > timeMenuStarted + 10f)
             {
                 Prompt("Would you like to set a custom menu name right now?", () =>
@@ -4108,27 +4185,22 @@ exit 0";
                         PromptSingle("You can always change this again by re-enabling the mod or changing it in the NovaMenu folder! (located in the Gorilla Tag installation folder)");
                     });
                 }, Apply);
-
-                static void Apply()
-                {
-                    doCustomName = true;
-                    if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt"))
-                        File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt", "Your Text Here");
-                    customMenuName = File.ReadAllText($"{PluginInfo.BaseDirectory}/Nova_CustomMenuName.txt");
-                }
-                Apply();
             }
         }
 
-        private static bool lastFocused;
+        private static bool lastFocused = true;
         public static void CheckFocus()
         {
-            if (!Application.isFocused && lastFocused && Time.time > timeMenuStarted + 5f)
+            bool focused = Application.isFocused;
+
+            if (!focused && lastFocused && Time.time > timeMenuStarted + 5f)
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not focused on Gorilla Tag. Voice transcription mods will not function. Please focus/click on the game.");
 
-            lastFocused = Application.isFocused;
-            if (Application.isFocused && lastFocused)
-                DictationRestart();
+            // Dictation dies while unfocused, so restart it once when focus returns.
+            if (focused && !lastFocused && Buttons.GetIndex("AI Assistant")?.enabled == true)
+                CoroutineManager.instance.StartCoroutine(DictationRestart());
+
+            lastFocused = focused;
         }
 
         private static KeywordRecognizer mainPhrases;
@@ -4140,16 +4212,25 @@ exit 0";
             if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt"))
                 File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
             keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt");
+            mainPhrases?.Dispose();
             mainPhrases = new KeywordRecognizer(keyWords);
             mainPhrases.OnPhraseRecognized += ModRecognition;
             mainPhrases.Start();
         }
 
         private static Coroutine timeoutCoroutine;
+        private static void StopVoiceTimeout()
+        {
+            if (timeoutCoroutine != null)
+                CoroutineManager.instance.StopCoroutine(timeoutCoroutine);
+            timeoutCoroutine = null;
+        }
+
         public static void ModRecognition(PhraseRecognizedEventArgs args)
         {
-            mainPhrases.Stop();
+            mainPhrases?.Stop();
 
+            StopVoiceTimeout();
             if (!Buttons.GetIndex("Chain Voice Commands").enabled)
                 timeoutCoroutine = CoroutineManager.instance.StartCoroutine(Timeout(string.Empty));
 
@@ -4169,6 +4250,7 @@ exit 0";
             }
 
 
+            modPhrases?.Dispose();
             modPhrases = new KeywordRecognizer(rawbuttonnames.ToArray());
             modPhrases.OnPhraseRecognized += ExecuteVoiceCommand;
             modPhrases.Start();
@@ -4183,9 +4265,9 @@ exit 0";
         {
             if (!Buttons.GetIndex("Chain Voice Commands").enabled)
             {
-                modPhrases.Stop();
-                mainPhrases.Start();
-                CoroutineManager.instance.StopCoroutine(timeoutCoroutine);
+                modPhrases?.Stop();
+                mainPhrases?.Start();
+                StopVoiceTimeout();
             }
 
             if (cancelKeywords.Contains(args.text))
@@ -4249,18 +4331,15 @@ exit 0";
         public static IEnumerator Timeout(string text)
         {
             yield return new WaitForSeconds(10f);
+            timeoutCoroutine = null;
             CancelModRecognition(text);
         }
 
         public static void CancelModRecognition(string text)
         {
-            modPhrases.Stop();
-            mainPhrases.Start();
-            try
-            {
-                CoroutineManager.instance.StopCoroutine(timeoutCoroutine);
-            }
-            catch { }
+            modPhrases?.Stop();
+            mainPhrases?.Start();
+            StopVoiceTimeout();
 
             NotificationManager.SendNotification($"<color=grey>[</color><color=red>VOICE</color><color=grey>]</color> {(text == "i hate you" ? "I hate you too." : "Cancelling...")}", 3000);
             if (dynamicSounds)
@@ -4269,10 +4348,11 @@ exit 0";
 
         public static void VoiceRecognitionOff()
         {
-            mainPhrases?.Dispose();
+            StopVoiceTimeout();
             mainPhrases?.Stop();
-            modPhrases?.Dispose();
+            mainPhrases?.Dispose();
             modPhrases?.Stop();
+            modPhrases?.Dispose();
             mainPhrases = null;
             modPhrases = null;
             PhraseRecognitionSystem.Shutdown();
@@ -4288,29 +4368,58 @@ exit 0";
         {
             ButtonInfo mod = Buttons.GetIndex("AI Assistant");
 
-            if (Application.platform == RuntimePlatform.WindowsPlayer && Environment.OSVersion.Version.Major < 10)
-                PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.SetEnabled(false));
-            else if (Application.platform != RuntimePlatform.WindowsPlayer)
-                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.SetEnabled(false));
+            // Toggle runs disableMethods; SetEnabled only flips the flag.
+            void DisableMod(ButtonInfo button)
+            {
+                if (button.enabled)
+                    Toggle(button.buttonText);
+            }
 
+            // Turns the assistant off without DictationOff, whose PhraseRecognitionSystem.Shutdown would also
+            // stop the other voice mod the user chose to keep. Nothing has been started yet at that point.
+            void KeepOtherVoiceMod()
+            {
+                if (!mod.enabled)
+                    return;
+
+                mod.SetEnabled(false);
+                if (!clickGUI)
+                    ReloadMenu();
+            }
+
+            if (Application.platform == RuntimePlatform.WindowsPlayer && Environment.OSVersion.Version.Major < 10)
+            {
+                PromptSingle("Your version of Windows is too old for this mod to run.", () => DisableMod(mod));
+                yield break;
+            }
+
+            if (Application.platform != RuntimePlatform.WindowsPlayer)
+            {
+                PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => DisableMod(mod));
+                yield break;
+            }
 
             ButtonInfo vc = Buttons.GetIndex("Voice Commands");
             if (vc.enabled)
-                Prompt("You currently have Voice Commands enabled. These mods may overlap eachother. Would you like to disable it?", () => vc.SetEnabled(false), () => mod.SetEnabled(false));
+                Prompt("You currently have Voice Commands enabled. These mods may overlap eachother. Would you like to disable it?", () => DisableMod(vc), KeepOtherVoiceMod);
             else if (PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
-                PromptSingle("You can not use AI Assistant while you have another voice-related mod on.", () => mod.SetEnabled(false), "Ok");
+                PromptSingle("You can not use AI Assistant while you have another voice-related mod on.", KeepOtherVoiceMod, "Ok");
 
             if (!File.Exists($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt"))
                 File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
             keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt");
 
-            while (PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
+            while (mod.enabled && PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
                 yield return null;
+
+            if (!mod.enabled)
+                yield break;
 
             string[] kw = keyWords;
             if (narratorName == "Mommy ASMR")
                 kw = kw.Concat(new[] { "mommy", "momma" }).ToArray();
 
+            krec?.Dispose();
             krec = new KeywordRecognizer(kw);
 
             krec.OnPhraseRecognized += (args) => CoroutineManager.instance.StartCoroutine(DictationRecognizer());
@@ -5052,6 +5161,7 @@ exit 0";
         }
 
         public static GameObject selectObject;
+        private static Material pingLineMaterial;
         public static VRRig lastTarget;
         public static bool lastTriggerSelect;
         public static void PlayerSelect()
@@ -5066,14 +5176,20 @@ exit 0";
                 if (canSelect)
                 {
                     if (selectObject == null)
+                    {
                         selectObject = new GameObject("Nova_PingLine");
+
+                        if (pingLineMaterial == null)
+                            pingLineMaterial = new Material(Shader.Find("GUI/Text Shader"));
+
+                        selectObject.AddComponent<LineRenderer>().sharedMaterial = pingLineMaterial;
+                    }
 
                     Color targetColor = Buttons.GetIndex("Swap GUI Colors").enabled ? buttonColors[1].GetCurrentColor() : backgroundColor.GetCurrentColor();
                     Color lineColor = targetColor;
                     lineColor.a = 0.15f;
 
-                    LineRenderer pingLine = selectObject.GetOrAddComponent<LineRenderer>();
-                    pingLine.material.shader = Shader.Find("GUI/Text Shader");
+                    LineRenderer pingLine = selectObject.GetComponent<LineRenderer>();
                     pingLine.startColor = lineColor;
                     pingLine.endColor = lineColor;
                     pingLine.startWidth = 0.025f * (scaleWithPlayer ? GTPlayer.Instance.scale : 1f);
@@ -5095,8 +5211,8 @@ exit 0";
                     pingLine.SetPosition(0, StartPosition);
                     pingLine.SetPosition(1, EndPosition);
 
-                    VRRig rigTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (Ray.collider != null && rigTarget != null && !rigTarget.IsLocal())
+                    VRRig rigTarget = Ray.collider != null ? Ray.collider.GetComponentInParent<VRRig>() : null;
+                    if (rigTarget != null && !rigTarget.IsLocal())
                     {
                         if (lastTarget != null && lastTarget != rigTarget)
                         {
@@ -5123,15 +5239,16 @@ exit 0";
 
                         bool trigger = leftHand ? leftTrigger > 0.5f : rightTrigger > 0.5f;
 
-                        if (trigger && !lastTriggerSelect)
+                        NetPlayer selectedPlayer = trigger && !lastTriggerSelect ? GetPlayerFromVRRig(rigTarget) : null;
+                        if (selectedPlayer != null)
                         {
                             VRRig.LocalRig.PlayHandTapLocal(50, leftHand, 0.4f);
                             GorillaTagger.Instance.StartVibration(leftHand, GorillaTagger.Instance.tagHapticStrength / 2f, GorillaTagger.Instance.tagHapticDuration / 2f);
 
-                            NavigatePlayer(GetPlayerFromVRRig(rigTarget));
+                            NavigatePlayer(selectedPlayer);
                             ReloadMenu();
 
-                            NotificationManager.SendNotification($"<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Selected player {GetPlayerFromVRRig(rigTarget).NickName}.");
+                            NotificationManager.SendNotification($"<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Selected player {selectedPlayer.NickName}.");
                         }
 
                         lastTriggerSelect = trigger;
@@ -5253,6 +5370,24 @@ exit 0";
                 File.WriteAllText($"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt", AIManager.SystemPrompt);
         }
 
+        // Several Apply* callbacks don't keep their index field current, so save what the button has selected.
+        // Named cycles hold the selected name, not its index.
+        private static int GetCycleIndex(string buttonName, int fallback, string[] names = null)
+        {
+            object value = Buttons.GetIndex(buttonName)?.value;
+            if (value == null)
+                return fallback;
+
+            if (names != null && value is string name)
+            {
+                int index = Array.IndexOf(names, name);
+                return index >= 0 ? index : fallback;
+            }
+
+            try { return Convert.ToInt32(value); }
+            catch { return fallback; }
+        }
+
         public static string SavePreferencesToText()
         {
             string seperator = ";;";
@@ -5284,12 +5419,12 @@ exit 0";
             string[] settings = {
                 Movement.platformMode.ToString(),
                 Movement.platformShape.ToString(),
-                Movement.flySpeedCycle.ToString(),
-                Movement.longarmCycle.ToString(),
-                Movement.speedboostCycle.ToString(),
+                GetCycleIndex("Change Fly Speed", Movement.flySpeedCycle, Movement.FlySpeedNames).ToString(),
+                GetCycleIndex("Change Arm Length", Movement.longarmCycle, Movement.ArmLengthNames).ToString(),
+                GetCycleIndex("Change Speed Boost Amount", Movement.speedboostCycle, Movement.SpeedBoostNames).ToString(),
                 Projectiles.ProjectileMode.ToString(),
-                Movement.timerPowerIndex.ToString(),
-                Projectiles.shootCycle.ToString(),
+                GetCycleIndex("Change Timer Speed", Movement.timerPowerIndex).ToString(),
+                GetCycleIndex("Change Shoot Speed", Projectiles.shootCycle, Projectiles.ShootStrengthNames).ToString(),
                 pointerIndex.ToString(),
                 Advantages.tagAuraIndex.ToString(),
                 notificationDecayTime.ToString(),
@@ -5303,16 +5438,16 @@ exit 0";
                 Safety.antiReportRangeIndex.ToString(),
                 Advantages.tagRangeIndex.ToString(),
                 Sound.BindMode.ToString(),
-                Movement.driveInt.ToString(),
+                GetCycleIndex("cdSpeed", Movement.driveInt, Movement.DriveSpeedNames).ToString(),
                 langInd.ToString(),
                 inputTextColorInt.ToString(),
-                Movement.pullPowerInt.ToString(),
+                GetCycleIndex("Change Pull Mod Power", Movement.pullPowerInt, Movement.PullModPowerNames).ToString(),
                 SoundManager.DefaultSounds["Notification"],
                 Visuals.PerformanceModeStepIndex.ToString(),
                 gunVariation.ToString(),
                 GunDirection.ToString(),
                 narratorIndex.ToString(),
-                Movement.predInt.ToString(),
+                GetCycleIndex("Change Prediction Amount", Movement.predInt, Movement.PredictionAmountNames).ToString(),
                 gunLineQualityIndex.ToString(),
                 Projectiles.projDebounceIndex.ToString(),
                 Projectiles.red.ToString(),
@@ -5322,7 +5457,7 @@ exit 0";
                 Projectiles.SnowballSize.ToString(),
                 Overpowered.lagIndex.ToString(),
                 Fun.blockDebounceIndex.ToString(),
-                Fun.nameCycleIndex.ToString(),
+                Fun.cycleSpeedIndex.ToString(),
                 menuScaleIndex.ToString(),
                 Sound.soundId.ToString(),
                 Fun.targetQuestScore.ToString(),
@@ -5336,15 +5471,15 @@ exit 0";
                 menuButtonIndex.ToString(),
                 Safety.targetElo.ToString(),
                 Safety.targetBadge.ToString(),
-                Movement.playspaceAbuseIndex.ToString(),
-                Movement.wallWalkStrengthIndex.ToString(),
+                GetCycleIndex("Change Playspace Abuse Speed", Movement.playspaceAbuseIndex, Movement.PlayspaceAbuseNames).ToString(),
+                GetCycleIndex("Change Wall Walk Strength", Movement.wallWalkStrengthIndex, Movement.WallWalkStrengthNames).ToString(),
                 Fun.headSpinIndex.ToString(),
-                Movement.macroPlaybackRangeIndex.ToString(),
+                GetCycleIndex("Change Macro Playback Range", Movement.macroPlaybackRangeIndex, Movement.MacroPlaybackRangeNames).ToString(),
                 joystickMenuPosition.ToString(),
                 Movement.multiplicationAmount.ToString(),
                 Fun.targetFOV.ToString(),
                 Projectiles.targetProjectileIndex.ToString(),
-                Movement.fakeLagDelayIndex.ToString(),
+                GetCycleIndex("Change Fake Lag Strength", Movement.fakeLagDelayIndex).ToString(),
                 "0",//Projectiles.snowballIndex.ToString(),
                 characterDistance.ToString(),
                 Overpowered.lagTypeIndex.ToString(),
@@ -5396,7 +5531,7 @@ exit 0";
                 favoritetext + "\n" +
                 settingstext + "\n" +
                 pageButtonType + "\n" +
-                themeType + "\n" +
+                (themeType + 1) + "\n" + // The loader expects the old 1-based theme number
                 fontCycle + "\n" +
                 bindingtext + "\n" +
                 quickActionString + "\n" +
@@ -5432,7 +5567,8 @@ exit 0";
         private static void RestoreCycle(string buttonName, int newValue) => Restore(buttonName, newValue);
         private static void RestoreNamedCycle(string buttonName, string newValue) => Restore(buttonName, newValue);
 
-        public static void LoadPreferencesFromText(string text)
+        // restoreSession: also restore the play time and last account id (off for custom presets).
+        public static void LoadPreferencesFromText(string text, bool restoreSession = true)
         {
             loadingPreferencesFrame = Time.frameCount;
 
@@ -5441,12 +5577,18 @@ exit 0";
 
             string[] activebuttons = textData[0].Split(";;");
             for (int index = 0; index < activebuttons.Length; index++)
-                Toggle(activebuttons[index]);
+            {
+                if (!string.IsNullOrEmpty(activebuttons[index]))
+                    Toggle(activebuttons[index]);
+            }
 
-            string[] favoritesarray = textData[1].Split(";;");
-            favorites.Clear();
-            foreach (string favorite in favoritesarray)
-                favorites.Add(favorite);
+            if (textData.Length > 1)
+            {
+                string[] favoritesarray = textData[1].Split(";;");
+                favorites.Clear();
+                foreach (string favorite in favoritesarray)
+                    favorites.Add(favorite);
+            }
 
             try
             {
@@ -5547,6 +5689,8 @@ exit 0";
                 gunLineQualityIndex = int.Parse(data[31]);
                 RestoreCycle("Change Gun Line Quality", gunLineQualityIndex);
 
+                RestoreCycle("Change Projectile Delay", int.Parse(data[32]));
+
                 Projectiles.red = int.Parse(data[33]);
                 RestoreCycle("RedProj", Projectiles.red);
 
@@ -5568,8 +5712,8 @@ exit 0";
                 Fun.blockDebounceIndex = int.Parse(data[39]);
                 RestoreCycle("Change Block Delay", Fun.blockDebounceIndex);
 
-                Fun.nameCycleIndex = int.Parse(data[40]);
-                RestoreCycle("Change Cycle Delay", Fun.nameCycleIndex);
+                // Older saves wrote the name cycle position here; the button clamps it into range.
+                RestoreCycle("Change Cycle Delay", int.Parse(data[40]));
 
                 menuScaleIndex = int.Parse(data[41]);
                 RestoreCycle("Change Menu Scale", menuScaleIndex);
@@ -5589,9 +5733,11 @@ exit 0";
                 arraylistScaleIndex = int.Parse(data[46]);
                 RestoreCycle("Change Arraylist Scale", arraylistScaleIndex);
 
-                playTime = int.Parse(data[47]);
-
-                Important.oldId = data[48];
+                if (restoreSession)
+                {
+                    playTime = int.Parse(data[47]);
+                    Important.oldId = data[48];
+                }
 
                 _pageSize = int.Parse(data[49]);
                 RestoreCycle("Change Page Size", _pageSize);
@@ -5626,8 +5772,8 @@ exit 0";
                 Movement.multiplicationAmount = int.Parse(data[59]);
                 RestoreCycle("Knockback Multiplication Amount", Movement.multiplicationAmount);
 
-                Fun.targetFOV = int.Parse(data[60]);
-                RestoreCycle("Change Target FOV", Fun.targetFOV);
+                // Saved as the field of view itself; the button holds (fov - 70) / 10.
+                RestoreCycle("Change Target FOV", Mathf.RoundToInt((int.Parse(data[60]) - 70) / 10f));
 
                 Projectiles.targetProjectileIndex = int.Parse(data[61]);
                 RestoreCycle("Change Projectile Index", Projectiles.targetProjectileIndex);
@@ -5647,17 +5793,15 @@ exit 0";
                 Overpowered.masterVisualizationType = int.Parse(data[66]);
                 RestoreCycle("Master Visualization Type", Overpowered.masterVisualizationType);
 
-                Movement.targetHz = int.Parse(data[67]);
-                RestoreCycle("Change Tinnitus Hertz", Movement.targetHz);
+                // Saved in hertz; the button holds (hz - 4000) / 500.
+                RestoreCycle("Change Tinnitus Hertz", Mathf.RoundToInt((int.Parse(data[67]) - 4000) / 500f));
 
                 //Safety.pingSpoofValue = int.Parse(data[68]);
                 //RestoreCycle("Change Ping Spoof Value", Safety.pingSpoofValue);
 
-                Fun.soundboardVolumeIndex = float.Parse(data[69]);
-                RestoreCycle("Change Soundboard Volume", (int)Fun.soundboardVolumeIndex);
-
-                Fun.soundboardSpeedIndex = float.Parse(data[70]);
-                RestoreCycle("Change Soundboard Speed", (int)Fun.soundboardSpeedIndex);
+                // Saved as the multiplier; the buttons count in steps of 0.05.
+                RestoreCycle("Change Soundboard Volume", Mathf.RoundToInt(float.Parse(data[69]) / 0.05f));
+                RestoreCycle("Change Soundboard Speed", Mathf.RoundToInt(float.Parse(data[70]) / 0.05f));
 
                 ButtonInfo soundpack = Buttons.GetIndex("Change Menu Soundpack");
                 RestoreNamedCycle("Change Menu Soundpack", data[71]);
@@ -5667,36 +5811,42 @@ exit 0";
             catch (Exception e) { LogManager.Log("Save file out of date: " + e); }
 
 
-            pageButtonType = int.Parse(textData[3]);
-            RestoreCycle("Change Page Type", pageButtonType);
-            themeType = int.Parse(textData[4]);
-            RestoreCycle("Change Menu Theme", themeType - 1);
-            fontCycle = int.Parse(textData[5]);
-            RestoreCycle("Change Font Type", fontCycle);
-
-            try
+            if (textData.Length > 3 && int.TryParse(textData[3], out int savedPageType))
             {
-                foreach (string Bindings in textData[6].Split("~~"))
+                pageButtonType = savedPageType;
+                RestoreCycle("Change Page Type", pageButtonType);
+            }
+
+            if (textData.Length > 4 && int.TryParse(textData[4], out int savedTheme))
+                RestoreCycle("Change Menu Theme", savedTheme - 1); // Stored 1-based
+
+            if (textData.Length > 5 && int.TryParse(textData[5], out int savedFont))
+            {
+                fontCycle = savedFont;
+                RestoreCycle("Change Font Type", fontCycle);
+            }
+
+            if (textData.Length > 6)
+            {
+                try
                 {
-                    if (Bindings.Contains(";;"))
+                    // Replace the binds instead of merging, so ones missing from the save don't linger.
+                    ClearAllKeybinds();
+                    foreach (string bindings in textData[6].Split("~~"))
                     {
-                        string[] BindData = Bindings.Split(";;");
-                        string BindName = BindData[0];
+                        string[] bindData = bindings.Split(";;");
+                        if (!ModBindings.TryGetValue(bindData[0], out List<string> binds))
+                            continue;
 
-                        List<string> Binds = new List<string>();
-
-                        for (int i = 1; i < BindData.Length; i++)
+                        for (int i = 1; i < bindData.Length; i++)
                         {
-                            string ModName = BindData[i];
-                            if (Buttons.GetIndex(ModName) != null)
-                                Binds.Add(ModName);
+                            if (Buttons.GetIndex(bindData[i]) != null)
+                                binds.Add(bindData[i]);
                         }
-
-                        ModBindings[BindName] = Binds;
                     }
                 }
+                catch { }
             }
-            catch { }
 
             try
             {
@@ -5710,18 +5860,32 @@ exit 0";
             }
             catch { }
 
-            try
+            if (textData.Length > 8)
             {
-                foreach (string bind in textData[8].Split(";;"))
+                try
                 {
-                    string rebindText = bind.Split(";")[0];
-                    string rebindKey = bind.Split(";")[1];
-                    ButtonInfo button = Buttons.GetIndex(rebindText);
-                    if (button != null)
-                        button.rebindKey = rebindKey;
+                    foreach (ButtonInfo[] buttonlist in Buttons.buttons)
+                    {
+                        foreach (ButtonInfo button in buttonlist)
+                        {
+                            if (button != null)
+                                button.rebindKey = null;
+                        }
+                    }
+
+                    foreach (string bind in textData[8].Split(";;"))
+                    {
+                        string[] rebindData = bind.Split(";");
+                        if (rebindData.Length < 2)
+                            continue;
+
+                        ButtonInfo button = Buttons.GetIndex(rebindData[0]);
+                        if (button != null)
+                            button.rebindKey = rebindData[1];
+                    }
                 }
+                catch { }
             }
-            catch { }
 
             try
             {
