@@ -114,7 +114,7 @@ namespace Nova.Mods
                     platformRenderer.enabled = false;
                     break;
                 case 4:
-                    UpdateClipColliders(false);
+                    ClipCollidersOff("Platforms", true);
                     break;
                 case 5:
                     platform.AddComponent<GorillaSurfaceOverride>().overrideIndex = 29;
@@ -219,7 +219,7 @@ namespace Nova.Mods
                         else
                             rightplat = null;
                         if (platformMode == 4 && leftplat == null && rightplat == null)
-                            UpdateClipColliders(true);
+                            ClipCollidersOff("Platforms", false);
 
                         FriendManager.PlatformDespawned(left);
                         break;
@@ -413,7 +413,7 @@ namespace Nova.Mods
 
             bool clipping = noclip || noclipFly;
             if (clipping != wasClipping)
-                UpdateClipColliders(!clipping);
+                ClipCollidersOff("Noclip", clipping);
         }
 
         public static void NoclipFly()
@@ -1649,10 +1649,10 @@ namespace Nova.Mods
             switch (isOnBranch)
             {
                 case true when !lastOnBranch:
-                    UpdateClipColliders(false);
+                    ClipCollidersOff("AutoBranch", true);
                     break;
                 case false when lastOnBranch:
-                    UpdateClipColliders(true);
+                    ClipCollidersOff("AutoBranch", false);
                     break;
             }
 
@@ -1662,7 +1662,7 @@ namespace Nova.Mods
         public static void DisableAutoBranch()
         {
             if (lastOnBranch)
-                UpdateClipColliders(true);
+                ClipCollidersOff("AutoBranch", false);
 
             lastOnBranch = false;
         }
@@ -2781,6 +2781,26 @@ namespace Nova.Mods
         }
 
         private static readonly List<MeshCollider> clipDisabledColliders = new List<MeshCollider>();
+        private static readonly HashSet<string> clipOwners = new HashSet<string>();
+
+        /// <summary>Turns world collision off while any of Noclip, Auto Branch or Noclip platforms wants it off.</summary>
+        /// <remarks>
+        /// They used to share one on/off switch, so one of them finishing turned collision back
+        /// on while another was still using noclip.
+        /// </remarks>
+        private static void ClipCollidersOff(string owner, bool off)
+        {
+            bool wasOff = clipOwners.Count > 0;
+            if (off)
+                clipOwners.Add(owner);
+            else
+                clipOwners.Remove(owner);
+
+            bool nowOff = clipOwners.Count > 0;
+            if (nowOff != wasOff)
+                UpdateClipColliders(!nowOff);
+        }
+
         public static void UpdateClipColliders(bool enabled)
         {
             if (enabled)
