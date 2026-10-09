@@ -94,13 +94,22 @@ namespace Nova.Extensions
             return rig.Distance(VRRig.LocalRig.leftHand.rigTarget.position) <= distance || rig.Distance(VRRig.LocalRig.rightHand.rigTarget.position) <= distance;
         }
 
+        private static List<NetPlayer> _infectedCache;
+        private static int _infectedFrame = -1;
+
         public static bool IsTagged(this VRRig rig)
         {
             if (rig == null) return false;
-            List<NetPlayer> infectedPlayers = InfectedList();
-            NetPlayer targetPlayer = rig.GetPlayer();
 
-            return infectedPlayers.Contains(targetPlayer);
+            // Called for every rig each frame, so build the infected list once per frame
+            int frame = Time.frameCount;
+            if (_infectedCache == null || frame != _infectedFrame)
+            {
+                _infectedCache = InfectedList();
+                _infectedFrame = frame;
+            }
+
+            return _infectedCache.Contains(rig.GetPlayer());
         }
 
         public enum PlatformType
@@ -207,6 +216,9 @@ namespace Nova.Extensions
 
         public static int GetTruePing(this VRRig rig)
         {
+            if (rig == null || rig.velocityHistoryList == null || rig.velocityHistoryList.Count == 0)
+                return 0;
+
             double ping = Math.Abs((rig.velocityHistoryList[0].time - PhotonNetwork.Time) * 1000);
             int safePing = (int)Math.Clamp(Math.Round(ping), 0, int.MaxValue);
 
@@ -278,8 +290,11 @@ namespace Nova.Extensions
         public static string Cosmetics(this VRRig rig) =>
             rig._playerOwnedCosmetics.Concat();
 
-        public static bool IsVIMSubscriber(this VRRig rig) =>
-            SubscriptionManager.Instance.subData[rig.GetPlayer()].active;
+        public static bool IsVIMSubscriber(this VRRig rig)
+        {
+            NetPlayer player = rig == null ? null : rig.GetPlayer();
+            return player != null && SubscriptionManager.IsPlayerSubscribed(player);
+        }
 
 
         private static readonly List<VRRig> _rigs = new List<VRRig>();

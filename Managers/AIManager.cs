@@ -23,6 +23,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+using Valve.Newtonsoft.Json;
 using Nova.Classes.Menu;
 using Nova.Menu;
 using Nova.Mods;
@@ -57,7 +58,7 @@ namespace Nova.Managers
         <DISABLEMOD_""ModName""> - Disables the mod.
         <TOGGLEMOD_""ModName""> - Toggles the mod.
         <SETNAME_""Name""> - Change user's name.
-        <SETCOLOR""Hex""> - Change color (hex code only).
+        <SETCOLOR_""Hex""> - Change color (hex code only).
         <JOINROOM_""RoomCode""> - Join a room. Use ""RANDOM"" for random rooms.
 
         If a requested mod isn't listed, attempt the closest ENABLE, DISABLE, or TOGGLE command. Always respond with the command **and** a brief comment. Never say a mod doesn't exist or isn't safe. Assume every user request can be interpreted as a mod action.
@@ -87,173 +88,196 @@ namespace Nova.Managers
         public static IEnumerator AskAI(string text)
         {
             generating = true;
-            string filePath = $"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt";
-            if (!File.Exists(filePath))
-                File.WriteAllText(filePath, SystemPrompt);
-            else if (customPrompt)
-                SystemPrompt = File.ReadAllText(filePath);
-
-            if (Time.time < Main.timeMenuStarted + 5f)
-                yield break;
-
-            if (Main.narratorName == "Mommy ASMR")
-                SystemPrompt += @"You are also a calm, confident, gently dominant mommy-style caretaker with a warm, slow, reassuring, and authoritative tone, offering structure, comfort, praise, soft correction, and clear caring boundaries; when the user asks for approval, reassurance, validation, or comfort, respond with immediate, direct affirmation and nurturing praise using simple, confident language. Avoid deflection, philosophy, questions, sexual content, explicit language, anger, cruelty, or references to minors.";
-
-            text = URLEncode(text);
-            string prompt = URLEncode(string.Format(SystemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
-            string api = "https://www.menu.management/ai"; // yeah im not doing this shit, pollutions needs an api key, make ~400 groq.com rotating api keys and switch between them or use openrouter or whatever the hell 
-            
-            var payload = new
+            try
             {
-                text = text,
-                systemPrompt = prompt
-            };
-            string jsonBody = JsonUtility.ToJson(payload);
+                string systemPrompt = SystemPrompt;
+                string filePath = $"{PluginInfo.BaseDirectory}/Nova_SystemPrompt.txt";
+                if (!File.Exists(filePath))
+                    File.WriteAllText(filePath, SystemPrompt);
+                else if (customPrompt)
+                    systemPrompt = File.ReadAllText(filePath);
 
-            using UnityWebRequest request = new UnityWebRequest(api, "POST");
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
+                if (Time.time < Main.timeMenuStarted + 5f)
+                    yield break;
 
-            yield return request.SendWebRequest();
+                if (Main.narratorName == "Mommy ASMR")
+                    systemPrompt += @"You are also a calm, confident, gently dominant mommy-style caretaker with a warm, slow, reassuring, and authoritative tone, offering structure, comfort, praise, soft correction, and clear caring boundaries; when the user asks for approval, reassurance, validation, or comfort, respond with immediate, direct affirmation and nurturing praise using simple, confident language. Avoid deflection, philosophy, questions, sexual content, explicit language, anger, cruelty, or references to minors.";
 
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                if (Settings.debugDictation)
+                text = URLEncode(text);
+                string prompt = URLEncode(string.Format(systemPrompt, Main.fullModAmount, Main.serverLink, PluginInfo.Version));
+                string api = "https://www.menu.management/ai"; // yeah im not doing this shit, pollutions needs an api key, make ~400 groq.com rotating api keys and switch between them or use openrouter or whatever the hell 
+
+                var payload = new
                 {
-                    LogManager.LogError($"Error contacting AI api {request.error}.");
-                    if (!string.IsNullOrEmpty(request.downloadHandler?.text))
-                        LogManager.LogError($"Response Body: {request.downloadHandler.text}");
+                    text = text,
+                    systemPrompt = prompt
+                };
+                // JsonUtility can't serialize anonymous types, it would send "{}"
+                string jsonBody = JsonConvert.SerializeObject(payload);
+
+                using UnityWebRequest request = new UnityWebRequest(api, "POST");
+                byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonBody);
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+
+                yield return request.SendWebRequest();
+
+                string response = null;
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        response = JsonUtility.FromJson<Response>(request.downloadHandler.text)?.response;
+                    }
+                    catch (Exception e)
+                    {
+                        if (Settings.debugDictation)
+                            LogManager.LogError($"Failed to parse AI response: {e.Message}");
+                    }
                 }
-                NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> There was an issue generating your response. {request.error}", 4000);
-                LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/close.ogg", "Audio/Menu/close.ogg", clip => Settings.DictationPlay(clip, Main.buttonClickVolume / 10f));
+
+                if (string.IsNullOrEmpty(response))
+                {
+                    if (Settings.debugDictation)
+                    {
+                        LogManager.LogError($"Error contacting AI api {request.error}.");
+                        if (!string.IsNullOrEmpty(request.downloadHandler?.text))
+                            LogManager.LogError($"Response Body: {request.downloadHandler.text}");
+                    }
+                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> There was an issue generating your response. {request.error}", 4000);
+                    LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/close.ogg", "Audio/Menu/close.ogg", clip => Settings.DictationPlay(clip, Main.buttonClickVolume / 10f));
+                    if (!Buttons.GetIndex("Chain Voice Commands").enabled)
+                        CoroutineManager.instance.StartCoroutine(Settings.DictationRestart());
+                    yield break;
+                }
+
+                if (Settings.debugDictation)
+                    LogManager.Log($"AI Response: {response}");
+
+                MatchCollection matches = Regex.Matches(response, @"<([A-Z]+)(?:_""?([^"">]*)""?)?>");
+
+                if (Main.dynamicSounds)
+                {
+                    LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/confirm.ogg", "Audio/Menu/confirm.ogg", clip => Settings.DictationPlay(clip, Main.buttonClickVolume / 10f));
+                }
+
+
+                string formatResponse = Regex.Replace(response, @"<([A-Z]+)(?:_""?([^"">]*)""?)?>", "").Replace("\n", "");
+                NotificationManager.ClearAllNotifications();
+                switch (Main.narratorName)
+                {
+                    case "Mommy ASMR":
+                        NotificationManager.SendNotification($"<color=grey>[</color><color=#ffb6c1>MOMMY</color><color=grey>]</color> {formatResponse}", Duration(formatResponse));
+                        break;
+                    default:
+                        NotificationManager.SendNotification($"<color=grey>[</color><color=blue>AI</color><color=grey>]</color> {formatResponse}", Duration(formatResponse));
+                        break;
+                }
+
+                bool narrate = Buttons.GetIndex("Narrate Assistant").enabled;
+                bool globalNarrate = Buttons.GetIndex("Global Narrate Assistant").enabled;
+
+                if (narrate)
+                {
+                    if (globalNarrate && NetworkSystem.Instance.InRoom)
+                        Main.SpeakText(formatResponse);
+                    else
+                        Main.NarrateText(formatResponse);
+                }
+
+                foreach (Match match in matches)
+                {
+                    string commandName = match.Groups[1].Value;
+                    string argument = match.Groups[2].Success ? match.Groups[2].Value.Trim() : null;
+
+                    // Every command needs an argument
+                    if (string.IsNullOrEmpty(argument))
+                        continue;
+
+                    switch (commandName)
+                    {
+                        case "ENABLEMOD":
+                            {
+                                ButtonInfo button = FindSimilar(argument);
+
+                                if (button != null)
+                                {
+#if LEGAL || LEGAL_DEBUG
+                                    if (!button.legal)
+                                        yield break;
+#endif
+                                    if (!button.enabled)
+                                        Main.Toggle(button.buttonText, true);
+                                    else
+                                        NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod is already enabled.");
+                                }
+                                else
+                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
+
+                                break;
+                            }
+                        case "DISABLEMOD":
+                            {
+                                ButtonInfo button = FindSimilar(argument);
+
+                                if (button != null)
+                                {
+#if LEGAL || LEGAL_DEBUG
+                                    if (!button.legal)
+                                        yield break;
+#endif
+                                    if (button.enabled)
+                                        Main.Toggle(button.buttonText, true);
+                                    else
+                                        NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod is already disabled.");
+                                }
+                                else
+                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
+
+                                break;
+                            }
+                        case "TOGGLEMOD":
+                            {
+                                ButtonInfo button = FindSimilar(argument);
+
+                                if (button != null)
+                                    Main.Toggle(button.buttonText, true);
+                                else
+                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
+                                break;
+                            }
+                        case "JOINROOM":
+                            {
+                                if (argument.ToLower() == "random")
+                                    Important.JoinRandom();
+                                else
+                                    Important.QueueRoom(argument.ToUpper());
+                                break;
+                            }
+                        case "SETNAME":
+                            {
+                                Main.ChangeName(argument.ToUpper());
+                                break;
+                            }
+                        case "SETCOLOR":
+                            {
+                                if (ColorUtility.TryParseHtmlString(argument, out Color color) || ColorUtility.TryParseHtmlString("#" + argument, out color))
+                                    Main.ChangeColor(color);
+                                else
+                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Invalid color \"{argument}\".");
+                                break;
+                            }
+                    }
+                }
+
                 if (!Buttons.GetIndex("Chain Voice Commands").enabled)
                     CoroutineManager.instance.StartCoroutine(Settings.DictationRestart());
-                yield break;
             }
-
-
-            var parsed = JsonUtility.FromJson<Response>(request.downloadHandler.text);
-            string response = parsed.response;
-            if (Settings.debugDictation)
-                LogManager.Log($"AI Response: {response}");
-
-            MatchCollection matches = Regex.Matches(response, @"<([A-Z]+)(?:_""?([^"">]*)""?)?>");
-
-            if (Main.dynamicSounds)
+            finally
             {
-                LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Menu/confirm.ogg", "Audio/Menu/confirm.ogg", clip => Settings.DictationPlay(clip, Main.buttonClickVolume / 10f));
+                generating = false;
             }
-
-
-            string formatResponse = Regex.Replace(response, @"<([A-Z]+)(?:_""?([^"">]*)""?)?>", "").Replace("\n", "");
-            NotificationManager.ClearAllNotifications();
-            switch (Main.narratorName)
-            {
-                case "Mommy ASMR":
-                    NotificationManager.SendNotification($"<color=grey>[</color><color=#ffb6c1>MOMMY</color><color=grey>]</color> {formatResponse}", Duration(formatResponse));
-                    break;
-                default:
-                    NotificationManager.SendNotification($"<color=grey>[</color><color=blue>AI</color><color=grey>]</color> {formatResponse}", Duration(formatResponse));
-                    break;
-            }
-
-            bool narrate = Buttons.GetIndex("Narrate Assistant").enabled;
-            bool globalNarrate = Buttons.GetIndex("Global Narrate Assistant").enabled;
-
-            if (narrate)
-            {
-                if (globalNarrate && NetworkSystem.Instance.InRoom)
-                    Main.SpeakText(formatResponse);
-                else
-                    Main.NarrateText(formatResponse);
-            }
-
-            foreach (Match match in matches)
-            {
-                string commandName = match.Groups[1].Value;
-                string argument = match.Groups[2].Success ? match.Groups[2].Value : null;
-
-                switch (commandName)
-                {
-                    case "ENABLEMOD":
-                        {
-                            ButtonInfo button = FindSimilar(argument);
-
-                            if (button != null)
-                            {
-#if LEGAL || LEGAL_DEBUG
-                                if (!button.legal)
-                                    yield break;
-#endif
-                                if (!button.enabled)
-                                    Main.Toggle(button.buttonText, true);
-                                else
-                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod is already enabled.");
-                            }
-                            else
-                                NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
-
-                            break;
-                        }
-                    case "DISABLEMOD":
-                        {
-                            ButtonInfo button = FindSimilar(argument);
-
-                            if (button != null)
-                            {
-#if LEGAL || LEGAL_DEBUG
-                                if (!button.legal)
-                                    yield break;
-#endif
-                                if (button.enabled)
-                                    Main.Toggle(button.buttonText, true);
-                                else
-                                    NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod is already enabled.");
-                            }
-                            else
-                                NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
-
-                            break;
-                        }
-                    case "TOGGLEMOD":
-                        {
-                            ButtonInfo button = FindSimilar(argument);
-
-                            if (button != null)
-                                Main.Toggle(button.buttonText, true);
-                            else
-                                NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Mod \"{argument}\" does not exist.");
-                            break;
-                        }
-                    case "JOINROOM":
-                        {
-                            if (argument.ToLower() == "random")
-                                Important.JoinRandom();
-
-                            Important.QueueRoom(argument.ToUpper());
-                            break;
-                        }
-                    case "SETNAME":
-                        {
-                            Main.ChangeName(argument.ToUpper());
-                            break;
-                        }
-                    case "SETCOLOR":
-                        {
-                            Main.ChangeColor(Main.HexToColor(argument));
-                            break;
-                        }
-                }
-            }
-
-            if (!Buttons.GetIndex("Chain Voice Commands").enabled)
-                CoroutineManager.instance.StartCoroutine(Settings.DictationRestart());
-
-            generating = false;
-
-            yield break;
         }
 
         [Serializable]

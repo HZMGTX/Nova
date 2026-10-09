@@ -441,6 +441,9 @@ namespace Nova.Managers
             if (buffer == null || buffer.Length == 0)
                 return false;
 
+            if (microphoneBuffer == null || microphoneBuffer.Length != buffer.Length)
+                microphoneBuffer = new float[buffer.Length];
+
             if (microphoneClip != null && !string.IsNullOrEmpty(currentDevice))
             {
                 int outFrames = buffer.Length / Channels;
@@ -450,9 +453,6 @@ namespace Nova.Managers
 
                 if (rawMicrophoneData == null || rawMicrophoneData.Length != micSampleCount)
                     rawMicrophoneData = new float[micSampleCount];
-
-                if (microphoneBuffer == null || microphoneBuffer.Length != buffer.Length)
-                    microphoneBuffer = new float[buffer.Length];
 
                 int curFrame = Microphone.GetPosition(currentDevice);
                 int lastFrame = lastSamplePosition;
@@ -527,6 +527,8 @@ namespace Nova.Managers
                 lastSamplePosition = (lastFrame + usedFrames) % micFrames;
                 resamplePointer = sourcePosition - Mathf.Floor(sourcePosition);
             }
+            else
+                Array.Clear(microphoneBuffer, 0, microphoneBuffer.Length);
 
             if (!PostProcessClip)
             {

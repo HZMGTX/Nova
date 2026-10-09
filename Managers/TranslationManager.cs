@@ -90,8 +90,8 @@ namespace Nova.Managers
 
             if (!File.Exists(filePath))
             {
-                string cleanText = Regex.Replace(text, @"([""'$`\\])", "\\$1");
-                cleanText = cleanText[..Mathf.Min(cleanText.Length, 4096)];
+                // Sent as a query parameter, so URL escaping below is all it needs
+                string cleanText = text[..Mathf.Min(text.Length, 4096)];
 
                 string cleanLang = Regex.Replace(language, @"[^a-zA-Z0-9]", "");
                 cleanLang = cleanLang[..Mathf.Min(cleanLang.Length, 6)];

@@ -104,6 +104,10 @@ namespace Nova.Utilities
             }
         }
 
+        // Sounds already fetched from the server this session, and the ones being fetched right now
+        private static readonly HashSet<string> downloadedSounds = new HashSet<string>();
+        private static readonly HashSet<string> downloadingSounds = new HashSet<string>();
+
         public static void LoadSoundFromURL(string resourcePath, string fileName, System.Action<AudioClip> action = null)
         {
             CoroutineManager.instance.StartCoroutine(Load());
@@ -116,38 +120,66 @@ namespace Nova.Utilities
                 if (!Directory.Exists(directory))
                     Directory.CreateDirectory(directory);
 
-                using UnityWebRequest request = UnityWebRequest.Get(resourcePath);
-                yield return request.SendWebRequest();
-
-                if (request.result != UnityWebRequest.Result.Success)
+                if (downloadedSounds.Add(fileName))
                 {
-                    LogManager.LogError($"Failed to download {fileName}: {request.error}");
-                    action?.Invoke(null);
-                    yield break;
+                    downloadingSounds.Add(fileName);
+                    try
+                    {
+                        using UnityWebRequest request = UnityWebRequest.Get(resourcePath);
+                        yield return request.SendWebRequest();
+
+                        if (request.result != UnityWebRequest.Result.Success)
+                        {
+                            LogManager.LogError($"Failed to download {fileName}: {request.error}");
+
+                            // Nothing to fall back to, so allow another attempt later
+                            if (!File.Exists(filePath))
+                                downloadedSounds.Remove(fileName);
+                        }
+                        else
+                        {
+                            byte[] remoteData = request.downloadHandler.data;
+                            bool shouldWrite = true;
+
+                            if (File.Exists(filePath))
+                            {
+                                byte[] localData = File.ReadAllBytes(filePath);
+
+                                using var sha = System.Security.Cryptography.SHA256.Create();
+                                byte[] remoteHash = sha.ComputeHash(remoteData);
+                                byte[] localHash = sha.ComputeHash(localData);
+
+                                shouldWrite = !remoteHash.SequenceEqual(localHash);
+                            }
+
+                            if (shouldWrite)
+                            {
+                                LogManager.Log("Downloaded " + fileName);
+                                File.WriteAllBytes(filePath, remoteData);
+                                audioFilePool.Remove(fileName);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        downloadingSounds.Remove(fileName);
+                    }
                 }
-
-                byte[] remoteData = request.downloadHandler.data;
-                bool shouldWrite = true;
-
-                if (File.Exists(filePath))
+                else
                 {
-                    byte[] localData = File.ReadAllBytes(filePath);
-
-                    using var sha = System.Security.Cryptography.SHA256.Create();
-                    byte[] remoteHash = sha.ComputeHash(remoteData);
-                    byte[] localHash = sha.ComputeHash(localData);
-
-                    shouldWrite = !remoteHash.SequenceEqual(localHash);
-                }
-
-                if (shouldWrite)
-                {
-                    LogManager.Log("Downloaded " + fileName);
-                    File.WriteAllBytes(filePath, remoteData);
+                    while (downloadingSounds.Contains(fileName))
+                        yield return null;
                 }
 
                 if (action == null)
                     yield break;
+
+                bool pooled = audioFilePool.TryGetValue(fileName, out AudioClip cached) && cached != null;
+                if (!pooled && !File.Exists(filePath))
+                {
+                    action.Invoke(null);
+                    yield break;
+                }
 
                 LoadSoundFromFile(fileName, action);
             }

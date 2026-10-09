@@ -53,19 +53,14 @@ namespace Nova.Patches.Safety
                     rpcCount++;
                     if (rpcCount > MaxRPCs)
                     {
-                        if ((eventCode == PunEvent.RPC || eventCode == 201) && customEventContent != null && customEventContent is Hashtable rpcData)
+                        if (eventCode == PunEvent.RPC && customEventContent is Hashtable rpcData)
                         {
-                            foreach (var key in rpcData.Keys)
-                            {
-                                if (key is byte keyByte && keyByte == 0)
-                                {
-                                    if (rpcData[key] is string rpcName)
-                                    {
-                                        Debug.LogWarning($"Blocked RPC {rpcName} as we are sending too much traffic over the network!");
-                                    }
-                                    break;
-                                }
-                            }
+                            // PUN stores the method name under key 3, or its RpcList index under key 5
+                            string rpcName = rpcData[(byte)3] as string;
+                            if (rpcName == null && rpcData[(byte)5] is byte shortcut && PhotonNetwork.PhotonServerSettings != null && shortcut < PhotonNetwork.PhotonServerSettings.RpcList.Count)
+                                rpcName = PhotonNetwork.PhotonServerSettings.RpcList[shortcut];
+
+                            Debug.LogWarning($"Blocked RPC {rpcName ?? "(unknown)"} as we are sending too much traffic over the network!");
                         }
                         else
                             Debug.LogWarning($"Blocked event {eventCode} as we are sending too much traffic over the network!");

@@ -60,6 +60,9 @@ namespace Nova.Patches.Menu
                     .Select(x => x.Rig)
                     .FirstOrDefault();
 
+                if (targetRig == null)
+                    return;
+
                 rotation = Quaternion.LookRotation((targetRig.headMesh.transform.position - position).normalized);
             }
         }

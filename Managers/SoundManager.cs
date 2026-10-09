@@ -205,7 +205,7 @@ namespace Nova.Managers
 
         public static string DefaultSoundpack = "None";
 
-        public static void Play(string sound, string outputPath = null, Action<AudioClip> action = null, string buttonText = null, bool overlapHand = false, bool leftOverlap = false, bool global = false)
+        public static void Play(string sound, string outputPath = null, Action<AudioClip> action = null, string buttonText = null, bool overlapHand = false, bool leftOverlap = false, bool global = false, string category = null)
         {
             if (string.IsNullOrEmpty(sound)) return;
 
@@ -217,7 +217,7 @@ namespace Nova.Managers
                 if (doButtonsVibrate)
                     GorillaTagger.Instance.StartVibration(rightHand, GorillaTagger.Instance.tagHapticStrength / 2f, GorillaTagger.Instance.tagHapticDuration / 2f);
 
-                object path = ResolveSoundPath(sound);
+                object path = ResolveSoundPath(sound, buttonText, category);
                 if (path == null)
                 {
                     rightHand = archiveRightHand;
@@ -261,7 +261,8 @@ namespace Nova.Managers
             }
         }
 
-        private static object ResolveSoundPath(string sound, string buttonText = null)
+        // category disambiguates names shared between categories, like "Dog" in Buttons and Notifications
+        private static object ResolveSoundPath(string sound, string buttonText = null, string category = null)
         {
             if (string.IsNullOrEmpty(sound)) return null;
 
@@ -282,13 +283,18 @@ namespace Nova.Managers
                 return null;
             }
 
-            string category = null;
-            foreach (var kvp in Sounds)
+            if (category != null && (!Sounds.TryGetValue(category, out var requestedCategory) || requestedCategory == null || !requestedCategory.ContainsKey(sound)))
+                category = null;
+
+            if (category == null)
             {
-                if (kvp.Value == null) continue;
-                if (!kvp.Value.ContainsKey(sound)) continue;
-                category = kvp.Key;
-                break;
+                foreach (var kvp in Sounds)
+                {
+                    if (kvp.Value == null) continue;
+                    if (!kvp.Value.ContainsKey(sound)) continue;
+                    category = kvp.Key;
+                    break;
+                }
             }
 
             object baseRequestedPath = null;

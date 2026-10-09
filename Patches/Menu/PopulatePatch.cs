@@ -36,10 +36,14 @@ namespace Nova.Patches.Menu
         {
             if (enabled)
             {
-                bool custom = friend.Presence.RoomId[0] == '@';
+                string roomId = friend?.Presence?.RoomId;
+                if (string.IsNullOrEmpty(roomId))
+                    return;
 
-                __instance.SetRoom((custom ? friend.Presence.RoomId[1..] : friend.Presence.RoomId).ToUpper());
-                __instance.SetZone((custom ? "CUSTOM" : friend.Presence.Zone).ToUpper());
+                bool custom = roomId[0] == '@';
+
+                __instance.SetRoom((custom ? roomId[1..] : roomId).ToUpper());
+                __instance.SetZone((custom ? "CUSTOM" : friend.Presence.Zone ?? "").ToUpper());
                 __instance.joinable = true;
 
                 __instance.UpdateComponentStates();
