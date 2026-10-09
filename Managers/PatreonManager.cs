@@ -88,6 +88,7 @@ namespace Nova.Managers
             instance.PatreonMembers.Any(m => m.UserId == player.UserId);
 
         public static bool IndicatorsEnabled = true;
+        private static readonly HashSet<string> failedIcons = new HashSet<string>();
         public void Update()
         {
             List<VRRig> toRemoveRigs = new List<VRRig>();
@@ -130,7 +131,22 @@ namespace Nova.Managers
                     }
 
                     playerIndicator.GetComponent<Renderer>().material = iconMaterial;
-                    playerIndicator.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL(member.Value.IconURL, $"Images/Patreon/{member.Key.UserId}.{FileUtilities.GetFileExtension(member.Value.IconURL)}"); // errors?
+
+                    // An icon that can't be downloaded is tried once, not every frame; it used
+                    // to throw here and leave a stray cube behind on every attempt.
+                    if (!failedIcons.Contains(member.Value.IconURL))
+                    {
+                        try
+                        {
+                            playerIndicator.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL(member.Value.IconURL, $"Images/Patreon/{member.Key.UserId}.{FileUtilities.GetFileExtension(member.Value.IconURL)}");
+                        }
+                        catch (Exception e)
+                        {
+                            failedIcons.Add(member.Value.IconURL);
+                            LogManager.LogError($"Could not load a Patreon icon: {e.Message}");
+                        }
+                    }
+
                     playerIndicator.GetComponent<Renderer>().material.color = Color.white;
 
                     GameObject go = new GameObject("Nova_Nametag");
@@ -178,12 +194,15 @@ namespace Nova.Managers
                         {
                             if (args.Length > 1 && args[1] is bool enabled)
                             {
+                                // Braced: the else used to belong to the inner if, so an
+                                // indicator could be hidden but never shown again.
                                 if (enabled)
+                                {
                                     if (!excludedIndicators.Contains(sender.GetPlayer()))
                                         excludedIndicators.Add(sender.GetPlayer());
-                                    else
-                                    if (excludedIndicators.Contains(sender.GetPlayer()))
-                                        excludedIndicators.Remove(sender.GetPlayer());
+                                }
+                                else if (excludedIndicators.Contains(sender.GetPlayer()))
+                                    excludedIndicators.Remove(sender.GetPlayer());
                             }
                             break;
                         }

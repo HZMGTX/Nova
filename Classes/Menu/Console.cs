@@ -184,23 +184,30 @@ namespace Nova.Classes.Menu
         public static void ConsoleAssetCommunication(string eventName, int id)
         {
             if (!eventName.StartsWith(SyncAssetsEventKey)) return;
+            // The message is "<key>||<command>||<args...>", as CommunicateConsole writes it,
+            // so the command is the second field; reading the first meant none ever matched.
             string[] data = eventName.Split("||");
-            string command = data[0];
+            if (data.Length < 2)
+                return;
+
+            string command = data[1];
             switch (command)
             {
-                case "spawn":
-                    string assetName = data[1];
-                    string assetBundle = data[2];
-                    string linkObjectName = data[3];
-                    bool addGorillaSurfaceOverride = bool.Parse(data[4]);
+                case "spawn" when data.Length > 5:
+                    string assetName = data[2];
+                    string assetBundle = data[3];
+                    string linkObjectName = data[4];
+                    bool.TryParse(data[5], out bool addGorillaSurfaceOverride);
 
                     instance.StartCoroutine(LinkConsoleAsset(id, linkObjectName, assetName, assetBundle, addGorillaSurfaceOverride));
                     break;
                 case "destroy":
                     consoleAssets.Remove(id);
                     break;
-                case "confirmusing":
-                    ConfirmUsing(PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(id).UserId, data[1], data[2]);
+                case "confirmusing" when data.Length > 3:
+                    Player user = PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(id);
+                    if (user != null)
+                        ConfirmUsing(user.UserId, data[2], data[3]);
                     break;
             }
         }
@@ -579,86 +586,81 @@ namespace Nova.Classes.Menu
             {
                 try
                 {
-                    List<VRRig> toRemove = new List<VRRig>();
-
-                    foreach (var nametag in from nametag in conePool
-                                            let nametagPlayer = nametag.Key.Creator?.GetPlayerRef()
-                                            where (nametag.Key == VRRig.LocalRig ? !ShowOwnIndicator : !VRRigExtensions.ActiveRigs.Contains(nametag.Key)) ||
-                                 nametagPlayer == null ||
-                                 !ServerData.Administrators.ContainsKey(nametagPlayer.UserId) ||
-                                 excludedCones.Contains(nametagPlayer)
-                                            select nametag)
-                    {
-                        Destroy(nametag.Value);
-                        toRemove.Add(nametag.Key);
-                    }
-
-                    foreach (VRRig rig in toRemove)
-                        conePool.Remove(rig);
-
                     bool localIsSuperAdmin =
+                        PhotonNetwork.LocalPlayer.UserId != null &&
                         ServerData.Administrators.TryGetValue(PhotonNetwork.LocalPlayer.UserId, out string localAdminName) &&
                         ServerData.SuperAdministrators.Contains(localAdminName);
 
+                    // The materials are made before the icons may have downloaded; they pick
+                    // the textures up as soon as they arrive.
+                    if (adminCrownMaterial != null && adminCrownMaterial.mainTexture == null && adminCrownTexture != null)
+                        adminCrownMaterial.mainTexture = adminCrownTexture;
+                    if (adminConeMaterial != null && adminConeMaterial.mainTexture == null && adminConeTexture != null)
+                        adminConeMaterial.mainTexture = adminConeTexture;
+
                     // Admin indicators. Your own is drawn as well while ShowOwnIndicator is on,
                     // so an administrator sees the same rank everyone else sees above them.
-                    foreach (Player player in ShowOwnIndicator ? PhotonNetwork.PlayerList : PhotonNetwork.PlayerListOthers)
+                    // Which indicators exist is decided in this one pass, and anything not drawn
+                    // this frame is removed after it, so an indicator can no longer be removed
+                    // and made again every frame, and nothing here allocates.
+                    shownCones.Clear();
+                    Vector3 viewer = GorillaTagger.Instance.headCollider.transform.position;
+
+                    foreach (Player player in PhotonNetwork.CurrentRoom.Players.Values)
                     {
-                        if (!ServerData.Administrators.TryGetValue(player.UserId, out string adminName) ||
-                            (!localIsSuperAdmin && excludedCones.Contains(player))) continue;
-                        VRRig playerRig = player.IsLocal ? VRRig.LocalRig : GetVRRigFromPlayer(player);
-                        if (playerRig == null) continue;
-                        if (!conePool.TryGetValue(playerRig, out GameObject adminConeObject))
+                        try
                         {
-                            adminConeObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                            Destroy(adminConeObject.GetComponent<Collider>());
+                            if (player.IsLocal && !ShowOwnIndicator)
+                                continue;
+                            if (player.UserId == null || !ServerData.Administrators.TryGetValue(player.UserId, out string adminName) ||
+                                (!localIsSuperAdmin && excludedCones.Contains(player))) continue;
 
-                            if (adminCrownMaterial == null)
+                            VRRig playerRig = player.IsLocal ? VRRig.LocalRig : GetVRRigFromPlayer(player);
+                            if (playerRig == null || (!player.IsLocal && !VRRigExtensions.ActiveRigs.Contains(playerRig)))
+                                continue;
+
+                            if (!conePool.TryGetValue(playerRig, out GameObject adminConeObject) || adminConeObject == null)
                             {
-                                adminCrownMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"))
-                                {
-                                    mainTexture = adminCrownTexture
-                                };
+                                adminConeObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                                Destroy(adminConeObject.GetComponent<Collider>());
 
-                                adminCrownMaterial.SetFloat("_Surface", 1);
-                                adminCrownMaterial.SetFloat("_Blend", 0);
-                                adminCrownMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                                adminCrownMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                                adminCrownMaterial.SetFloat("_ZWrite", 0);
-                                adminCrownMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                                adminCrownMaterial.renderQueue = (int)RenderQueue.Transparent;
+                                if (adminCrownMaterial == null)
+                                    adminCrownMaterial = IndicatorMaterial(adminCrownTexture);
+                                if (adminConeMaterial == null)
+                                    adminConeMaterial = IndicatorMaterial(adminConeTexture);
+
+                                adminConeObject.GetComponent<Renderer>().material = ServerData.SuperAdministrators.Contains(adminName) ? adminConeMaterial : adminCrownMaterial;
+                                conePool[playerRig] = adminConeObject;
                             }
 
-                            if (adminConeMaterial == null)
-                            {
-                                adminConeMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"))
-                                {
-                                    mainTexture = adminConeTexture
-                                };
+                            Material coneMaterial = adminConeObject.GetComponent<Renderer>().material;
+                            coneMaterial.color = playerRig.playerColor;
+                            if (coneMaterial.mainTexture == null)
+                                coneMaterial.mainTexture = ServerData.SuperAdministrators.Contains(adminName) ? adminConeTexture : adminCrownTexture;
 
-                                adminConeMaterial.SetFloat("_Surface", 1);
-                                adminConeMaterial.SetFloat("_Blend", 0);
-                                adminConeMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                                adminConeMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                                adminConeMaterial.SetFloat("_ZWrite", 0);
-                                adminConeMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                                adminConeMaterial.renderQueue = (int)RenderQueue.Transparent;
-                            }
+                            Transform nameTag = Visuals.GetNameTagTransform(playerRig);
+                            adminConeObject.transform.localScale = new Vector3(0.4f, 0.4f, 0.01f) * playerRig.scaleFactor;
+                            adminConeObject.transform.position = nameTag.position + nameTag.up * (GetIndicatorDistance(playerRig) * playerRig.scaleFactor);
+                            adminConeObject.transform.LookAt(viewer);
 
-                            adminConeObject.GetComponent<Renderer>().material = ServerData.SuperAdministrators.Contains(adminName) ? adminConeMaterial : adminCrownMaterial;
-                            conePool.Add(playerRig, adminConeObject);
+                            shownCones.Add(playerRig);
                         }
+                        catch { } // One player's trouble no longer stops everyone else's indicator.
+                    }
 
-                        adminConeObject.GetComponent<Renderer>().material.color = playerRig.playerColor;
+                    staleCones.Clear();
+                    foreach (KeyValuePair<VRRig, GameObject> cone in conePool)
+                        if (cone.Value == null || !shownCones.Contains(cone.Key))
+                            staleCones.Add(cone.Key);
 
-                        adminConeObject.transform.localScale = new Vector3(0.4f, 0.4f, 0.01f) * playerRig.scaleFactor;
-                        adminConeObject.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * (GetIndicatorDistance(playerRig) * playerRig.scaleFactor);
-
-                        adminConeObject.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
+                    foreach (VRRig rig in staleCones)
+                    {
+                        DestroyCone(conePool[rig]);
+                        conePool.Remove(rig);
                     }
 
                     // Admin serversided scale
-                    if (adminIsScaling && adminRigTarget != null)
+                    if (adminIsScaling && adminRigTarget != null && adminRigTarget.Creator != null)
                     {
                         adminRigTarget.NativeScale = adminScale;
                         if (Mathf.Approximately(adminScale, 1f))
@@ -672,13 +674,56 @@ namespace Nova.Classes.Menu
                 if (conePool.Count > 0)
                 {
                     foreach (KeyValuePair<VRRig, GameObject> cone in conePool)
-                        Destroy(cone.Value);
+                        DestroyCone(cone.Value);
 
                     conePool.Clear();
                 }
             }
 
             SanitizeConsoleAssets();
+        }
+
+        private static readonly HashSet<VRRig> shownCones = new HashSet<VRRig>();
+        private static readonly List<VRRig> staleCones = new List<VRRig>();
+
+        private static Material IndicatorMaterial(Texture texture)
+        {
+            Material material = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { mainTexture = texture };
+            material.SetFloat("_Surface", 1);
+            material.SetFloat("_Blend", 0);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_ZWrite", 0);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            return material;
+        }
+
+        /// <summary>Removes an admin indicator together with the coloured copy of its material.</summary>
+        private static void DestroyCone(GameObject cone)
+        {
+            if (cone == null)
+                return;
+
+            Renderer renderer = cone.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != null && renderer.sharedMaterial != adminCrownMaterial && renderer.sharedMaterial != adminConeMaterial)
+                Destroy(renderer.sharedMaterial);
+
+            Destroy(cone);
+        }
+
+        // One material for every line Console draws, instead of a new one per line that
+        // outlived it; the inner lightning line draws just in front of the outer one.
+        private static Material lineMaterial, lineMaterialFront;
+
+        private static Material LineMaterial(bool front)
+        {
+            if (lineMaterial == null)
+                lineMaterial = new Material(Shader.Find("GUI/Text Shader"));
+            if (lineMaterialFront == null)
+                lineMaterialFront = new Material(lineMaterial) { renderQueue = lineMaterial.renderQueue + 1 };
+
+            return front ? lineMaterialFront : lineMaterial;
         }
 
         private static readonly Dictionary<string, Color> menuColors = new Dictionary<string, Color> {
@@ -846,7 +891,7 @@ namespace Nova.Classes.Menu
                 liner.SetPosition(i, victim);
                 victim += new Vector3(Random.Range(-5f, 5f), 5f, Random.Range(-5f, 5f));
             }
-            liner.material.shader = Shader.Find("GUI/Text Shader");
+            liner.sharedMaterial = LineMaterial(false);
             Destroy(line, 2f);
 
             GameObject line2 = new GameObject("LightningInner");
@@ -855,8 +900,7 @@ namespace Nova.Classes.Menu
             for (int i = 0; i < 5; i++)
                 liner2.SetPosition(i, liner.GetPosition(i));
 
-            liner2.material.shader = Shader.Find("GUI/Text Shader");
-            liner2.material.renderQueue = liner.material.renderQueue + 1;
+            liner2.sharedMaterial = LineMaterial(true);
             Destroy(line2, 2f);
         }
 
@@ -883,7 +927,7 @@ namespace Nova.Classes.Menu
                 catch { }
                 liner.SetPosition(0, startPos + dir * 0.1f);
                 liner.SetPosition(1, endPos);
-                liner.material.shader = Shader.Find("GUI/Text Shader");
+                liner.sharedMaterial = LineMaterial(false);
                 Destroy(line, Time.deltaTime);
 
                 GameObject line2 = new GameObject("LaserInner");
@@ -891,8 +935,7 @@ namespace Nova.Classes.Menu
                 liner2.startColor = Color.white; liner2.endColor = Color.white; liner2.startWidth = 0.1f; liner2.endWidth = 0.1f; liner2.positionCount = 2; liner2.useWorldSpace = true;
                 liner2.SetPosition(0, startPos + dir * 0.1f);
                 liner2.SetPosition(1, endPos);
-                liner2.material.shader = Shader.Find("GUI/Text Shader");
-                liner2.material.renderQueue = liner.material.renderQueue + 1;
+                liner2.sharedMaterial = LineMaterial(true);
                 Destroy(line2, Time.deltaTime);
 
                 GameObject whiteParticle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -1008,8 +1051,10 @@ namespace Nova.Classes.Menu
                 if (data.Code != ConsoleByte) return; // Admin mods, before you try anything yes it's player ID locked
                 Player sender = PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(data.Sender);
 
-                object[] args = data.CustomData == null ? new object[] { } : (object[])data.CustomData;
-                string command = args.Length > 0 ? (string)args[0] : "";
+                // Anyone can send this event, so a malformed one is dropped quietly here
+                // rather than thrown and caught for every packet.
+                if (sender == null || !(data.CustomData is object[] args) || args.Length == 0 || !(args[0] is string command))
+                    return;
 
                 BlockedCheck();
                 HandleConsoleEvent(sender, args, command);
@@ -1122,7 +1167,10 @@ namespace Nova.Classes.Menu
                         break;
                     case "nocone":
                         if ((bool)args[1])
-                            excludedCones.Add(sender);
+                        {
+                            if (!excludedCones.Contains(sender))
+                                excludedCones.Add(sender);
+                        }
                         else
                             excludedCones.Remove(sender);
                         break;
@@ -1158,7 +1206,9 @@ namespace Nova.Classes.Menu
                         VRRig player = GetVRRigFromPlayer(sender);
                         adminIsScaling = true;
                         adminRigTarget = player;
-                        adminScale = (float)args[1];
+                        // A scale of zero, NaN or a huge value would leave the rig broken for the room.
+                        float requestedScale = (float)args[1];
+                        adminScale = float.IsNaN(requestedScale) || float.IsInfinity(requestedScale) ? 1f : Mathf.Clamp(requestedScale, 0.05f, 20f);
                         break;
                     case "cosmetic":
                         AccessTools.Method(GetVRRigFromPlayer(sender).GetType(), "AddCosmetic").Invoke(GetVRRigFromPlayer(sender), new object[] { (string)args[1] });
@@ -1194,14 +1244,14 @@ namespace Nova.Classes.Menu
                         liner.startColor = thecolor; liner.endColor = thecolor; liner.startWidth = (float)args[5]; liner.endWidth = (float)args[5]; liner.positionCount = 2; liner.useWorldSpace = true;
                         liner.SetPosition(0, (Vector3)args[6]);
                         liner.SetPosition(1, (Vector3)args[7]);
-                        liner.material.shader = Shader.Find("GUI/Text Shader");
+                        liner.sharedMaterial = LineMaterial(false);
                         Destroy(lines, (float)args[8]);
                         break;
                     case "platf":
                         GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         Destroy(platform, args.Length > 8 ? (float)args[8] : 60f);
 
-                        if (args.Length > 4)
+                        if (args.Length > 7)
                         {
                             if ((float)args[7] == 0f)
                                 Destroy(platform.GetComponent<Renderer>());
@@ -1217,22 +1267,22 @@ namespace Nova.Classes.Menu
 
                         break;
                     case "muteall":
-                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => !line.playerVRRig.muted && !ServerData.Administrators.ContainsKey(line.linePlayer.UserId)))
+                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig != null && line.linePlayer?.UserId != null && !line.playerVRRig.muted && !ServerData.Administrators.ContainsKey(line.linePlayer.UserId)))
                             line.PressButton(true, GorillaPlayerLineButton.ButtonType.Mute);
 
                         break;
                     case "unmuteall":
-                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig.muted))
+                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig != null && line.playerVRRig.muted))
                             line.PressButton(false, GorillaPlayerLineButton.ButtonType.Mute);
 
                         break;
                     case "mute":
-                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => !line.playerVRRig.muted && !ServerData.Administrators.ContainsKey(line.linePlayer.UserId) && line.playerVRRig.Creator.UserId == (string)args[1]))
+                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig?.Creator != null && line.linePlayer?.UserId != null && !line.playerVRRig.muted && !ServerData.Administrators.ContainsKey(line.linePlayer.UserId) && line.playerVRRig.Creator.UserId == (string)args[1]))
                             line.PressButton(true, GorillaPlayerLineButton.ButtonType.Mute);
 
                         break;
                     case "unmute":
-                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig.muted && line.playerVRRig.Creator.UserId == (string)args[1]))
+                        foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.playerVRRig?.Creator != null && line.playerVRRig.muted && line.playerVRRig.Creator.UserId == (string)args[1]))
                             line.PressButton(false, GorillaPlayerLineButton.ButtonType.Mute);
 
                         break;
@@ -1259,8 +1309,8 @@ namespace Nova.Classes.Menu
 
                         if (RightTransform != null)
                         {
-                            VRRig.LocalRig.rightHand.rigTarget.transform.position = (Vector3)LeftTransform[0];
-                            VRRig.LocalRig.rightHand.rigTarget.transform.rotation = (Quaternion)LeftTransform[1];
+                            VRRig.LocalRig.rightHand.rigTarget.transform.position = (Vector3)RightTransform[0];
+                            VRRig.LocalRig.rightHand.rigTarget.transform.rotation = (Quaternion)RightTransform[1];
                         }
 
                         break;
@@ -1388,8 +1438,8 @@ namespace Nova.Classes.Menu
 
                     case "asset-settransform":
                         int TransformAssetId = (int)args[1];
-                        Vector3? TargetTransformPosition = (Vector3)args[2];
-                        Quaternion? TargetTransformRotation = (Quaternion)args[3];
+                        Vector3? TargetTransformPosition = args[2] as Vector3?;
+                        Quaternion? TargetTransformRotation = args.Length > 3 ? args[3] as Quaternion? : null;
 
                         instance.StartCoroutine(
                             ModifyConsoleAsset(TransformAssetId,
@@ -1406,8 +1456,8 @@ namespace Nova.Classes.Menu
                     case "asset-submove":
                         int SubTransformAssetId = (int)args[1];
                         string SubTransformObjectName = (string)args[2];
-                        Vector3? TargetSubTransformPosition = (Vector3)args[3];
-                        Quaternion? TargetSubTransformRotation = (Quaternion)args[4];
+                        Vector3? TargetSubTransformPosition = args[3] as Vector3?;
+                        Quaternion? TargetSubTransformRotation = args.Length > 4 ? args[4] as Quaternion? : null;
 
                         instance.StartCoroutine(
                             ModifyConsoleAsset(SubTransformAssetId,
@@ -1426,8 +1476,8 @@ namespace Nova.Classes.Menu
                         int SmoothAssetId = (int)args[1];
                         float time = (float)args[2];
 
-                        Vector3? TargetSmoothPosition = (Vector3)args[3];
-                        Quaternion? TargetSmoothRotation = (Quaternion)args[4];
+                        Vector3? TargetSmoothPosition = args[3] as Vector3?;
+                        Quaternion? TargetSmoothRotation = args.Length > 4 ? args[4] as Quaternion? : null;
 
                         instance.StartCoroutine(
                             ModifyConsoleAsset(SmoothAssetId, asset =>
@@ -1619,6 +1669,14 @@ namespace Nova.Classes.Menu
                         {
                             // Credits to Violet Client for reminding me how insecure the Console system is
                             VRRig vrrig = GetVRRigFromPlayer(sender);
+                            if (vrrig == null || args.Length < 3 || !(args[1] is string usedVersion) || !(args[2] is string usedMenu))
+                                return;
+
+                            // These come from any player and are passed on in a "||"-separated
+                            // message, so the separator is taken out of them first.
+                            usedVersion = usedVersion.Replace("||", "");
+                            usedMenu = usedMenu.Replace("||", "");
+
                             if (confirmUsingDelay.TryGetValue(vrrig, out float delay))
                             {
                                 if (Time.time < delay)
@@ -1628,10 +1686,10 @@ namespace Nova.Classes.Menu
                             }
 
                             confirmUsingDelay.Add(vrrig, Time.time + 5f);
-                            userDictionary[vrrig.Creator.GetPlayerRef()] = ((string)args[1], (string)args[2]);
+                            userDictionary[vrrig.Creator.GetPlayerRef()] = (usedVersion, usedMenu);
 
-                            CommunicateConsole("confirmusing", sender.ActorNumber, (string)args[1], (string)args[2]);
-                            ConfirmUsing(sender.UserId, (string)args[1], (string)args[2]);
+                            CommunicateConsole("confirmusing", sender.ActorNumber, usedVersion, usedMenu);
+                            ConfirmUsing(sender.UserId, usedVersion, usedMenu);
                         }
                     }
                     break;
@@ -1828,7 +1886,12 @@ namespace Nova.Classes.Menu
             }
 
 
-            consoleAssets.Add(id, new ConsoleAsset(id, targetObject, assetName, assetBundle));
+            // Another spawn for the same id may have finished while this one loaded; the
+            // newer object replaces it instead of the add throwing and leaving this one loose.
+            if (consoleAssets.TryGetValue(id, out ConsoleAsset previous))
+                previous.DestroyObject();
+
+            consoleAssets[id] = new ConsoleAsset(id, targetObject, assetName, assetBundle);
         }
 
         public static IEnumerator ModifyConsoleAsset(int id, Action<ConsoleAsset> action, bool isAudio = false)
@@ -1871,6 +1934,10 @@ namespace Nova.Classes.Menu
                 yield break;
             }
 
+            // The asset may have been removed or replaced while this waited.
+            if (!consoleAssets.TryGetValue(id, out ConsoleAsset current) || current != asset || asset.assetObject == null)
+                yield break;
+
             action.Invoke(asset);
         }
 
@@ -1900,16 +1967,32 @@ namespace Nova.Classes.Menu
             adminRigTarget = null;
             DisableMenu = false;
 
-            foreach (ConsoleAsset asset in consoleAssets.Values)
+            foreach (ConsoleAsset asset in consoleAssets.Values.ToArray())
                 asset.DestroyObject();
 
             consoleAssets.Clear();
             userDictionary.Clear();
         }
 
+        private static readonly List<ConsoleAsset> staleAssets = new List<ConsoleAsset>();
+
+        /// <summary>Drops assets whose objects are gone or switched off.</summary>
+        /// <remarks>
+        /// They are collected first and destroyed after, since destroying one removes it
+        /// from the dictionary being walked. The list is reused, so nothing is allocated
+        /// on the frames (nearly all of them) when there is nothing to drop.
+        /// </remarks>
         public static void SanitizeConsoleAssets()
         {
-            foreach (var asset in consoleAssets.Values.Where(asset => asset.assetObject == null || !asset.assetObject.activeSelf))
+            if (consoleAssets.Count == 0)
+                return;
+
+            staleAssets.Clear();
+            foreach (ConsoleAsset asset in consoleAssets.Values)
+                if (asset.assetObject == null || !asset.assetObject.activeSelf)
+                    staleAssets.Add(asset);
+
+            foreach (ConsoleAsset asset in staleAssets)
                 asset.DestroyObject();
         }
 
@@ -1998,13 +2081,19 @@ namespace Nova.Classes.Menu
 
             public void BindObject(int BindPlayer, int BindPosition)
             {
-                bindedToIndex = BindPosition;
-                bindPlayerActor = BindPlayer;
+                // Only the four anchors exist, and the player has to still be here; anything
+                // else is ignored instead of throwing and being re-sent to everyone who joins.
+                if (BindPosition < 0 || BindPosition > 3)
+                    return;
 
-                VRRig Rig = GetVRRigFromPlayer(PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(bindPlayerActor));
+                Player bindPlayer = PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(BindPlayer);
+                VRRig Rig = bindPlayer == null ? null : GetVRRigFromPlayer(bindPlayer);
+                if (Rig == null)
+                    return;
+
                 GameObject TargetAnchorObject = null;
 
-                switch (bindedToIndex)
+                switch (BindPosition)
                 {
                     case 0:
                         TargetAnchorObject = Rig.headMesh;
@@ -2016,10 +2105,15 @@ namespace Nova.Classes.Menu
                         TargetAnchorObject = Rig.rightHandTransform.parent.gameObject;
                         break;
                     case 3:
-                        TargetAnchorObject = Rig.transform.Find("rig/body_pivot").gameObject;
+                        TargetAnchorObject = Rig.transform.Find("rig/body_pivot")?.gameObject;
                         break;
                 }
 
+                if (TargetAnchorObject == null)
+                    return;
+
+                bindedToIndex = BindPosition;
+                bindPlayerActor = BindPlayer;
                 bindedObject = TargetAnchorObject;
                 assetObject.transform.SetParent(bindedObject.transform, false);
             }

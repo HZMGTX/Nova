@@ -1744,7 +1744,9 @@ namespace Nova.Menu
             fpsCount++;
             if (fpsTime >= 0.5f) { fps = fpsCount / fpsTime; fpsTime = 0f; fpsCount = 0; }
 
-            if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.jKey.wasPressedThisFrame)
+            // Not while typing, where a J is just a letter.
+            if (UnityEngine.InputSystem.Keyboard.current != null && UnityEngine.InputSystem.Keyboard.current.jKey.wasPressedThisFrame
+                && GUIUtility.keyboardControl == 0 && !Nova.Menu.Main.inTextInput)
                 Recenter();
 
             openAmount = Mathf.MoveTowards(openAmount, open ? 1f : 0f, Time.unscaledDeltaTime * (open ? 7f : 9f));

@@ -143,13 +143,14 @@ namespace Nova.Classes.Menu
             }
 
             if (!(Time.time > DataSyncDelay) && NetworkSystem.Instance.InRoom) return;
-            if (NetworkSystem.Instance.InRoom && PhotonNetwork.PlayerList.Length != PlayerCount)
+            // The room's own count, rather than building the sorted player list twice a frame.
+            if (NetworkSystem.Instance.InRoom && PhotonNetwork.CurrentRoom.PlayerCount != PlayerCount)
             {
                 instance.StartCoroutine(PlayerDataSync(PhotonNetwork.CurrentRoom.Name, PhotonNetwork.CloudRegion));
                 NetworkSystem.Instance.PlayerListOthers.ForEach(p => ShouldWeReport(p.GetPlayer()));
             }
 
-            PlayerCount = NetworkSystem.Instance.InRoom ? PhotonNetwork.PlayerList.Length : -1;
+            PlayerCount = NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.PlayerCount : -1;
         }
 
         private IEnumerator RefreshServerData()

@@ -153,6 +153,17 @@ namespace Nova.Managers
                     hasInitialized = true;
                 }
 
+                // Nothing to place until there is a camera; this used to throw and log at the
+                // physics rate until one appeared, and forever if it was replaced.
+                if (!hasInitialized || canvas == null)
+                    return;
+                if (mainCamera == null)
+                {
+                    if (Camera.main == null)
+                        return;
+                    mainCamera = Camera.main.gameObject;
+                }
+
                 canvas.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2f;
 
                 canvas.transform.position = mainCamera.transform.TransformPoint(0f, 0f, 1.6f);
@@ -254,7 +265,7 @@ namespace Nova.Managers
                         {
                             if (advancedArraylist)
                                 /* Flipped */
-                                sb.Append(flipArraylist ? $"..." : $"...").Append('\n');
+                                sb.Append(sortedMods[i]).Append('\n');
                             else
                                 /* Normal  */
                                 sb.Append(sortedMods[i]).Append('\n');

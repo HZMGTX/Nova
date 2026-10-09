@@ -79,10 +79,12 @@ namespace Nova.Menu
             float speed = options.animations ? Ease(7) : 1;
             background = Color.Lerp(background, baseColor, speed);
             panel = Color.Lerp(panel, Color.Lerp(baseColor, button, 0.65f), speed);
-            accent = Color.Lerp(accent, highlight, speed);
+            // The accent strength is applied to the target, not to the colour already eased
+            // toward it; applied every frame to the result, it compounded and drifted.
+            Color.RGBToHSV(highlight, out float accentHue, out float accentSat, out float accentVal);
+            Color accentTarget = Color.HSVToRGB(accentHue, Mathf.Clamp01(accentSat * options.accentAmount), Mathf.Max(accentVal, 0.6f));
+            accent = Color.Lerp(accent, accentTarget, speed);
             bright = Color.Lerp(bright, text, speed);
-            Color.RGBToHSV(accent, out float accentHue, out float accentSat, out float accentVal);
-            accent = Color.HSVToRGB(accentHue, Mathf.Clamp01(accentSat * options.accentAmount), Mathf.Max(accentVal, 0.6f));
             border = Color.Lerp(panel, accent, 0.2f * options.accentAmount);
             muted = Color.Lerp(bright, panel, 0.3f);
         }

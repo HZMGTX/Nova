@@ -676,6 +676,8 @@ namespace Nova.Menu
             bool closedOne = false;
             for (int i = panels.Count - 1; i >= 0; i--)
             {
+                // Resetting the layout from inside a panel empties the list mid-loop.
+                if (i >= panels.Count) continue;
                 Panel deck = panels[i];
                 if (!deck.open && !deck.closing) continue;
                 if (Event.current.type == EventType.Repaint)
