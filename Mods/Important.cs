@@ -73,8 +73,15 @@ namespace Nova.Mods
         }
         public static void RoomCreator()
         {
-            CustomRoomConfig room = new CustomRoomConfig();
             prompts.Clear();
+            StartRoomCreator();
+        }
+
+        // Restarts come from inside a prompt handler, which removes prompts[0] after the handler returns,
+        // so they must queue behind the current prompt instead of clearing the list.
+        private static void StartRoomCreator()
+        {
+            CustomRoomConfig room = new CustomRoomConfig();
 
             void AskConfirm()
             {
@@ -90,10 +97,7 @@ namespace Nova.Mods
                     CreateRoom(finalName, room.isPublic, room.size, JoinType.Solo);
                     NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Creating room, please be patient.");
                     PromptSingle("Success! Please be patient while the room is being created.");
-                }, () =>
-                {
-                    RoomCreator();
-                });
+                }, StartRoomCreator);
             }
 
             void AskRoomSize()
@@ -166,7 +170,7 @@ namespace Nova.Mods
                         if (keyboardInput.IsNullOrEmpty())
                         {
                             PromptSingle("Room name cannot be empty.");
-                            RoomCreator();
+                            StartRoomCreator();
                             return;
                         }
                         room.name = keyboardInput;
@@ -455,25 +459,26 @@ exit";
             if (!quickSongExists)
             {
                 Prompt("This mod requires the \"QuickSong\" library. Would you like to automatically download it? (16.3mb)", () =>
-                {
-                    // Fetched from Nova's own releases. It used to come from an account the project
-                    // does not own, which could have served any program to every user.
-                    using UnityWebRequest request = UnityWebRequest.Get("https://github.com/HZMGTX/Nova/releases/latest/download/QuickSong.exe");
-                    UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-
-                    while (!operation.isDone) { }
-
-                    if (request.result == UnityWebRequest.Result.Success)
-                    {
-                        File.WriteAllBytes($"{PluginInfo.BaseDirectory}/QuickSong.exe", request.downloadHandler.data);
-                        NotificationManager.SendNotification($"<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Successfully downloaded QuickSong to {PluginInfo.BaseDirectory}/QuickSong.exe.");
-                    }
-                    else
-                        NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Could not download QuickSong: {(request.error.IsNullOrEmpty() ? "Unknown error" : request.error)}");
-
-                    quickSongExists = File.Exists($"{PluginInfo.BaseDirectory}/QuickSong.exe");
-                }, () => Toggle("Media Integration"));
+                    CoroutineManager.instance.StartCoroutine(DownloadIntegrationProgram()), () => Toggle("Media Integration"));
             }
+        }
+
+        private static IEnumerator DownloadIntegrationProgram()
+        {
+            // Fetched from Nova's own releases. It used to come from an account the project
+            // does not own, which could have served any program to every user.
+            using UnityWebRequest request = UnityWebRequest.Get("https://github.com/HZMGTX/Nova/releases/latest/download/QuickSong.exe");
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                File.WriteAllBytes($"{PluginInfo.BaseDirectory}/QuickSong.exe", request.downloadHandler.data);
+                NotificationManager.SendNotification($"<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> Successfully downloaded QuickSong to {PluginInfo.BaseDirectory}/QuickSong.exe.");
+            }
+            else
+                NotificationManager.SendNotification($"<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> Could not download QuickSong: {(request.error.IsNullOrEmpty() ? "Unknown error" : request.error)}");
+
+            quickSongExists = File.Exists($"{PluginInfo.BaseDirectory}/QuickSong.exe");
         }
 
         public static string Title { get; private set; } = "Unknown";
@@ -671,7 +676,7 @@ exit";
                     if (mediaIconMaterial == null)
                         mediaIconMaterial = new Material(LoadAsset<Shader>("Chams"));
 
-                    mediaIcon.GetComponent<Renderer>().material = mediaIconMaterial;
+                    mediaIcon.GetComponent<Renderer>().sharedMaterial = mediaIconMaterial;
                 }
 
                 mediaIcon.transform.localScale = new Vector3(0.25f, 0.25f, 0.01f) * VRRig.LocalRig.scaleFactor;
@@ -742,10 +747,9 @@ exit";
                 }
 
                 Texture2D targetIcon = Icon == null || !ValidData ? null : Icon;
-                Renderer icon = mediaIcon.GetComponent<Renderer>();
 
-                if (icon.material.GetTexture("_MainTex") != targetIcon)
-                    icon.material.SetTexture("_MainTex", targetIcon);
+                if (mediaIconMaterial != null && mediaIconMaterial.GetTexture("_MainTex") != targetIcon)
+                    mediaIconMaterial.SetTexture("_MainTex", targetIcon);
             }
         }
 
@@ -941,26 +945,53 @@ exit";
             GetObject("Environment Objects/TriggerZones_Prefab/ZoneTransitions_Prefab/QuitBox").SetActive(true);
         }
 
+        // Rigs this mod blocked, so unmuting (or turning the mod off) only unblocks those.
+        private static readonly HashSet<VRRig> muteBlockedRigs = new HashSet<VRRig>();
         public static void BlockOnMute()
         {
-            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+            // ActiveRigs skips blocked rigs, which would hide the ones that need unblocking.
+            foreach (VRRig rig in VRRigCache.ActiveRigs)
             {
-                if (!rig.IsLocal() && rig.rigContainer.IsMuted)
-                    Settings.BlockPlayer(rig);
-                else
-                    if (Settings.Blocked.Contains(rig))
+                if (rig == null || rig.IsLocal() || rig.rigContainer == null)
+                    continue;
+
+                if (rig.rigContainer.IsMuted)
+                {
+                    if (!Settings.Blocked.Contains(rig))
+                    {
+                        Settings.BlockPlayer(rig);
+                        muteBlockedRigs.Add(rig);
+                    }
+                }
+                else if (muteBlockedRigs.Remove(rig))
                     Settings.UnblockPlayer(rig);
             }
         }
 
+        public static void DisableBlockOnMute()
+        {
+            foreach (VRRig rig in muteBlockedRigs)
+            {
+                if (rig == null)
+                    Settings.Blocked.Remove(rig);
+                else if (Settings.Blocked.Contains(rig))
+                    Settings.UnblockPlayer(rig);
+            }
+
+            muteBlockedRigs.Clear();
+        }
+
+        private static readonly AnimationCurve flatPitchCurve = new AnimationCurve(
+            new Keyframe(0f, 1f, 0f, 0f),
+            new Keyframe(1f, 1f, 0f, 0f)
+        );
+
         public static void DisablePitchScaling()
         {
-            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                vrrig.voicePitchForRelativeScale = new AnimationCurve(
-                    new Keyframe(0f, 1f, 0f, 0f),
-                    new Keyframe(1f, 1f, 0f, 0f)
-                );
+                if (!vrrig.isLocal && vrrig.voicePitchForRelativeScale != flatPitchCurve)
+                    vrrig.voicePitchForRelativeScale = flatPitchCurve;
             }
         }
 
@@ -1034,6 +1065,10 @@ exit";
                 GorillaTagger.Instance.rightHandTriggerCollider.transform.localPosition = oldLocalPosition.Value;
                 oldLocalPosition = null;
             }
+
+            TransformFollow follow = GorillaTagger.Instance.rightHandTriggerCollider.GetComponent<TransformFollow>();
+            if (follow != null)
+                follow.enabled = true;
         }
 
         public static void PCControllerEmulation()
@@ -1055,9 +1090,6 @@ exit";
 
             ControllerInputPoller.instance.leftControllerTriggerButton |= UnityInput.GetKey(Key.Minus);
             ControllerInputPoller.instance.leftControllerIndexFloat += UnityInput.GetKey(Key.Minus) ? 1f : 0f;
-
-            ControllerInputPoller.instance.rightControllerTriggerButton |= UnityInput.GetKey(Key.Equals);
-            ControllerInputPoller.instance.rightControllerIndexFloat += UnityInput.GetKey(Key.Equals) ? 1f : 0f;
         }
 
         // Credits to Zlothy29IQ on GitHub. I saw he made it first and just took it. Thanks. Thanks. Thanks. Thanks
@@ -1088,23 +1120,33 @@ exit";
             catch { }
         }
 
+        private static float regionConnectDelay;
         public static void ConnectToRegion(string region)
         {
+            int regionIndex = Array.IndexOf(NetworkSystem.Instance.regionNames, region);
+            if (regionIndex < 0)
+                return;
+
+            NetworkSystem.Instance.currentRegionIndex = regionIndex;
+
+            NetworkSystemPUN punNetwork = (NetworkSystemPUN)NetworkSystem.Instance;
+            for (int i = 0; i < punNetwork.regionData.Length; i++)
+                punNetwork.regionData[i].pingToRegion = i == regionIndex ? 0 : 9999;
+
             string currentRegion = PhotonNetwork.CloudRegion;
             if (!string.IsNullOrEmpty(currentRegion))
                 currentRegion = currentRegion.Replace("/*", "");
 
-            if (currentRegion != region)
-                PhotonNetwork.ConnectToRegion(region);
+            if (currentRegion == region || Time.time < regionConnectDelay)
+                return;
 
-            NetworkSystem.Instance.currentRegionIndex = Array.IndexOf(NetworkSystem.Instance.regionNames, region);
+            // Photon refuses ConnectToRegion unless disconnected or sitting on the name server.
+            Photon.Realtime.ClientState state = PhotonNetwork.NetworkClientState;
+            if (state != Photon.Realtime.ClientState.Disconnected && state != Photon.Realtime.ClientState.ConnectedToNameServer)
+                return;
 
-            NetworkSystemPUN punNetwork = (NetworkSystemPUN)NetworkSystem.Instance;
-            for (int i = 0; i < punNetwork.regionData.Length; i++)
-            {
-                NetworkRegionInfo regionInfo = punNetwork.regionData[i];
-                regionInfo.pingToRegion = Array.IndexOf(NetworkSystem.Instance.regionNames, regionInfo) == i ? 0 : 9999;
-            }
+            regionConnectDelay = Time.time + 5f;
+            PhotonNetwork.ConnectToRegion(region);
         }
 
         private static bool lastTagLag;
@@ -1112,7 +1154,13 @@ exit";
         {
             if (NetworkSystem.Instance.InRoom && !NetworkSystem.Instance.IsMasterClient)
             {
+                if (PhotonNetwork.MasterClient == null)
+                    return;
+
                 VRRig masterRig = PhotonNetwork.MasterClient.VRRig();
+                if (masterRig == null || masterRig.velocityHistoryList == null || masterRig.velocityHistoryList.Count == 0)
+                    return;
+
                 bool thereIsTagLag = masterRig.GetTruePing() > 1000;
 
                 switch (thereIsTagLag)
@@ -1136,13 +1184,28 @@ exit";
         }
 
         private static bool lastSteam;
+        private static float steamCheckDelay;
         public static void SteamDetector()
         {
-            bool playerOnSteam = VRRigExtensions.ActiveRigs.Any(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
+            if (Time.time < steamCheckDelay)
+                return;
+
+            steamCheckDelay = Time.time + 1f;
+
+            VRRig steamRig = null;
+            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
+            {
+                if (!vrrig.IsLocal() && vrrig.IsSteam())
+                {
+                    steamRig = vrrig;
+                    break;
+                }
+            }
+
+            bool playerOnSteam = steamRig != null;
             if (playerOnSteam && !lastSteam)
             {
-                VRRig vrrig = VRRigExtensions.ActiveRigs.First(vrrig => !vrrig.IsLocal() && vrrig.IsSteam());
-                NotificationManager.SendNotification($"<color=grey>[</color><color=red>STEAM</color><color=grey>]</color> {vrrig.GetName()} is on Steam.");
+                NotificationManager.SendNotification($"<color=grey>[</color><color=red>STEAM</color><color=grey>]</color> {steamRig.GetName()} is on Steam.");
 
                 LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Mods/Safety/steam.ogg", "Audio/Mods/Safety/steam.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
             }
