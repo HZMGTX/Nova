@@ -867,7 +867,11 @@ namespace Nova.Menu
                         int FromSlot(int slot) => slot == onPage && joystickMenuSearching ? PageSize : slot;
 
                         if (lastButton > 0 && (ToSlot(joystickButtonSelected) < 0 || ToSlot(joystickButtonSelected) >= lastButton))
+                        {
+                            // Redraw so the highlight and the button a click would press match the new selection
                             joystickButtonSelected = 0;
+                            ReloadMenu();
+                        }
 
                         if (js.x > 0.5f)
                         {
@@ -1543,7 +1547,7 @@ namespace Nova.Menu
                             watchListBuilder.Add(button);
                 }
 
-                watchListBuilder.Sort((a, b) => string.CompareOrdinal(a.overlapText ?? a.buttonText, b.overlapText ?? b.buttonText));
+                watchListBuilder.Sort((a, b) => string.Compare(a.overlapText ?? a.buttonText, b.overlapText ?? b.buttonText, StringComparison.CurrentCulture)); // Same order as the old culture-aware OrderBy
                 watchListBuilder.Insert(0, Buttons.GetIndex("Exit Enabled Mods"));
                 watchList = watchListBuilder.ToArray();
             }
@@ -1621,8 +1625,8 @@ namespace Nova.Menu
                             continue;
                         }
                     }
-                    else
-                        keyPressedTimes[key] = (Time.time + 0.5f, 0.5f);
+                    else // A key already held when typing began (like Q) never repeats until it's let go
+                        keyPressedTimes[key] = (lastPressedKeys.Contains(key) ? float.PositiveInfinity : Time.time + 0.5f, 0.5f);
 
                     keysPressed.Add(key);
 
@@ -1841,7 +1845,7 @@ namespace Nova.Menu
             if (method != null && !method.label)
             {
                 GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     buttonObject.layer = 2;
 
                 buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -1932,7 +1936,7 @@ namespace Nova.Menu
         private static void AddSearchButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2078,7 +2082,7 @@ namespace Nova.Menu
             bool infoScreenEnabled = Buttons.GetIndex("Info Screen").enabled;
 
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2126,7 +2130,7 @@ namespace Nova.Menu
         private static void AddDonateButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2174,7 +2178,7 @@ namespace Nova.Menu
         private static void AddUpdateButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2222,7 +2226,7 @@ namespace Nova.Menu
         private static void AddReturnButton(bool offcenteredPosition)
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2284,7 +2288,7 @@ namespace Nova.Menu
             if (!method.label)
             {
                 GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     buttonObject.layer = 2;
 
                 buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2799,7 +2803,7 @@ namespace Nova.Menu
             if (inTextInput)
             {
                 GameObject searchBoxObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     searchBoxObject.layer = 2;
 
                 searchBoxObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -3713,12 +3717,14 @@ namespace Nova.Menu
 
             FollowMenuSettings(promptText);
 
+            // The joystick menu moves over Accept/Decline here, not over the last page of mods
+            renderedPageButtons = CurrentPrompt.DeclineText == null ? 1 : 2;
             joystickButtonSelected %= 2;
 
             {
                 GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-                if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+                if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                     button.layer = 2;
 
                 button.GetComponent<BoxCollider>().isTrigger = true;
@@ -3781,7 +3787,7 @@ namespace Nova.Menu
             {
                 GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-                if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+                if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                     button.layer = 2;
 
                 button.GetComponent<BoxCollider>().isTrigger = true;
@@ -3860,7 +3866,7 @@ namespace Nova.Menu
         {
             GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-            if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+            if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                 button.layer = 2;
 
             button.GetComponent<BoxCollider>().isTrigger = true;

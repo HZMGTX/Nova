@@ -162,13 +162,15 @@ namespace Nova.Managers
             informationText.color = Color.white;
         }
 
+        private static bool casedUpper;
         private static void ApplyCase(TMP_Text tmp, ref string lastCased)
         {
             string text = tmp.text;
             if (string.IsNullOrEmpty(text) || text == lastCased)
                 return;
 
-            string cased = lowercaseMode ? text.ToLower() : text.ToUpper();
+            // Uppercase wins when both are on, as in FollowMenuSettings
+            string cased = uppercaseMode ? text.ToUpper() : text.ToLower();
             lastCased = cased;
             tmp.SafeSetText(cased);
         }
@@ -313,6 +315,13 @@ namespace Nova.Managers
                 // lower or upper copy of all three texts every tick.
                 if (lowercaseMode || uppercaseMode)
                 {
+                    // Switching between the two modes re-cases text that hasn't changed
+                    if (uppercaseMode != casedUpper)
+                    {
+                        casedUpper = uppercaseMode;
+                        casedArraylist = casedNotification = casedInformation = null;
+                    }
+
                     ApplyCase(arraylistText, ref casedArraylist);
                     ApplyCase(notificationText, ref casedNotification);
                     ApplyCase(informationText, ref casedInformation);

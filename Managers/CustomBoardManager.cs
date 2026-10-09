@@ -255,6 +255,18 @@ namespace Nova.Managers
         // "Loading..." placeholder was kept for good.
         private static void MotdTranslated(string _) => motdTextDirty = true;
 
+        // The text settings the cached MOTD was built with; a change rebuilds it
+        private static (bool, bool, bool, bool, bool, string, string) motdTextSettings;
+        private static void CheckMotdTextSettings()
+        {
+            var current = (translate, lowercaseMode, uppercaseMode, redactText, doCustomName, customMenuName, TranslationManager.language);
+            if (!current.Equals(motdTextSettings))
+            {
+                motdTextSettings = current;
+                motdTextDirty = true;
+            }
+        }
+
         private void RebuildMotdText()
         {
             string heading = $"Thanks for using {(doCustomName ? customMenuName : menuName)}!";
@@ -409,6 +421,10 @@ namespace Nova.Managers
                 // their spacing and style every frame, and this put it back.
                 TextMeshPro motdHeadingText = motdTitle.GetComponent<TextMeshPro>();
 
+                // Same colour rule as the board text loop below
+                Color motdColor = CustomBoardsEnabled && CustomBoardTextEnabled ? textColors[0].GetCurrentColor() : Color.white;
+
+                CheckMotdTextSettings();
                 if (motdTextDirty) RebuildMotdText();
 
                 motdHeadingText.richText = true;
@@ -418,7 +434,7 @@ namespace Nova.Managers
                 motdHeadingText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdHeadingText, -4f);
 
-                motdHeadingText.color = textColors[0].GetCurrentColor();
+                motdHeadingText.color = motdColor;
                 motdHeadingText.overflowMode = TextOverflowModes.Overflow;
 
                 if (motdText == null)
@@ -434,7 +450,7 @@ namespace Nova.Managers
 
                 motdBodyText.richText = true;
                 motdBodyText.SafeSetFontSize(100);
-                motdBodyText.color = textColors[0].GetCurrentColor();
+                motdBodyText.color = motdColor;
                 motdBodyText.SafeSetFontStyle(MenuFontStyle(activeFontStyle));
                 motdBodyText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdBodyText, -4f);

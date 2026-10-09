@@ -64,12 +64,12 @@ namespace Nova.Menu
             return measureContent;
         }
 
-        /// <summary>A widget's place on screen, so two widgets with the same label in different panels never share a Motion.</summary>
-        private static MotionKey WidgetKey(string kind, string name, Rect rect)
-        {
-            Vector2 at = GUIUtility.GUIToScreenPoint(rect.position);
-            return new MotionKey(kind, name, null, Mathf.RoundToInt(at.x), Mathf.RoundToInt(at.y));
-        }
+        /// <summary>
+        /// A widget's place in its group or scroll view, so same-label widgets in different spots don't share a Motion.
+        /// Not the screen position: that moves every frame while scrolling, dragging or fading, which made a new Motion each frame.
+        /// </summary>
+        private static MotionKey WidgetKey(string kind, string name, Rect rect) =>
+            new MotionKey(kind, name, null, Mathf.RoundToInt(rect.x), Mathf.RoundToInt(rect.y));
         private float cleanAt;
         private bool pointerInside = true;
         private bool snapAnimations;
