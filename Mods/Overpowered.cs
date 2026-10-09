@@ -79,7 +79,7 @@ namespace Nova.Mods
                 RaycastHit Ray = GunData.Ray;
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         RoomControls.KickPlayer(gunTarget.GetPlayer().ActorNumber);
@@ -112,7 +112,7 @@ namespace Nova.Mods
                 RaycastHit Ray = GunData.Ray;
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         RoomControls.KickAndBlockPlayer(gunTarget.GetPlayer().ActorNumber);
@@ -131,6 +131,7 @@ namespace Nova.Mods
             NetworkSystem.Instance.PlayerListOthers.ForEach(p => RoomControls.KickAndBlockPlayer(p.ActorNumber));
         }
 
+        private static float vimMuteDelay;
         public static void VIMMuteGun()
         {
             if (!VRRig.LocalRig.IsVIMSubscriber())
@@ -144,18 +145,23 @@ namespace Nova.Mods
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                if (gunLocked && lockTarget != null && !RoomControls.MutedPlayers.ContainsKey(lockTarget.GetPlayer().UserId))
-                    RoomControls.MutePlayer(lockTarget.GetPlayer().ActorNumber);
+                if (gunLocked && lockTarget != null && Time.time > vimMuteDelay)
+                {
+                    NetPlayer target = lockTarget.GetPlayer();
+                    if (target != null && !RoomControls.MutedPlayers.ContainsKey(target.UserId))
+                    {
+                        // MutedPlayers only fills in once the mute goes through, so don't resend it every frame
+                        vimMuteDelay = Time.time + 0.5f;
+                        RoomControls.MutePlayer(target.ActorNumber);
+                    }
+                }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (gunTarget && !gunTarget.IsLocal() && !gunTarget.IsTagged())
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
+                    if (gunTarget && !gunTarget.IsLocal())
                     {
-                        if (PhotonNetwork.IsMasterClient)
-                        {
-                            gunLocked = true;
-                            lockTarget = gunTarget;
-                        }
+                        gunLocked = true;
+                        lockTarget = gunTarget;
                     }
                 }
             }
@@ -181,8 +187,7 @@ namespace Nova.Mods
         public static void SetGuardianTarget(NetPlayer target)
         {
             if (!NetworkSystem.Instance.IsMasterClient) { NotificationManager.SendNotification(NotMasterClientError); return; }
-            GorillaGuardianManager guardianManager = (GorillaGuardianManager)GorillaGameManager.instance;
-            if (guardianManager.IsPlayerGuardian(target))
+            if (!(GorillaGameManager.instance is GorillaGuardianManager guardianManager) || guardianManager.IsPlayerGuardian(target))
                 return;
 
             foreach (TappableGuardianIdol tgi in GetAllType<TappableGuardianIdol>())
@@ -212,7 +217,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > guardianDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         SetGuardianTarget(GetPlayerFromVRRig(gunTarget));
@@ -226,10 +231,14 @@ namespace Nova.Mods
         {
             if (NetworkSystem.Instance.IsMasterClient)
             {
+                var players = PhotonNetwork.PlayerList;
                 int i = 0;
                 foreach (var gorillaGuardianZoneManager in GorillaGuardianZoneManager.zoneManagers.Where(gorillaGuardianZoneManager => gorillaGuardianZoneManager.enabled && gorillaGuardianZoneManager.IsZoneValid()))
                 {
-                    gorillaGuardianZoneManager.SetGuardian(PhotonNetwork.PlayerList[i]);
+                    if (i >= players.Length)
+                        break;
+
+                    gorillaGuardianZoneManager.SetGuardian(players[i]);
                     i++;
                 }
             }
@@ -255,7 +264,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > guardianDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (NetworkSystem.Instance.IsMasterClient)
@@ -314,7 +323,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > playerColorDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         playerColorDelay = Time.time + 0.1f;
@@ -367,7 +376,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunTarget.IsTagged())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -466,7 +475,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunTarget.IsTagged())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -514,20 +523,18 @@ namespace Nova.Mods
         {
             if (NetworkSystem.Instance.InRoom)
             {
-                if (GorillaGameManager.instance.GameType() != GameModeType.Guardian)
+                if (!(GorillaGameManager.instance is GorillaGuardianManager guardianManager))
                     return;
 
                 if (NetworkSystem.Instance.IsMasterClient)
                 {
                     if (!VRRig.LocalRig.enabled)
                         VRRig.LocalRig.enabled = true;
-                    GorillaGuardianManager guardianManager = (GorillaGuardianManager)GorillaGameManager.instance;
                     if (!guardianManager.IsPlayerGuardian(PhotonNetwork.LocalPlayer))
                         SetGuardianTarget(PhotonNetwork.LocalPlayer);
                 }
                 else
                 {
-                    GorillaGuardianManager guardianManager = (GorillaGuardianManager)GorillaGameManager.instance;
                     foreach (TappableGuardianIdol tgi in GetAllType<TappableGuardianIdol>())
                     {
                         if (tgi.manager && tgi.manager.photonView && !tgi.isChangingPositions)
@@ -560,9 +567,7 @@ namespace Nova.Mods
         {
             if (NetworkSystem.Instance.InRoom)
             {
-                GorillaGuardianManager manager = (GorillaGuardianManager)GorillaGameManager.instance;
-
-                if (!manager.IsPlayerGuardian(PhotonNetwork.LocalPlayer)) return;
+                if (!(GorillaGameManager.instance is GorillaGuardianManager manager) || !manager.IsPlayerGuardian(PhotonNetwork.LocalPlayer)) return;
                 foreach (TappableGuardianIdol tgi in GetAllType<TappableGuardianIdol>())
                 {
                     if (!tgi.manager || !tgi.manager.photonView) continue;
@@ -605,7 +610,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -663,7 +668,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -973,7 +978,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1003,7 +1008,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1033,7 +1038,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1063,7 +1068,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1091,7 +1096,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
                         gunLocked = true;
@@ -1215,7 +1220,7 @@ namespace Nova.Mods
                 {
                     if (rig.leftHandLink.grabbedPlayer == NetworkSystem.Instance.LocalPlayer || rig.rightHandLink.grabbedPlayer == NetworkSystem.Instance.LocalPlayer)
                     {
-                        bool grabbedOnLeft = VRRig.LocalRig.leftHandLink.grabbedPlayer == rig.GetPlayer();
+                        bool grabbedOnLeft = rig.leftHandLink.grabbedPlayer == NetworkSystem.Instance.LocalPlayer;
                         if (grabbedOnLeft ? rig.leftIndex.calcT > 0 : rig.rightIndex.calcT > 0)
                         {
                             GTPlayer.Instance.transform.position += rig.headMesh.transform.forward * (Time.deltaTime * Movement.FlySpeed);
@@ -1281,8 +1286,14 @@ namespace Nova.Mods
         {
             if (VRRig.LocalRig.IsBeingHeld())
             {
-                Transform transform = VRRig.LocalRig.leftHandLink.IsLinkActive() ? VRRig.LocalRig.leftHandTransform : VRRig.LocalRig.rightHandTransform;
-                VRRig rig = VRRig.LocalRig.leftHandLink.grabbedPlayer.VRRig() ?? VRRig.LocalRig.rightHandLink.grabbedPlayer.VRRig();
+                NetPlayer holder = VRRig.LocalRig.leftHandLink.grabbedPlayer ?? VRRig.LocalRig.rightHandLink.grabbedPlayer;
+                if (holder == null)
+                    return;
+
+                VRRig rig = holder.VRRig();
+                if (rig == null)
+                    return;
+
                 Vector3 velocity = rig.transform.up * 3f;
                 rig.GetNetView().SendRPC("DroppedByPlayer", rig.GetPlayer(), velocity);
             }
@@ -1821,10 +1832,14 @@ namespace Nova.Mods
                     if (basePosition == null)
                         basePosition = NewPointer.transform.position + Vector3.up;
 
-                    if (Time.time > textDelay)
+                    if (Time.time > textDelay && textToRender != null && characterIndex < textToRender.Length)
                     {
                         textDelay = Time.time + 0.1f;
-                        bool[][] characterData = Letters[textToRender[characterIndex].ToString()];
+                        if (!Letters.TryGetValue(textToRender[characterIndex].ToString(), out bool[][] characterData))
+                        {
+                            characterIndex++;
+                            return;
+                        }
 
                         List<Vector3> position = new List<Vector3>();
                         for (int i = 0; i < characterData.Length; i++)
@@ -1865,10 +1880,14 @@ namespace Nova.Mods
                     if (basePosition == null)
                         basePosition = NewPointer.transform.position + Vector3.up;
 
-                    if (Time.time > textDelay)
+                    if (Time.time > textDelay && textToRender != null && characterIndex < textToRender.Length)
                     {
                         textDelay = Time.time + 0.1f;
-                        bool[][] characterData = Letters[textToRender[characterIndex].ToString()];
+                        if (!Letters.TryGetValue(textToRender[characterIndex].ToString(), out bool[][] characterData))
+                        {
+                            characterIndex++;
+                            return;
+                        }
 
                         List<Vector3> position = new List<Vector3>();
                         for (int i = 0; i < characterData.Length; i++)
@@ -2266,7 +2285,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2325,7 +2344,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2384,7 +2403,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2443,7 +2462,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2502,7 +2521,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2561,7 +2580,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2793,7 +2812,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                         LucyChase(gunTarget.GetPlayer());
                 }
@@ -2834,7 +2853,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2878,7 +2897,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3058,8 +3077,10 @@ namespace Nova.Mods
 
         public static void SpawnLurker()
         {
-            if (Lurker.IsMine)
-                Lurker.currentState = LurkerGhost.ghostState.patrol;
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
+                lurker.currentState = LurkerGhost.ghostState.patrol;
             else NotificationManager.SendNotification(NotMasterClientError);
         }
 
@@ -3072,8 +3093,10 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    if (Lurker.IsMine)
-                        Lurker.transform.position = NewPointer.transform.position + Vector3.up;
+                    LurkerGhost lurker = Lurker;
+                    if (lurker == null) return;
+                    if (lurker.IsMine)
+                        lurker.transform.position = NewPointer.transform.position + Vector3.up;
                     else NotificationManager.SendNotification(NotMasterClientError);
                 }
             }
@@ -3081,25 +3104,29 @@ namespace Nova.Mods
 
         public static void DespawnLurker()
         {
-            if (Lurker.IsMine)
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
             {
-                Lurker.currentState = LurkerGhost.ghostState.patrol;
+                lurker.currentState = LurkerGhost.ghostState.patrol;
             }
             else NotificationManager.SendNotification(NotMasterClientError);
         }
 
         public static void LurkerAttack(NetPlayer player)
         {
-            if (Lurker.IsMine)
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
             {
-                if (Lurker.targetPlayer != player)
+                if (lurker.targetPlayer != player)
                 {
-                    Lurker.ChangeState(LurkerGhost.ghostState.patrol);
-                    SendSerialize(Lurker.GetView);
+                    lurker.ChangeState(LurkerGhost.ghostState.patrol);
+                    SendSerialize(lurker.GetView);
                 }
 
-                Lurker.currentState = LurkerGhost.ghostState.possess;
-                Lurker.targetPlayer = player;
+                lurker.currentState = LurkerGhost.ghostState.possess;
+                lurker.targetPlayer = player;
             }
             else NotificationManager.SendNotification(NotMasterClientError);
         }
@@ -3116,7 +3143,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3133,6 +3160,8 @@ namespace Nova.Mods
 
         public static void LurkerAttackAll()
         {
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
             if (SerializePatch.OverrideSerialization != null)
             {
                 SerializePatch.OverrideSerialization = () =>
@@ -3142,14 +3171,14 @@ namespace Nova.Mods
                 };
             }
 
-            if (Lurker.IsMine)
+            if (lurker.IsMine)
             {
-                if (Lurker.currentState != LurkerGhost.ghostState.possess)
+                if (lurker.currentState != LurkerGhost.ghostState.possess)
                 {
                     foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
                     {
-                        Lurker.currentState = LurkerGhost.ghostState.possess;
-                        Lurker.targetPlayer = player;
+                        lurker.currentState = LurkerGhost.ghostState.possess;
+                        lurker.targetPlayer = player;
                         SendSerialize(Lucy.GetView, new RaiseEventOptions { TargetActors = new[] { player.ActorNumber } });
                     }
                 }
@@ -3161,12 +3190,14 @@ namespace Nova.Mods
         public static float lurkerDelay;
         public static void SpazLurker()
         {
-            if (Lurker.IsMine)
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
             {
                 if (Time.time > lurkerDelay)
                 {
-                    Lurker.currentState = Lurker.currentState == LurkerGhost.ghostState.charge ? LurkerGhost.ghostState.seek : LurkerGhost.ghostState.charge;
-                    Lurker.targetPlayer = GetRandomPlayer(true);
+                    lurker.currentState = lurker.currentState == LurkerGhost.ghostState.charge ? LurkerGhost.ghostState.seek : LurkerGhost.ghostState.charge;
+                    lurker.targetPlayer = GetRandomPlayer(true);
                     lurkerDelay = Time.time + 0.1f;
                 }
             }
@@ -3175,24 +3206,28 @@ namespace Nova.Mods
 
         public static void BreakLurker()
         {
-            if (Lurker.IsMine)
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
             {
-                Lurker.currentState = Lurker.currentState == LurkerGhost.ghostState.charge ? LurkerGhost.ghostState.possess : LurkerGhost.ghostState.charge;
-                Lurker.targetPlayer = GetRandomPlayer(true);
+                lurker.currentState = lurker.currentState == LurkerGhost.ghostState.charge ? LurkerGhost.ghostState.possess : LurkerGhost.ghostState.charge;
+                lurker.targetPlayer = GetRandomPlayer(true);
 
-                SendSerialize(Lurker.GetView);
+                SendSerialize(lurker.GetView);
             }
             else NotificationManager.SendNotification(NotMasterClientError);
         }
 
         public static void AnnoyingLurker()
         {
-            if (Lurker.IsMine)
+            LurkerGhost lurker = Lurker;
+            if (lurker == null) return;
+            if (lurker.IsMine)
             {
                 if (Time.time > lurkerDelay)
                 {
-                    Lurker.currentState = Lurker.currentState == LurkerGhost.ghostState.possess ? LurkerGhost.ghostState.charge : LurkerGhost.ghostState.possess;
-                    Lurker.targetPlayer = GetRandomPlayer(true);
+                    lurker.currentState = lurker.currentState == LurkerGhost.ghostState.possess ? LurkerGhost.ghostState.charge : LurkerGhost.ghostState.possess;
+                    lurker.targetPlayer = GetRandomPlayer(true);
                     lurkerDelay = Time.time + 0.1f;
                 }
             }
@@ -3238,8 +3273,7 @@ namespace Nova.Mods
             if (velocity.sqrMagnitude > 20f)
                 velocity = Vector3.Normalize(velocity) * 20f;
 
-            GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-            if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+            if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
             {
                 GetNetworkViewFromVRRig(GetVRRigFromPlayer(victim)).SendRPC("GrabbedByPlayer", victim, true, false, false);
                 GetNetworkViewFromVRRig(GetVRRigFromPlayer(victim)).SendRPC("DroppedByPlayer", victim, velocity);
@@ -3253,8 +3287,7 @@ namespace Nova.Mods
             if (velocity.sqrMagnitude > 20f)
                 velocity = Vector3.Normalize(velocity) * 20f;
 
-            GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-            if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+            if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
             {
                 switch (victim)
                 {
@@ -3299,11 +3332,10 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > grabDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-                        if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                        if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                         {
                             GetNetworkViewFromVRRig(gunTarget).SendRPC("GrabbedByPlayer", RpcTarget.Others, true, false, false);
                             RPCProtection();
@@ -3321,8 +3353,7 @@ namespace Nova.Mods
             if (rightGrab && Time.time > grabDelay)
             {
                 grabDelay = Time.time + 0.1f;
-                GorillaGuardianManager guardianManager = (GorillaGuardianManager)GorillaGameManager.instance;
-                if (guardianManager.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                if (GorillaGameManager.instance is GorillaGuardianManager guardianManager && guardianManager.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                 {
                     foreach (var plr in VRRigExtensions.ActiveRigs.Where(plr => !plr.isLocal))
                     {
@@ -3345,11 +3376,10 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > releaseDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
-                        GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-                        if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                        if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                         {
                             GetNetworkViewFromVRRig(gunTarget).SendRPC("DroppedByPlayer", RpcTarget.Others, new Vector3(0f, 0f, 0f));
                             RPCProtection();
@@ -3368,8 +3398,7 @@ namespace Nova.Mods
             if (rightTrigger > 0.5f && Time.time > releaseDelay)
             {
                 releaseDelay = Time.time + 0.1f;
-                GorillaGuardianManager guardianManager = (GorillaGuardianManager)GorillaGameManager.instance;
-                if (guardianManager.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                if (GorillaGameManager.instance is GorillaGuardianManager guardianManager && guardianManager.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                 {
                     foreach (var plr in VRRigExtensions.ActiveRigs.Where(plr => !plr.isLocal))
                     {
@@ -3392,7 +3421,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > flingDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         BetaSetVelocityPlayer(GetPlayerFromVRRig(gunTarget), new Vector3(0f, 19.9f, 0f));
@@ -3432,7 +3461,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3471,7 +3500,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3570,7 +3599,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3642,7 +3671,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3688,7 +3717,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3759,7 +3788,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3894,8 +3923,7 @@ namespace Nova.Mods
             {
                 if (Time.time > slamDel)
                 {
-                    GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-                    if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                    if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                     {
                         GameMode.ActiveNetworkHandler.NetView.GetView.RPC(flip ? "ShowSlamEffect" : "ShowSlapEffects", RpcTarget.All, GorillaTagger.Instance.rightHandTransform.position, new Vector3(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)));
                         RPCProtection();
@@ -3911,8 +3939,7 @@ namespace Nova.Mods
             {
                 if (Time.time > slamDel)
                 {
-                    GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
-                    if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                    if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                     {
                         GameMode.ActiveNetworkHandler.NetView.GetView.RPC(flip ? "ShowSlamEffect" : "ShowSlapEffects", RpcTarget.All, GorillaTagger.Instance.leftHandTransform.position, new Vector3(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)));
                         RPCProtection();
@@ -3935,10 +3962,9 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    GorillaGuardianManager gman = (GorillaGuardianManager)GorillaGameManager.instance;
                     if (Time.time > slamDel)
                     {
-                        if (gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
+                        if (GorillaGameManager.instance is GorillaGuardianManager gman && gman.IsPlayerGuardian(NetworkSystem.Instance.LocalPlayer))
                         {
                             GameMode.ActiveNetworkHandler.NetView.GetView.RPC(flip ? "ShowSlamEffect" : "ShowSlapEffects", RpcTarget.All, NewPointer.transform.position, new Vector3(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)));
                             RPCProtection();
@@ -4258,7 +4284,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4307,7 +4333,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4351,7 +4377,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4381,7 +4407,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4415,7 +4441,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4449,7 +4475,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4569,7 +4595,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4605,7 +4631,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4639,7 +4665,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4689,7 +4715,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4787,7 +4813,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4828,7 +4854,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4864,7 +4890,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4971,7 +4997,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > kickDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer player = GetPlayerFromVRRig(gunTarget);
@@ -5043,7 +5069,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > elevatorKickDelay)
                     {
                         elevatorKickDelay = Time.time + 0.5f;
@@ -5169,7 +5195,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > greyZoneDelay)
                     {
                         greyZoneDelay = Time.time + 0.1f;
@@ -5387,7 +5413,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (lockTarget == null && FriendshipGroupDetection.Instance.IsInMyGroup(gunTarget.GetPlayer().UserId))
@@ -5440,6 +5466,14 @@ namespace Nova.Mods
             }
         }
 
+        private static readonly Func<bool> partyKickFreeze = () => false;
+        public static void ReleasePartyKickFreeze()
+        {
+            // Only undo the freeze if it is still ours, another mod may have replaced it since
+            if (SerializePatch.OverrideSerialization == partyKickFreeze)
+                SerializePatch.OverrideSerialization = null;
+        }
+
         public static void PartyKickAura()
         {
             if (!NetworkSystem.Instance.InRoom) return;
@@ -5455,7 +5489,7 @@ namespace Nova.Mods
 
             if (nearbyPlayers.Count > 0)
             {
-                SerializePatch.OverrideSerialization = () => false;
+                SerializePatch.OverrideSerialization = partyKickFreeze;
                 foreach (VRRig nearbyPlayer in nearbyPlayers)
                 {
                     for (int i = 0; i < 3950; i++)
@@ -5466,7 +5500,7 @@ namespace Nova.Mods
                 }
             }
             else
-                OptimizeEvents = false;
+                ReleasePartyKickFreeze();
         }
 
         public static void PartyKickOnTouch()
@@ -5488,7 +5522,7 @@ namespace Nova.Mods
 
             if (touchedPlayers.Count > 0)
             {
-                SerializePatch.OverrideSerialization = () => false;
+                SerializePatch.OverrideSerialization = partyKickFreeze;
                 foreach (VRRig rig in touchedPlayers)
                 {
                     for (int i = 0; i < 3950; i++)
@@ -5499,7 +5533,7 @@ namespace Nova.Mods
                 }
             }
             else
-                OptimizeEvents = false;
+                ReleasePartyKickFreeze();
         }
 
         private static float antiReportLagDelay;
@@ -5564,7 +5598,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > destroyDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         DestroyPlayer(NetPlayerToPlayer(GetPlayerFromVRRig(gunTarget)));
@@ -5701,7 +5735,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > rockDebounce)
                     {
                         rockDebounce = Time.time + 0.1f;
@@ -5821,7 +5855,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > slowDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer player = GetPlayerFromVRRig(gunTarget);
@@ -5912,7 +5946,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > vibrateDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer owner = GetPlayerFromVRRig(gunTarget);
@@ -5995,7 +6029,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -6060,7 +6094,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -6171,7 +6205,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    GorillaRopeSwing gunTarget = Ray.collider.GetComponentInParent<GorillaRopeSwing>();
+                    GorillaRopeSwing gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<GorillaRopeSwing>();
                     if (gunTarget && Time.time > RopeDelay)
                     {
                         RopeDelay = Time.time + 0.25f;
@@ -6216,7 +6250,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    GorillaRopeSwing gunTarget = Ray.collider.GetComponentInParent<GorillaRopeSwing>();
+                    GorillaRopeSwing gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<GorillaRopeSwing>();
 
                     if (gunTarget && Time.time > RopeDelay)
                     {
@@ -6278,13 +6312,16 @@ namespace Nova.Mods
                     }
 
                     CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                    List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                    List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).ToList();
+
+                    if (critters.Count <= 0)
+                        return;
 
                     CrittersActor critter = critters[Random.Range(0, critters.Count)];
 
@@ -6359,13 +6396,16 @@ namespace Nova.Mods
                         }
 
                         CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                        List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).ToList();
+
+                        if (critters.Count <= 0)
+                            return;
 
                         CrittersActor critter = critters[Random.Range(0, critters.Count)];
 
@@ -6408,6 +6448,9 @@ namespace Nova.Mods
                 if (PhotonNetwork.IsMasterClient)
                 {
                     List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).ToList();
+
+                    if (critters.Count <= 0)
+                        return;
 
                     CrittersPawn targetCritter = critters[Random.Range(0, critters.Count)];
                     targetCritter.transform.position = GorillaTagger.Instance.rightHandTransform.position;
@@ -6465,6 +6508,9 @@ namespace Nova.Mods
                 {
                     List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).ToList();
 
+                    if (critters.Count <= 0)
+                        return;
+
                     CrittersPawn targetCritter = critters[Random.Range(0, critters.Count)];
                     targetCritter.transform.position = GorillaTagger.Instance.rightHandTransform.position;
                     targetCritter.transform.rotation = RandomQuaternion();
@@ -6475,13 +6521,16 @@ namespace Nova.Mods
                 else
                 {
                     CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                    List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                    List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).ToList();
+
+                    if (critters.Count <= 0)
+                        return;
 
                     CrittersPawn critter = critters[Random.Range(0, critters.Count)];
 
@@ -6528,6 +6577,9 @@ namespace Nova.Mods
                     {
                         List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).ToList();
 
+                        if (critters.Count <= 0)
+                            return;
+
                         CrittersPawn targetCritter = critters[Random.Range(0, critters.Count)];
                         targetCritter.transform.position = NewPointer.transform.position;
                         targetCritter.transform.rotation = RandomQuaternion();
@@ -6535,13 +6587,16 @@ namespace Nova.Mods
                     else
                     {
                         CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                        List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        List<CrittersPawn> critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = CrittersManager.instance.crittersPawns.Where(critter => critter != null).ToList();
+
+                        if (critters.Count <= 0)
+                            return;
 
                         CrittersPawn critter = critters[Random.Range(0, critters.Count)];
 
@@ -6602,13 +6657,16 @@ namespace Nova.Mods
                     }
 
                     CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                    List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                    List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                     if (critters.Count <= 0)
-                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).ToList();
+
+                    if (critters.Count <= 0)
+                        return;
 
                     CrittersActor critter = critters[Random.Range(0, critters.Count)];
 
@@ -6678,13 +6736,16 @@ namespace Nova.Mods
                         }
 
                         CrittersGrabber localGrabber = GetAllType<CrittersGrabber>().Where(grabber => grabber.rigPlayerId == PhotonNetwork.LocalPlayer.ActorNumber && grabber.isLeft).FirstOrDefault();
-                        List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                        List<CrittersActor> critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) > 3f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type && Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 25f).ToList();
 
                         if (critters.Count <= 0)
-                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).OrderByDescending(critter => Vector3.Distance(critter.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)).ToList();
+                            critters = GetAllType<CrittersActor>().Where(critter => critter != null && critter.crittersActorType == type).ToList();
+
+                        if (critters.Count <= 0)
+                            return;
 
                         CrittersActor critter = critters[Random.Range(0, critters.Count)];
 
