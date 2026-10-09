@@ -98,7 +98,7 @@ namespace Nova.Mods
                 RaycastHit Ray = GunData.Ray;
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         PhotonView view = gunTarget.GetPhotonView();
@@ -302,7 +302,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         PhotonView view = gunTarget.GetPhotonView();
@@ -488,12 +488,9 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                    if (gunTarget && !gunTarget.IsLocal())
-                    {
-                        int viewID = viewIdArchive[gunTarget];
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
+                    if (gunTarget && !gunTarget.IsLocal() && viewIdArchive.TryGetValue(gunTarget, out int viewID))
                         Destroy(gunTarget, null, null, viewID);
-                    }
                 }
             }
         }
@@ -524,8 +521,8 @@ namespace Nova.Mods
             {
                 foreach (VRRig rig in nearbyPlayers)
                 {
-                    int viewID = viewIdArchive[rig];
-                    Destroy(rig, null, null, viewID);
+                    if (viewIdArchive.TryGetValue(rig, out int viewID))
+                        Destroy(rig, null, null, viewID);
                 }
             }
         }
@@ -553,7 +550,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         foreach (VRRig rig in VRRigExtensions.ActiveRigs)
@@ -670,7 +667,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -741,7 +738,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -828,7 +825,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -918,7 +915,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -956,7 +953,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > customPropertyDelay)
                     {
                         customPropertyDelay = Time.time + 0.25f;
@@ -1060,7 +1057,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > customPropertyDelay)
                     {
                         customPropertyDelay = Time.time + 0.25f;
@@ -1137,7 +1134,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > customPropertyDelay)
                     {
                         customPropertyDelay = Time.time + 0.25f;
@@ -1204,7 +1201,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > customPropertyDelay)
                     {
                         customPropertyDelay = Time.time + 0.25f;

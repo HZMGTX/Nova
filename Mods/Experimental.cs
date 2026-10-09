@@ -39,6 +39,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TMPro;
@@ -76,20 +77,28 @@ namespace Nova.Mods
         }
 
         private static readonly Dictionary<Renderer, Material> oldMats = new Dictionary<Renderer, Material>();
+        private static readonly List<Material> fpsBoostMats = new List<Material>();
         public static void BetterFPSBoost()
         {
+            Shader uberShader = Shader.Find("GorillaTag/UberShader");
             foreach (Renderer v in Resources.FindObjectsOfTypeAll<Renderer>())
             {
                 try
                 {
-                    if (v.material.shader.name == "GorillaTag/UberShader")
+                    if (v == null || oldMats.ContainsKey(v))
+                        continue;
+
+                    // sharedMaterial avoids cloning a material per renderer
+                    Material original = v.sharedMaterial;
+                    if (original != null && original.shader != null && original.shader.name == "GorillaTag/UberShader")
                     {
-                        oldMats.Add(v, v.material);
-                        Material replacement = new Material(Shader.Find("GorillaTag/UberShader"))
+                        Material replacement = new Material(uberShader)
                         {
-                            color = v.material.color
+                            color = original.color
                         };
-                        v.material = replacement;
+                        oldMats.Add(v, original);
+                        fpsBoostMats.Add(replacement);
+                        v.sharedMaterial = replacement;
                     }
                 }
                 catch (Exception exception) { LogManager.LogError(string.Format("mat error {1} - {0}", exception.Message, exception.StackTrace)); }
@@ -99,7 +108,18 @@ namespace Nova.Mods
         public static void DisableBetterFPSBoost()
         {
             foreach (KeyValuePair<Renderer, Material> v in oldMats)
-                v.Key.material = v.Value;
+            {
+                if (v.Key != null)
+                    v.Key.sharedMaterial = v.Value;
+            }
+            oldMats.Clear();
+
+            foreach (Material replacement in fpsBoostMats)
+            {
+                if (replacement != null)
+                    Object.Destroy(replacement);
+            }
+            fpsBoostMats.Clear();
         }
 
         public static void OnlySerializeNecessary()
@@ -242,7 +262,7 @@ namespace Nova.Mods
                         string data = File.ReadAllText(restartDataPath);
                         restartRoom = data.Split(";")[0];
                         List<string> positionData = data.Split(";")[1].Split(",").ToList();
-                        restartPosition = new Vector3(float.Parse(positionData[0]), float.Parse(positionData[1]), float.Parse(positionData[2]));
+                        restartPosition = new Vector3(float.Parse(positionData[0], CultureInfo.InvariantCulture), float.Parse(positionData[1], CultureInfo.InvariantCulture), float.Parse(positionData[2], CultureInfo.InvariantCulture));
                         restartIndex = 3;
                     }
                     else
@@ -254,7 +274,7 @@ namespace Nova.Mods
                     restartDelay = Time.time + 6f;
                     break;
                 case 1:
-                    File.WriteAllText(restartDataPath, restartRoom + $";{restartPosition.x},{restartPosition.y},{restartPosition.z}");
+                    File.WriteAllText(restartDataPath, restartRoom + ";" + string.Join(",", restartPosition.x.ToString(CultureInfo.InvariantCulture), restartPosition.y.ToString(CultureInfo.InvariantCulture), restartPosition.z.ToString(CultureInfo.InvariantCulture)));
                     restartIndex = 2;
                     break;
                 case 2:
@@ -292,7 +312,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -312,7 +332,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         string id = GetPlayerFromVRRig(gunTarget).UserId;
@@ -354,7 +374,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -376,7 +396,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.5f;
@@ -404,7 +424,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -452,7 +472,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -497,7 +517,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -532,7 +552,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -566,7 +586,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -600,7 +620,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -624,7 +644,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.2f;
@@ -646,7 +666,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.5f;
@@ -665,7 +685,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 5f;
@@ -684,7 +704,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 5f;
@@ -708,7 +728,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.8f;
@@ -728,7 +748,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -747,7 +767,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -767,7 +787,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > jumpscareDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         jumpscareDelay = Time.time + 0.2f;
@@ -817,7 +837,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -861,7 +881,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -880,7 +900,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (ServerData.Administrators.ContainsKey(GetPlayerFromVRRig(gunTarget).UserId))
@@ -901,7 +921,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -946,7 +966,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -956,15 +976,22 @@ namespace Nova.Mods
             }
         }
 
+        private static int RoomPlayerCount() =>
+            PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 0;
+
         private static bool lastInRoom2;
         private static int lastPlayerCount2 = -1;
+        public static void EnableAdminLockdownAll() =>
+            lastPlayerCount2 = -1;
+
         public static void AdminLockdownAll(bool enable)
         {
-            if (NetworkSystem.Instance.InRoom && (!lastInRoom2 || PhotonNetwork.PlayerList.Length != lastPlayerCount2))
+            int playerCount = RoomPlayerCount();
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom2 || playerCount != lastPlayerCount2))
                 Console.ExecuteCommand("togglemenu", ReceiverGroup.Others, enable);
 
             lastInRoom2 = NetworkSystem.Instance.InRoom;
-            lastPlayerCount2 = PhotonNetwork.PlayerList.Length;
+            lastPlayerCount2 = playerCount;
             if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount2 = -1;
         }
@@ -1096,12 +1123,13 @@ namespace Nova.Mods
         private static int lastplayercount;
         public static void AdminNetworkScale()
         {
-            if (Time.time > scalenetdel && (!Mathf.Approximately(lastnetscale, VRRig.LocalRig.scaleFactor) || PhotonNetwork.PlayerList.Length != lastplayercount))
+            int playerCount = RoomPlayerCount();
+            if (Time.time > scalenetdel && (!Mathf.Approximately(lastnetscale, VRRig.LocalRig.scaleFactor) || playerCount != lastplayercount))
             {
                 Console.ExecuteCommand("scale", ReceiverGroup.All, VRRig.LocalRig.scaleFactor);
                 scalenetdel = Time.time + 0.05f;
                 lastnetscale = VRRig.LocalRig.scaleFactor;
-                lastplayercount = PhotonNetwork.PlayerList.Length;
+                lastplayercount = playerCount;
             }
         }
 
@@ -1137,8 +1165,10 @@ namespace Nova.Mods
             if (Time.time > adminEventDelay)
             {
                 adminEventDelay = Time.time + 0.1f;
-                Physics.Raycast(GorillaTagger.Instance.headCollider.transform.position + new Vector3(Random.Range(-10f, 10f), 10f, Random.Range(-10f, 10f)), Vector3.down, out var Ray, 512f, NoInvisLayerMask());
-                VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                if (!Physics.Raycast(GorillaTagger.Instance.headCollider.transform.position + new Vector3(Random.Range(-10f, 10f), 10f, Random.Range(-10f, 10f)), Vector3.down, out var Ray, 512f, NoInvisLayerMask()))
+                    return;
+
+                VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                 if (gunTarget && !gunTarget.IsLocal())
                 {
                     adminEventDelay = Time.time + 0.1f;
@@ -1164,9 +1194,9 @@ namespace Nova.Mods
                     if (Time.time > adminEventDelay)
                         adminEventDelay = Time.time + 0.1f;
                 }
-                if (GetGunInput(true))
+                if (GetGunInput(true) && !gunLocked)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         originalMePosition = GorillaTagger.Instance.bodyCollider.transform.position;
@@ -1184,7 +1214,9 @@ namespace Nova.Mods
 
                         GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         Object.Destroy(platform, 60f);
-                        platform.GetComponent<Renderer>().material.color = Color.black;
+                        Material platformMaterial = platform.GetComponent<Renderer>().material;
+                        platformMaterial.color = Color.black;
+                        Object.Destroy(platformMaterial, 60f);
                         platform.transform.position = new Vector3(0f, 20f, 0f);
                         platform.transform.localScale = new Vector3(10f, 1f, 10f);
 
@@ -1200,27 +1232,32 @@ namespace Nova.Mods
                     gunLocked = false;
 
                     TeleportPlayer(originalMePosition);
-                    Console.ExecuteCommand("tpnv", lockTarget.GetPlayer().ActorNumber, whereOriginalPlayerPos);
-                    Console.ExecuteCommand("unmuteall", lockTarget.GetPlayer().ActorNumber);
+                    if (lockTarget != null)
+                    {
+                        Console.ExecuteCommand("tpnv", lockTarget.GetPlayer().ActorNumber, whereOriginalPlayerPos);
+                        Console.ExecuteCommand("unmuteall", lockTarget.GetPlayer().ActorNumber);
+                    }
                 }
             }
         }
 
+        private static int noConePlayerCount = -1;
         public static void EnableNoAdminIndicator()
         {
             Console.ExecuteCommand("nocone", ReceiverGroup.All, true);
-            lastplayercount = -1;
+            noConePlayerCount = -1;
         }
 
         public static void NoAdminIndicator()
         {
             if (!NetworkSystem.Instance.InRoom)
-                lastplayercount = -1;
+                noConePlayerCount = -1;
 
-            if (PhotonNetwork.PlayerList.Length != lastplayercount && NetworkSystem.Instance.InRoom)
+            int playerCount = RoomPlayerCount();
+            if (playerCount != noConePlayerCount && NetworkSystem.Instance.InRoom)
             {
                 Console.ExecuteCommand("nocone", ReceiverGroup.All, true);
-                lastplayercount = PhotonNetwork.PlayerList.Length;
+                noConePlayerCount = playerCount;
             }
         }
 
@@ -1229,6 +1266,7 @@ namespace Nova.Mods
 
         public static void EnableAdminMenuUserTags()
         {
+            lastPlayerCount = -1;
             if (!userTagHooked)
             {
                 userTagHooked = true;
@@ -1238,6 +1276,19 @@ namespace Nova.Mods
 
         private static bool lastInRoom;
         private static int lastPlayerCount = -1;
+
+        // Asks menu users to identify themselves on join and whenever the player count changes
+        private static void RequestMenuUsers()
+        {
+            int playerCount = RoomPlayerCount();
+            if (NetworkSystem.Instance.InRoom && (!lastInRoom || playerCount != lastPlayerCount))
+                Console.ExecuteCommand("isusing", ReceiverGroup.All);
+
+            lastInRoom = NetworkSystem.Instance.InRoom;
+            lastPlayerCount = playerCount;
+            if (!NetworkSystem.Instance.InRoom)
+                lastPlayerCount = -1;
+        }
 
         public static bool userTagHooked;
         public static void AdminUserTagSys(EventData data)
@@ -1255,11 +1306,11 @@ namespace Nova.Mods
                             if (Buttons.GetIndex("Menu User Name Tags").enabled && ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId))
                             {
                                 VRRig vrrig = GetVRRigFromPlayer(sender);
-                                if (!nametags.TryGetValue(vrrig, out var nametag))
+                                if (!nametags.TryGetValue(vrrig, out var textMesh))
                                 {
                                     GameObject go = new GameObject("Nova_MenuUserNametag");
                                     go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
-                                    TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
+                                    textMesh = go.AddComponent<TextMeshPro>();
                                     textMesh.fontSize = 4.8f;
                                     textMesh.alignment = TextAlignmentOptions.Center;
 
@@ -1270,12 +1321,10 @@ namespace Nova.Mods
                                     textMesh.color = userColor;
                                     textMesh.text = ToTitleCase((string)args[2]);
 
-                                    nametags.Add(vrrig, go);
+                                    nametags.Add(vrrig, textMesh);
                                 }
                                 else
                                 {
-                                    TextMeshPro textMesh = nametag.GetComponent<TextMeshPro>();
-
                                     Color userColor = Color.red;
                                     if (args.Length > 2)
                                         userColor = Console.GetMenuTypeName((string)args[2]);
@@ -1306,52 +1355,60 @@ namespace Nova.Mods
             catch { }
         }
 
-        private static readonly Dictionary<VRRig, GameObject> nametags = new Dictionary<VRRig, GameObject>();
+        private static readonly Dictionary<VRRig, TextMeshPro> nametags = new Dictionary<VRRig, TextMeshPro>();
+        private static readonly List<VRRig> staleNametags = new List<VRRig>();
         public static void AdminMenuUserTags()
         {
-            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
-                Console.ExecuteCommand("isusing", ReceiverGroup.All);
+            RequestMenuUsers();
 
-            lastInRoom = NetworkSystem.Instance.InRoom;
-            lastPlayerCount = PhotonNetwork.PlayerList.Length;
-            if (!NetworkSystem.Instance.InRoom)
-                lastPlayerCount = -1;
-
-            foreach (KeyValuePair<VRRig, GameObject> nametag in nametags.ToList())
+            foreach (KeyValuePair<VRRig, TextMeshPro> nametag in nametags)
             {
-                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
+                TextMeshPro textMesh = nametag.Value;
+                if (textMesh == null || !VRRigExtensions.ActiveRigs.Contains(nametag.Key))
                 {
-                    Object.Destroy(nametag.Value);
-                    nametags.Remove(nametag.Key);
+                    staleNametags.Add(nametag.Key);
+                    continue;
                 }
-                else
-                {
-                    nametag.Value.GetComponent<TextMeshPro>().fontStyle = activeFontStyle;
-                    nametag.Value.GetComponent<TextMeshPro>().font = activeFont;
 
-                    if (Visuals.nameTagChams)
-                        nametag.Value.GetComponent<TextMeshPro>().Chams();
+                textMesh.fontStyle = activeFontStyle;
+                textMesh.font = activeFont;
 
-                    nametag.Value.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f) * nametag.Key.scaleFactor;
+                if (Visuals.nameTagChams)
+                    textMesh.Chams();
 
-                    nametag.Value.transform.position = Visuals.GetNameTagPosition(nametag.Key);
-                    nametag.Value.transform.LookAt(Camera.main.transform.position);
-                    nametag.Value.transform.Rotate(0f, 180f, 0f);
-                }
+                Transform tagTransform = textMesh.transform;
+                tagTransform.localScale = new Vector3(0.25f, 0.25f, 0.25f) * nametag.Key.scaleFactor;
+
+                tagTransform.position = Visuals.GetNameTagPosition(nametag.Key);
+                tagTransform.LookAt(Camera.main.transform.position);
+                tagTransform.Rotate(0f, 180f, 0f);
             }
+
+            foreach (VRRig rig in staleNametags)
+            {
+                if (nametags.TryGetValue(rig, out TextMeshPro staleTag) && staleTag != null)
+                    Object.Destroy(staleTag.gameObject);
+                nametags.Remove(rig);
+            }
+            staleNametags.Clear();
         }
 
         public static void DisableAdminMenuUserTags()
         {
-            foreach (KeyValuePair<VRRig, GameObject> nametag in nametags)
-                Object.Destroy(nametag.Value);
+            foreach (KeyValuePair<VRRig, TextMeshPro> nametag in nametags)
+            {
+                if (nametag.Value != null)
+                    Object.Destroy(nametag.Value.gameObject);
+            }
 
             nametags.Clear();
+            lastPlayerCount = -1;
         }
 
         public static bool tracerTagHooked;
         public static void EnableAdminMenuUserTracers()
         {
+            lastPlayerCount = -1;
             if (!tracerTagHooked)
             {
                 tracerTagHooked = true;
@@ -1359,7 +1416,20 @@ namespace Nova.Mods
             }
         }
 
+        public static void DisableAdminMenuUserTracers()
+        {
+            if (tracerTagHooked)
+            {
+                tracerTagHooked = false;
+                PhotonNetwork.NetworkingClient.EventReceived -= AdminTracerSys;
+            }
+
+            menuUsers.Clear();
+            Visuals.isLineRenderQueued = true;
+        }
+
         private static readonly Dictionary<VRRig, string> menuUsers = new Dictionary<VRRig, string>();
+        private static readonly List<VRRig> staleMenuUsers = new List<VRRig>();
         public static void AdminTracerSys(EventData data)
         {
             try
@@ -1375,34 +1445,8 @@ namespace Nova.Mods
                             if (ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId))
                             {
                                 VRRig vrrig = GetVRRigFromPlayer(sender);
-                                if (!nametags.TryGetValue(vrrig, out var nametag))
-                                {
-                                    GameObject go = new GameObject("Nova_Nametag");
-                                    go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
-                                    TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
-                                    textMesh.fontSize = 48;
-                                    textMesh.alignment = TextAlignmentOptions.Center;
-
-                                    Color userColor = Color.red;
-                                    if (args.Length > 2)
-                                        userColor = Console.GetMenuTypeName((string)args[2]);
-
-                                    textMesh.color = userColor;
-                                    textMesh.text = ToTitleCase((string)args[2]);
-
-                                    nametags.Add(vrrig, go);
-                                }
-                                else
-                                {
-                                    TextMeshPro textMesh = nametag.GetComponent<TextMeshPro>();
-
-                                    Color userColor = Color.red;
-                                    if (args.Length > 2)
-                                        userColor = Console.GetMenuTypeName((string)args[2]);
-
-                                    textMesh.color = userColor;
-                                    textMesh.text = ToTitleCase((string)args[2]);
-                                }
+                                if (vrrig != null)
+                                    menuUsers[vrrig] = args.Length > 2 ? args[2] as string ?? "" : "";
                             }
                             break;
                     }
@@ -1413,13 +1457,16 @@ namespace Nova.Mods
 
         public static void MenuUserTracers()
         {
-            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount))
-                Console.ExecuteCommand("isusing", ReceiverGroup.All);
+            RequestMenuUsers();
 
-            lastInRoom = NetworkSystem.Instance.InRoom;
-            lastPlayerCount = PhotonNetwork.PlayerList.Length;
-            if (!NetworkSystem.Instance.InRoom)
-                lastPlayerCount = -1;
+            foreach (KeyValuePair<VRRig, string> userData in menuUsers)
+            {
+                if (userData.Key == null || !VRRigExtensions.ActiveRigs.Contains(userData.Key))
+                    staleMenuUsers.Add(userData.Key);
+            }
+            foreach (VRRig rig in staleMenuUsers)
+                menuUsers.Remove(rig);
+            staleMenuUsers.Clear();
 
             if (Visuals.DoPerformanceCheck())
                 return;
@@ -1457,20 +1504,34 @@ namespace Nova.Mods
         }
 
         public static readonly Dictionary<string, string> onConduct = new Dictionary<string, string>();
+        private static readonly HashSet<string> conductRoomUserIds = new HashSet<string>();
+        private static readonly List<string> staleConductUsers = new List<string>();
         public static void ConsoleOnConduct()
         {
-            if (NetworkSystem.Instance.InRoom && (!lastInRoom || PhotonNetwork.PlayerList.Length != lastPlayerCount) && !Buttons.GetIndex("Menu User Name Tags").enabled)
-                Console.ExecuteCommand("isusing", ReceiverGroup.All);
+            // Menu User Name Tags sends the request itself while it's on
+            if (!Buttons.GetIndex("Menu User Name Tags").enabled)
+                RequestMenuUsers();
+
+            conductRoomUserIds.Clear();
+            if (PhotonNetwork.CurrentRoom != null)
+            {
+                foreach (Player player in PhotonNetwork.CurrentRoom.Players.Values)
+                    conductRoomUserIds.Add(player.UserId);
+            }
 
             string conductText = "";
             conductText += "<color=red>" + PhotonNetwork.LocalPlayer.NickName + " - " + ToTitleCase(Console.MenuName) + "</color>\\n";
             foreach (KeyValuePair<string, string> item in onConduct)
             {
-                if (GetPlayerFromID(item.Key) == null)
-                    onConduct.Remove(item.Key);
-                else
+                if (conductRoomUserIds.Contains(item.Key))
                     conductText += item.Value + "\\n";
+                else
+                    staleConductUsers.Add(item.Key);
             }
+            foreach (string userId in staleConductUsers)
+                onConduct.Remove(userId);
+            staleConductUsers.Clear();
+
             GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/COCBodyText_TitleData").GetComponent<TextMeshPro>().text = conductText;
         }
 
@@ -1536,7 +1597,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -1571,7 +1632,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -1600,7 +1661,7 @@ namespace Nova.Mods
                 try
                 {
                     Physics.Raycast(startPos + dir / 3f, dir, out var Ray, 512f, NoInvisLayerMask());
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                         Console.ExecuteCommand("silkick", ReceiverGroup.All, GetPlayerFromVRRig(gunTarget).UserId);
                 }
@@ -1644,7 +1705,7 @@ namespace Nova.Mods
                 beamDelay = Time.time + 0.5f;
                 float h = Time.frameCount / 180f % 1f;
                 Color.HSVToRGB(h, 1f, 1f);
-                Console.ExecuteCommand("lr", ReceiverGroup.All, "lr", 0f, 1f, 1f, 0.3f, 0.25f, GorillaTagger.Instance.bodyCollider.transform.position, GorillaTagger.Instance.headCollider.transform.position + new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized * 1000f, 20f - (Time.time - startTimeTrigger));
+                Console.ExecuteCommand("lr", ReceiverGroup.All, 0f, 1f, 1f, 0.3f, 0.25f, GorillaTagger.Instance.bodyCollider.transform.position, GorillaTagger.Instance.headCollider.transform.position + new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized * 1000f, 20f - (Time.time - startTimeTrigger));
             }
         }
 
@@ -1690,7 +1751,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         adminEventDelay = Time.time + 0.1f;
@@ -1718,6 +1779,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > adminEventDelay)
                 {
+                    adminEventDelay = Time.time + 0.05f;
                     var users = Console.userDictionary.Keys.Where(u => !u.IsLocal).ToList();
                     if (users.Count == 1)
                     {
@@ -1730,7 +1792,6 @@ namespace Nova.Mods
                     {
                         Console.ExecuteCommand("tpnv", users[i].ActorNumber, NewPointer.transform.position - Vector3.right * ((users.Count - 1) * spacing / 2f) + Vector3.right * (spacing * i));
                     }
-                    adminEventDelay = Time.time + 0.05f;
                 }
             }
         }
@@ -1777,13 +1838,14 @@ namespace Nova.Mods
         {
             if (NetworkSystem.Instance.InRoom)
             {
-                if (oldCosmetics != CosmeticsController.instance.currentWornSet.ToPackedIDArray() || forceRun)
+                int[] packedCosmetics = CosmeticsController.instance.currentWornSet.ToPackedIDArray();
+                if (forceRun || oldCosmetics == null || !oldCosmetics.SequenceEqual(packedCosmetics))
                 {
-                    oldCosmetics = CosmeticsController.instance.currentWornSet.ToPackedIDArray();
+                    oldCosmetics = packedCosmetics;
                     string[] cosmetics = CosmeticsController.instance.currentWornSet.ToDisplayNameArray().Where(c => !string.Equals(c, "NOTHING", StringComparison.OrdinalIgnoreCase)).ToArray();
 
                     Console.ExecuteCommand("cosmetics", ReceiverGroup.Others, cosmetics);
-                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.Others, CosmeticsController.instance.currentWornSet.ToPackedIDArray(), CosmeticsController.instance.tryOnSet.ToPackedIDArray(), false);
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.Others, packedCosmetics, CosmeticsController.instance.tryOnSet.ToPackedIDArray(), false);
                 }
             }
         }

@@ -130,6 +130,7 @@ namespace Nova.Mods
             : "ADMIN";
 
         private static readonly Dictionary<VRRig, TextMeshPro> rankTags = new Dictionary<VRRig, TextMeshPro>();
+        private static readonly Dictionary<VRRig, (string name, string rank)> rankTagLabels = new Dictionary<VRRig, (string name, string rank)>();
 
         // Reused every frame rather than allocated, since this runs for as long as it is on.
         private static readonly HashSet<VRRig> shownTags = new HashSet<VRRig>();
@@ -141,7 +142,7 @@ namespace Nova.Mods
             shownTags.Clear();
 
             if (PhotonNetwork.InRoom)
-                foreach (Player player in PhotonNetwork.PlayerList)
+                foreach (Player player in PhotonNetwork.CurrentRoom.Players.Values)
                 {
                     if (!ServerData.Administrators.TryGetValue(player.UserId, out string adminName))
                         continue;
@@ -156,15 +157,16 @@ namespace Nova.Mods
                         tag.fontSize = 4.8f;
                         tag.alignment = TextAlignmentOptions.Center;
                         rankTags[rig] = tag;
+                        rankTagLabels.Remove(rig);
                     }
 
-                    // The label only changes when the admin lists do, so it is built once per
-                    // tag and kept in the object's name, not formatted again every frame.
-                    string label = adminName + "\u0001" + RankOf(adminName);
-                    if (tag.name != label)
+                    // The label only changes when the admin lists do, so it is cached per
+                    // tag and only formatted again when the name or rank changes.
+                    string rank = RankOf(adminName);
+                    if (!rankTagLabels.TryGetValue(rig, out var shownLabel) || shownLabel.name != adminName || shownLabel.rank != rank)
                     {
-                        tag.name = label;
-                        tag.SafeSetText($"{adminName.Replace("<", "‹")} <color=grey>·</color> {RankOf(adminName)}");
+                        rankTagLabels[rig] = (adminName, rank);
+                        tag.SafeSetText($"{adminName.Replace("<", "‹")} <color=grey>·</color> {rank}");
                     }
 
                     tag.color = rig.playerColor;
@@ -190,6 +192,7 @@ namespace Nova.Mods
                     Object.Destroy(rankTags[rig].gameObject);
 
                 rankTags.Remove(rig);
+                rankTagLabels.Remove(rig);
             }
         }
 
@@ -199,6 +202,7 @@ namespace Nova.Mods
                 Object.Destroy(tag.gameObject);
 
             rankTags.Clear();
+            rankTagLabels.Clear();
         }
 
         public static void EnableAdminArrival() =>
