@@ -5573,6 +5573,22 @@ namespace Nova.Menu
         /// current configuration.
         /// </summary>
         /// <param name="tmp">The canvas object to which the menu appearance settings will be applied.</param>
+        /// <summary>A base font style with the underline, small caps and strikethrough settings added.</summary>
+        /// <remarks>
+        /// Setting the base style and then adding these afterwards changed the style twice a
+        /// frame, and every change made the text rebuild its mesh.
+        /// </remarks>
+        public static FontStyles MenuFontStyle(FontStyles baseStyle)
+        {
+            if (underlineText)
+                baseStyle |= FontStyles.Underline;
+            if (smallCapsText)
+                baseStyle |= FontStyles.SmallCaps;
+            if (strikethroughText)
+                baseStyle |= FontStyles.Strikethrough;
+            return baseStyle;
+        }
+
         public static void FollowMenuSettings(TMP_Text tmp, float? overlapTargetSpacing = null)
         {
             if (tmp == null)

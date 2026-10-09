@@ -142,7 +142,37 @@ namespace Nova.Managers
             return text;
         }
 
-        private float updateArraylistTimer;
+        private float updateArraylistTimer, nextInformationUpdate;
+        private CanvasScaler canvasScaler;
+        private string casedArraylist, casedNotification, casedInformation;
+
+        private void UpdateInformation()
+        {
+            nextInformationUpdate = Time.time + 0.2f;
+            Color targetColor = Buttons.GetIndex("Swap GUI Colors").enabled ? buttonColors[1].GetCurrentColor() : backgroundColor.GetCurrentColor();
+
+            List<string> statsLines = information
+                .Select(item => $"<color=#{ColorToHex(targetColor)}>{item.Key}</color> <color=#{ColorToHex(textColors[1].GetColor(0))}>{item.Value}</color>")
+                .Select(line => (text: line, width: informationText.GetPreferredValues(NoRichtextTags(line)).x))
+                .OrderByDescending(t => t.width)
+                .Select(t => t.text)
+                .ToList();
+
+            informationText.SafeSetText(string.Join("\n", statsLines));
+            informationText.color = Color.white;
+        }
+
+        private static void ApplyCase(TMP_Text tmp, ref string lastCased)
+        {
+            string text = tmp.text;
+            if (string.IsNullOrEmpty(text) || text == lastCased)
+                return;
+
+            string cased = lowercaseMode ? text.ToLower() : text.ToUpper();
+            lastCased = cased;
+            tmp.SafeSetText(cased);
+        }
+
         private void FixedUpdate()
         {
             try
@@ -164,7 +194,10 @@ namespace Nova.Managers
                     mainCamera = Camera.main.gameObject;
                 }
 
-                canvas.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2f;
+                if (canvasScaler == null)
+                    canvasScaler = canvas.GetComponent<CanvasScaler>();
+                if (canvasScaler != null)
+                    canvasScaler.dynamicPixelsPerUnit = 2f;
 
                 canvas.transform.position = mainCamera.transform.TransformPoint(0f, 0f, 1.6f);
                 canvas.transform.rotation = mainCamera.transform.rotation * Quaternion.Euler(0, 90, 0);
@@ -174,19 +207,23 @@ namespace Nova.Managers
 
                 try
                 {
+                    // The whole style at once; setting the base style and then adding underline or
+                    // small caps after it changed the style twice a tick and rebuilt the text.
+                    FontStyles style = MenuFontStyle(activeFontStyle);
+
                     arraylistText.SafeSetFont(activeFont);
-                    arraylistText.SafeSetFontStyle(activeFontStyle);
+                    arraylistText.SafeSetFontStyle(style);
                     arraylistText.SafeSetFontSize(arraylistScale);
                     arraylistText.Chams();
 
                     notificationText.SafeSetFont(activeFont);
-                    notificationText.SafeSetFontStyle(activeFontStyle);
+                    notificationText.SafeSetFontStyle(style);
                     notificationText.SafeSetFontSize(notificationScale);
                     notificationText.rectTransform.localPosition = new Vector3(-1f, disableNotifications ? -100f : -1f, -0.5f);
                     notificationText.Chams();
 
                     informationText.SafeSetFont(activeFont);
-                    informationText.SafeSetFontStyle(activeFontStyle);
+                    informationText.SafeSetFontStyle(style);
                     informationText.SafeSetFontSize(overlayScale);
                     informationText.Chams();
 
@@ -202,19 +239,11 @@ namespace Nova.Managers
                 informationText.rectTransform.localPosition = new Vector3(-1f, -1f, flipArraylist ? -0.5f : 0.5f);
                 informationText.alignment = flipArraylist ? TextAlignmentOptions.TopLeft : TextAlignmentOptions.TopRight;
 
+                // The overlay is rebuilt five times a second, not at the physics rate.
                 if (information.Count > 0)
                 {
-                    Color targetColor = Buttons.GetIndex("Swap GUI Colors").enabled ? buttonColors[1].GetCurrentColor() : backgroundColor.GetCurrentColor();
-
-                    List<string> statsLines = information
-                        .Select(item => $"<color=#{ColorToHex(targetColor)}>{item.Key}</color> <color=#{ColorToHex(textColors[1].GetColor(0))}>{item.Value}</color>")
-                        .Select(line => (text: line, width: informationText.GetPreferredValues(NoRichtextTags(line)).x))
-                        .OrderByDescending(t => t.width)
-                        .Select(t => t.text)
-                        .ToList();
-
-                    informationText.SafeSetText(string.Join("\n", statsLines));
-                    informationText.color = Color.white;
+                    if (Time.time >= nextInformationUpdate)
+                        UpdateInformation();
                 }
                 else if (!informationText.text.IsNullOrEmpty())
                     informationText.SafeSetText("");
@@ -226,6 +255,8 @@ namespace Nova.Managers
                         updateArraylistTimer = Time.time + (advancedArraylist ? 0.1f : 0.5f);
                         List<string> enabledMods = new List<string>();
                         int categoryIndex = 0;
+                        int temporaryCategory = Buttons.GetCategory("Temporary Category");
+                        ButtonInfo[] temporaryButtons = temporaryCategory >= 0 && temporaryCategory < Buttons.buttons.Length ? Buttons.buttons[temporaryCategory] : System.Array.Empty<ButtonInfo>();
 
                         foreach (ButtonInfo[] buttonList in Buttons.buttons)
                         {
@@ -233,7 +264,7 @@ namespace Nova.Managers
                             {
                                 try
                                 {
-                                    if (Buttons.buttons[Buttons.GetCategory("Temporary Category")].Contains(button) || button.hideFromArraylist)
+                                    if (button.hideFromArraylist || System.Array.IndexOf(temporaryButtons, button) >= 0)
                                         continue;
 
                                     if (!button.enabled || (hideSettings && (!hideSettings ||
@@ -278,28 +309,13 @@ namespace Nova.Managers
                 else if (!arraylistText.text.IsNullOrEmpty())
                     arraylistText.SafeSetText("");
 
-                if (lowercaseMode)
+                // Cased only when the text has changed since it was last cased, instead of a new
+                // lower or upper copy of all three texts every tick.
+                if (lowercaseMode || uppercaseMode)
                 {
-                    if (!arraylistText.text.IsNullOrEmpty())
-                        arraylistText.SafeSetText(arraylistText.text.ToLower());
-
-                    if (!notificationText.text.IsNullOrEmpty())
-                        notificationText.SafeSetText(notificationText.text.ToLower());
-
-                    if (!informationText.text.IsNullOrEmpty())
-                        informationText.SafeSetText(informationText.text.ToLower());
-                }
-
-                if (uppercaseMode)
-                {
-                    if (!arraylistText.text.IsNullOrEmpty())
-                        arraylistText.SafeSetText(arraylistText.text.ToUpper());
-
-                    if (!notificationText.text.IsNullOrEmpty())
-                        notificationText.SafeSetText(notificationText.text.ToUpper());
-
-                    if (!informationText.text.IsNullOrEmpty())
-                        informationText.SafeSetText(informationText.text.ToUpper());
+                    ApplyCase(arraylistText, ref casedArraylist);
+                    ApplyCase(notificationText, ref casedNotification);
+                    ApplyCase(informationText, ref casedInformation);
                 }
 
                 canvas.layer = Buttons.GetIndex("Hide Notifications on Camera").enabled ? 19 : 0;

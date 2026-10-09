@@ -132,18 +132,21 @@ namespace Nova.Managers
                 instance.StartCoroutine(UpdateFriendsList());
             }
 
-            List<VRRig> toRemoveRigs = new List<VRRig>();
+            // Nothing here allocates per frame any more: the lists are reused and the
+            // friends are looked up in a set rather than searched with LINQ for every player.
+            staleRigs.Clear();
+            foreach (KeyValuePair<VRRig, GameObject> star in starPool)
+                if (star.Value == null || !VRRigExtensions.ActiveRigs.Contains(star.Key) || !IsPlayerFriend(GetPlayerFromVRRig(star.Key)))
+                    staleRigs.Add(star.Key);
 
-            foreach (var star in starPool.Where(star => !VRRigExtensions.ActiveRigs.Contains(star.Key) || !IsPlayerFriend(GetPlayerFromVRRig(star.Key))))
+            foreach (VRRig rig in staleRigs)
             {
-                toRemoveRigs.Add(star.Key);
-                Destroy(star.Value);
+                DestroyStar(rig);
+                starPool.Remove(rig);
             }
 
-            foreach (VRRig rig in toRemoveRigs)
-                starPool.Remove(rig);
-
-            Dictionary<VRRig, (float, GameObjectData[], GameObject)> toRemoveGhostRigs = new Dictionary<VRRig, (float, GameObjectData[], GameObject)>();
+            expiredGhosts.Clear();
+            Camera viewer = Camera.main;
 
             foreach ((VRRig rig, (float lastRigUpdate, GameObjectData[] gameObjectDatas, GameObject nametag)) in rigDatas)
             {
@@ -151,7 +154,7 @@ namespace Nova.Managers
 
                 if (timeSinceLastRigUpdate > RigDespawnTime)
                 {
-                    toRemoveGhostRigs.Add(rig, rigDatas[rig]);
+                    expiredGhosts.Add(rig);
 
                     continue;
                 }
@@ -162,27 +165,33 @@ namespace Nova.Managers
                 foreach (GameObjectData gameObjectData in gameObjectDatas)
                     gameObjectData.InterpolateBetween(t);
 
-                nametag.transform.LookAt(Camera.main.transform.position);
-                nametag.transform.Rotate(0f, 180f, 0f);
+                if (nametag != null && viewer != null)
+                {
+                    nametag.transform.LookAt(viewer.transform.position);
+                    nametag.transform.Rotate(0f, 180f, 0f);
+                }
             }
 
-            foreach (KeyValuePair<VRRig, (float, GameObjectData[], GameObject)> pair in toRemoveGhostRigs)
+            foreach (VRRig rig in expiredGhosts)
             {
-                rigDatas.Remove(pair.Key);
-                foreach (GameObjectData gameObjectData in pair.Value.Item2)
+                (float, GameObjectData[], GameObject) ghost = rigDatas[rig];
+                rigDatas.Remove(rig);
+                foreach (GameObjectData gameObjectData in ghost.Item2)
                     Destroy(gameObjectData.AssociatedGameObject);
 
-                Destroy(pair.Value.Item3);
+                Destroy(ghost.Item3);
             }
 
             if (NetworkSystem.Instance.InRoom)
             {
-                NetPlayer[] allFriends = GetAllFriendsInRoom();
-                foreach (NetPlayer player in allFriends)
+                foreach (NetPlayer player in FriendsInRoom())
                 {
+                    // Stars are only made for rigs the cleanup above keeps (a blocked
+                    // player's rig is not in ActiveRigs), so they aren't destroyed and made
+                    // again every frame.
                     VRRig playerRig = GetVRRigFromPlayer(player);
-                    if (playerRig == null) continue;
-                    if (!starPool.TryGetValue(playerRig, out GameObject playerStar))
+                    if (playerRig == null || !VRRigExtensions.ActiveRigs.Contains(playerRig)) continue;
+                    if (!starPool.TryGetValue(playerRig, out GameObject playerStar) || playerStar == null)
                     {
                         playerStar = GameObject.CreatePrimitive(PrimitiveType.Cube);
                         Destroy(playerStar.GetComponent<Collider>());
@@ -206,20 +215,25 @@ namespace Nova.Managers
                             starMaterial.renderQueue = (int)RenderQueue.Transparent;
                         }
 
-                        playerStar.GetComponent<Renderer>().material = starMaterial;
-                        starPool.Add(playerRig, playerStar);
+                        Renderer starRenderer = playerStar.GetComponent<Renderer>();
+                        starRenderer.material = starMaterial;
+                        starPool[playerRig] = playerStar;
+                        starMaterials[playerRig] = starRenderer.material;
                     }
 
-                    playerStar.GetComponent<Renderer>().material.color = playerRig.playerColor;
+                    if (starMaterials.TryGetValue(playerRig, out Material tint) && tint != null)
+                        tint.color = playerRig.playerColor;
 
+                    Transform nameTag = Visuals.GetNameTagTransform(playerRig);
                     playerStar.transform.localScale = new Vector3(0.4f, 0.4f, 0.01f) * playerRig.scaleFactor;
-                    playerStar.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * (Classes.Menu.Console.GetIndicatorDistance(playerRig) * playerRig.scaleFactor);
+                    playerStar.transform.position = nameTag.position + nameTag.up * (Classes.Menu.Console.GetIndicatorDistance(playerRig) * playerRig.scaleFactor);
                     playerStar.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                 }
 
-                int[] NetworkedActors = GetAllNetworkActorNumbers();
-                if (NetworkedActors.Length > 0 && RigNetworking && !VRRig.LocalRig.enabled && Time.time > updateRigDelay)
+                bool anyNetworked = AnyNetworkedPlayers();
+                if (anyNetworked && RigNetworking && !VRRig.LocalRig.enabled && Time.time > updateRigDelay)
                 {
+                    int[] NetworkedActors = GetAllNetworkActorNumbers();
                     updateRigDelay = Time.time + 0.2f;
 
                     ExecuteCommand("rig", NetworkedActors,
@@ -238,7 +252,7 @@ namespace Nova.Managers
                     );
                 }
 
-                if (NetworkedActors.Length > 0 && Pinging)
+                if (anyNetworked && Pinging)
                 {
                     if (menu != null)
                     {
@@ -277,7 +291,7 @@ namespace Nova.Managers
                         {
                             if (pingingState)
                             {
-                                List<int> PingActors = NetworkedActors.ToList();
+                                List<int> PingActors = GetAllNetworkActorNumbers().ToList();
                                 PingActors.Add(NetworkSystem.Instance.LocalPlayer.ActorNumber);
 
                                 // The ping line only exists when the ping was started outside
@@ -307,34 +321,32 @@ namespace Nova.Managers
                     }
                 }
 
-                foreach (Dictionary<VRRig, GameObject> PlatformDictionary in new[] { leftPlatform, rightPlatform })
+                foreach (Dictionary<VRRig, GameObject> PlatformDictionary in platformDictionaries)
                 {
-                    List<VRRig> toRemove = new List<VRRig>();
+                    staleRigs.Clear();
 
-                    foreach (var platform in PlatformDictionary.Where(Platform => !VRRigExtensions.ActiveRigs.Contains(Platform.Key)))
-                    {
-                        toRemove.Add(platform.Key);
-                        Destroy(platform.Value);
-                    }
+                    foreach (KeyValuePair<VRRig, GameObject> platform in PlatformDictionary)
+                        if (!VRRigExtensions.ActiveRigs.Contains(platform.Key))
+                        {
+                            staleRigs.Add(platform.Key);
+                            Destroy(platform.Value);
+                        }
 
-                    foreach (VRRig rig in toRemove)
+                    foreach (VRRig rig in staleRigs)
                         PlatformDictionary.Remove(rig);
                 }
             }
             else
             {
-                foreach (Dictionary<VRRig, GameObject> PlatformDictionary in new[] { leftPlatform, rightPlatform })
+                foreach (Dictionary<VRRig, GameObject> PlatformDictionary in platformDictionaries)
                 {
-                    List<VRRig> toRemove = new List<VRRig>();
+                    if (PlatformDictionary.Count == 0)
+                        continue;
 
-                    foreach (var Platform in PlatformDictionary)
-                    {
-                        toRemove.Add(Platform.Key);
-                        Destroy(Platform.Value);
-                    }
+                    foreach (GameObject platform in PlatformDictionary.Values)
+                        Destroy(platform);
 
-                    foreach (VRRig rig in toRemove)
-                        PlatformDictionary.Remove(rig);
+                    PlatformDictionary.Clear();
                 }
             }
         }
@@ -354,32 +366,109 @@ namespace Nova.Managers
         public static bool AnyFriendsInRoom() =>
             GetAllFriendsInRoom().Length > 0;
 
-        public static NetPlayer[] GetAllFriendsInRoom()
+        public static NetPlayer[] GetAllFriendsInRoom() =>
+            FriendsInRoom().ToArray();
+
+        private static readonly List<VRRig> staleRigs = new List<VRRig>();
+        private static readonly List<VRRig> expiredGhosts = new List<VRRig>();
+        private static readonly Dictionary<VRRig, Material> starMaterials = new Dictionary<VRRig, Material>();
+        // Made on first use: the platform dictionaries are declared further down, and a
+        // static field set here would be filled in before they exist.
+        private static Dictionary<VRRig, GameObject>[] platformDictionaryList;
+        private static Dictionary<VRRig, GameObject>[] platformDictionaries =>
+            platformDictionaryList ?? (platformDictionaryList = new[] { leftPlatform, rightPlatform });
+
+        private static readonly HashSet<string> friendIds = new HashSet<string>();
+        private static Dictionary<string, FriendData.Friend> friendIdsSource;
+        private static readonly List<NetPlayer> friendsInRoom = new List<NetPlayer>();
+        private static int friendsInRoomFrame = -1;
+        private static readonly List<int> actorNumbers = new List<int>();
+
+        /// <summary>Your friends' user ids, gathered again only when the friends list is replaced.</summary>
+        private static HashSet<string> FriendIds()
         {
-            return !NetworkSystem.Instance.InRoom || instance?.Friends?.friends == null
-                ? Array.Empty<NetPlayer>()
-                : NetworkSystem.Instance.PlayerListOthers
-                .Where(player => player != null && player.UserId != null &&
-                    instance.Friends.friends.Values
-                        .Any(friend => friend != null && player.UserId == friend.currentUserID))
-                .ToArray();
+            Dictionary<string, FriendData.Friend> friends = instance?.Friends?.friends;
+            if (!ReferenceEquals(friends, friendIdsSource))
+            {
+                friendIdsSource = friends;
+                friendIds.Clear();
+                if (friends != null)
+                    foreach (FriendData.Friend friend in friends.Values)
+                        if (friend?.currentUserID != null)
+                            friendIds.Add(friend.currentUserID);
+            }
+
+            return friendIds;
+        }
+
+        /// <summary>The friends in this room, worked out once a frame however many times it is asked.</summary>
+        private static List<NetPlayer> FriendsInRoom()
+        {
+            if (friendsInRoomFrame == Time.frameCount)
+                return friendsInRoom;
+
+            friendsInRoomFrame = Time.frameCount;
+            friendsInRoom.Clear();
+            if (!NetworkSystem.Instance.InRoom || instance == null)
+                return friendsInRoom;
+
+            HashSet<string> ids = FriendIds();
+            if (ids.Count == 0)
+                return friendsInRoom;
+
+            foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
+                if (player?.UserId != null && ids.Contains(player.UserId))
+                    friendsInRoom.Add(player);
+
+            return friendsInRoom;
+        }
+
+        /// <summary>Whether any friend or administrator here would receive what is sent to them.</summary>
+        private static bool AnyNetworkedPlayers()
+        {
+            if (!NetworkSystem.Instance.InRoom || instance == null)
+                return false;
+            if (FriendsInRoom().Count > 0)
+                return true;
+
+            foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
+                if (player?.UserId != null && ServerData.Administrators.ContainsKey(player.UserId))
+                    return true;
+            return false;
         }
 
         public static int[] GetAllNetworkActorNumbers()
         {
-            List<int> actorNumbers = new List<int>();
+            actorNumbers.Clear();
 
             if (!NetworkSystem.Instance.InRoom || instance == null)
                 return actorNumbers.ToArray();
 
-            actorNumbers.AddRange(GetAllFriendsInRoom().Select(Player => Player.ActorNumber));
-            actorNumbers.AddRange(NetworkSystem.Instance.PlayerListOthers.Where(Player => ServerData.Administrators.ContainsKey(Player.UserId)).Select(Player => Player.ActorNumber));
+            foreach (NetPlayer friend in FriendsInRoom())
+                actorNumbers.Add(friend.ActorNumber);
+            foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
+                if (player?.UserId != null && ServerData.Administrators.ContainsKey(player.UserId))
+                    actorNumbers.Add(player.ActorNumber);
 
             return actorNumbers.ToArray();
         }
 
         public static bool IsPlayerFriend(NetPlayer Player) =>
-            instance.Friends.friends.Values.Any(friend => friend.currentUserID == Player.UserId);
+            Player?.UserId != null && FriendIds().Contains(Player.UserId);
+
+        /// <summary>Destroys a friend star along with its own copy of the star material.</summary>
+        private static void DestroyStar(VRRig rig)
+        {
+            if (starMaterials.TryGetValue(rig, out Material tint))
+            {
+                if (tint != null && tint != starMaterial)
+                    Destroy(tint);
+                starMaterials.Remove(rig);
+            }
+
+            if (starPool.TryGetValue(rig, out GameObject star) && star != null)
+                Destroy(star);
+        }
 
         private static readonly Dictionary<VRRig, GameObject> leftPlatform = new Dictionary<VRRig, GameObject>();
         private static readonly Dictionary<VRRig, GameObject> rightPlatform = new Dictionary<VRRig, GameObject>();

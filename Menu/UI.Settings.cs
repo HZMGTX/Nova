@@ -273,11 +273,11 @@ namespace Nova.Menu
 
         private bool ToggleSetting(Rect rect, string label, bool value)
         {
-            float hover = Hover("setting-" + label, rect);
+            float hover = Hover(new MotionKey("setting", label), rect);
             Box(rect, Alpha(accent, hover * 0.07f), 5);
             bool clicked = MenuButton(rect, GUIContent.none, GUIStyle.none);
             Label(new Rect(rect.x + 8, rect.y, rect.width - 76, rect.height), label, textStyle);
-            float amount = Animate("setting-value-" + label, value ? 1 : 0);
+            float amount = Animate(new MotionKey("setting-value", label), value ? 1 : 0);
             Rect track = new Rect(rect.xMax - 52, rect.center.y - 11, 44, 22);
             Box(track, Color.Lerp(border, accent, amount), 8);
             Box(new Rect(track.x + 3 + 22 * amount, track.y + 3, 16, 16), bright, 6);
@@ -322,13 +322,15 @@ namespace Nova.Menu
             }
             if (!Mathf.Approximately(value, next)) { value = next; Changed(); }
 
-            float fill = Animate("slider-" + label, Mathf.InverseLerp(min, max, value), 22);
+            float fill = Animate(new MotionKey("slider", label), Mathf.InverseLerp(min, max, value), 22);
             float knobX = track.x + track.width * fill;
             Box(track, border, 2);
             Box(new Rect(track.x, track.y, track.width * fill, 4), accent, 2);
-            float radius = 4 + Hover("slider-hover-" + label, rect) * 1.5f;
+            float radius = 4 + Hover(new MotionKey("slider-hover", label), rect) * 1.5f;
             Box(new Rect(knobX - radius, track.center.y - radius, radius * 2, radius * 2), bright, radius);
         }
+
+        private string numberDraftId, numberDraft;
 
         private float NumberField(Rect rect, string label, float value, float min, float max, string format)
         {
@@ -346,24 +348,36 @@ namespace Nova.Menu
                 InputEvent.Use();
             }
 
-            float hover = Hover("num-hover-" + label, rect);
+            float hover = Hover(new MotionKey("num-hover", label), rect);
             Box(rect, Color.Lerp(border, accent, focused ? 0.5f : hover * 0.4f), 6);
             Box(new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2), Color.Lerp(panel, accent, focused ? 0.14f : hover * 0.1f), 5);
 
             if (focused)
             {
-                if (inputText.Length > 0 && float.TryParse(inputText, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
+                // Kept as a draft while typing; "1" on the way to "100" used to be clamped and
+                // applied (and saved) before the rest was typed.
+                numberDraftId = id;
+                numberDraft = inputText;
+                Label(rect, inputText, numberStyle);
+                if (Mathf.Repeat(Time.unscaledTime, 1f) < 0.5f)
+                {
+                    float textWidth = Mathf.Min(numberStyle.CalcSize(Measure(inputText)).x, rect.width - 4);
+                    Box(new Rect(rect.center.x + textWidth * 0.5f, rect.y + 4, 1, rect.height - 8), bright, 0);
+                }
+                return value;
+            }
+
+            // Leaving the field, by Enter or by clicking elsewhere, applies what was typed.
+            if (numberDraftId == id)
+            {
+                string draft = numberDraft;
+                numberDraftId = null;
+                numberDraft = null;
+                if (!string.IsNullOrEmpty(draft) && float.TryParse(draft, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed))
                 {
                     if (format.IndexOf('P') >= 0) parsed /= 100f;
                     value = Mathf.Clamp(parsed, min, max);
                 }
-                Label(rect, inputText, numberStyle);
-                if (Mathf.Repeat(Time.unscaledTime, 1f) < 0.5f)
-                {
-                    float textWidth = Mathf.Min(numberStyle.CalcSize(new GUIContent(inputText)).x, rect.width - 4);
-                    Box(new Rect(rect.center.x + textWidth * 0.5f, rect.y + 4, 1, rect.height - 8), bright, 0);
-                }
-                return value;
             }
 
             Label(rect, value.ToString(format, CultureInfo.InvariantCulture), numberStyle);

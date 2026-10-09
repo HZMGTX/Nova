@@ -335,9 +335,28 @@ namespace Nova.Menu
             QueuePointer(held ? EventType.MouseDown : EventType.MouseUp, button, Vector2.zero);
         }
 
+        private readonly Event usedEvent = new Event { type = EventType.Used };
+        private readonly Stack<Event> spareEvents = new Stack<Event>();
+        private Event recycleEvent;
+        private EventType padDebugType;
+        private int padDebugButton, padDebugControl;
+        private Vector2 padDebugPoint;
+        private bool padDebugSet;
+
         private void QueuePointer(EventType type, int button, Vector2 delta)
         {
-            padEvents.Enqueue(new Event { type = type, button = button, mousePosition = padPoint, delta = delta, clickCount = 1 });
+            // Pointer events are reused once drawn, instead of a new one every frame of a drag.
+            Event queued = spareEvents.Count > 0 ? spareEvents.Pop() : new Event();
+            queued.type = type;
+            queued.button = button;
+            queued.mousePosition = padPoint;
+            queued.delta = delta;
+            queued.clickCount = 1;
+            queued.modifiers = EventModifiers.None;
+            queued.keyCode = KeyCode.None;
+            queued.character = '\0';
+            queued.commandName = null;
+            padEvents.Enqueue(queued);
         }
 
         private Event DrawInputUIPrepare()
@@ -364,8 +383,12 @@ namespace Nova.Menu
                 guiEvent = next;
                 if (guiEvent.type == EventType.MouseDown) padControl = 0;
                 guiPoint = guiEvent.mousePosition;
-                padDebug = guiEvent.type + " btn=" + guiEvent.button + " ctl=" + padControl +
-                    " @(" + Mathf.RoundToInt(guiPoint.x) + "," + Mathf.RoundToInt(guiPoint.y) + ")";
+                // Kept as values; the text is only built when the Controls page shows it.
+                padDebugType = guiEvent.type;
+                padDebugButton = guiEvent.button;
+                padDebugControl = padControl;
+                padDebugPoint = guiPoint;
+                padDebugSet = true;
                 if (guiEvent.button == 0)
                 {
                     if (guiEvent.type == EventType.MouseDown)
@@ -383,9 +406,16 @@ namespace Nova.Menu
                     padPressButton = 1;
                     padPressPoint = guiPoint;
                 }
+                recycleEvent = next;
                 return new Event(next);
             }
-            guiEvent = source.isKey ? source : new Event { type = EventType.Used };
+            if (source.isKey) guiEvent = source;
+            else
+            {
+                // One spent event, reused, rather than a new one on every GUI call.
+                usedEvent.type = EventType.Used;
+                guiEvent = usedEvent;
+            }
             return null;
         }
 
@@ -396,6 +426,11 @@ namespace Nova.Menu
             {
                 guiPad = false;
                 guiEvent = null;
+                if (recycleEvent != null)
+                {
+                    if (spareEvents.Count < 16) spareEvents.Push(recycleEvent);
+                    recycleEvent = null;
+                }
             }
         }
 
@@ -429,6 +464,10 @@ namespace Nova.Menu
             GUI.color = color;
         }
 
+        private string PadDebugText() => !padDebugSet ? padDebug :
+            padDebugType + " btn=" + padDebugButton + " ctl=" + padDebugControl +
+            " @(" + Mathf.RoundToInt(padDebugPoint.x) + "," + Mathf.RoundToInt(padDebugPoint.y) + ")";
+
         private void DrawInputSettings(Rect area, bool classic)
         {
             BeginScroll(area, inputScroll, 830);
@@ -445,7 +484,7 @@ namespace Nova.Menu
             { clickTestUntil = Time.unscaledTime + 1.5f; } y += 34;
             InputLabel(new Rect(4, y, width - 8, 24),
                 "cursor: " + (padCursor ? "on" : "off") + "  A held: " + (guiLeft ? "yes" : "no") +
-                "  ctl: " + padControl + "  last: " + padDebug, classic); y += 30;
+                "  ctl: " + padControl + "  last: " + PadDebugText(), classic); y += 30;
             InputLabel(new Rect(4, y, width - 8, 24), "Aim at screen center and press 1 to center the pointer", classic); y += 30;
             if (InputButton(new Rect(0, y, width, 28), "Controller cursor: " + (options.controllerInput ? "On" : "Off"), classic))
             { options.controllerInput = !options.controllerInput; Changed(); } y += 34;
