@@ -116,6 +116,10 @@ namespace Nova.Classes.Menu
             {
                 DataLoadTime = Time.time + 5f;
 
+                // A load still running is waited for, not counted as another failed attempt.
+                if (Refreshing)
+                    return;
+
                 LoadAttempts++;
                 if (LoadAttempts >= 3)
                 {
@@ -125,7 +129,7 @@ namespace Nova.Classes.Menu
                 }
 
                 Console.Log("Attempting to load web data");
-                instance.StartCoroutine(RefreshServerData());
+                StartRefresh();
             }
 
             if (ReloadTime > 0f)
@@ -133,7 +137,7 @@ namespace Nova.Classes.Menu
                 if (Time.time > ReloadTime)
                 {
                     ReloadTime = Time.time + 30f;
-                    instance.StartCoroutine(RefreshServerData());
+                    StartRefresh();
                 }
             }
             else
@@ -153,11 +157,33 @@ namespace Nova.Classes.Menu
             PlayerCount = NetworkSystem.Instance.InRoom ? PhotonNetwork.CurrentRoom.PlayerCount : -1;
         }
 
+        private float refreshingSince = -1f;
+        private bool Refreshing => refreshingSince >= 0f && Time.time - refreshingSince < 60f;
+
+        // The first-load retries and the 30-second reload could both start a refresh while
+        // one was still running, loading and applying the same data twice over. A refresh that
+        // somehow never finishes stops blocking after a minute.
+        private void StartRefresh()
+        {
+            if (Refreshing)
+                return;
+
+            refreshingSince = Time.time;
+            instance.StartCoroutine(RefreshServerData());
+        }
+
         private IEnumerator RefreshServerData()
         {
-            yield return LoadServerData();
-            yield return GetNovaCCU();
-            yield return GetReportData();
+            try
+            {
+                yield return LoadServerData();
+                yield return GetNovaCCU();
+                yield return GetReportData();
+            }
+            finally
+            {
+                refreshingSince = -1f;
+            }
         }
 
         public static void OnJoinRoom()
@@ -417,6 +443,7 @@ namespace Nova.Classes.Menu
 
                         PatreonManager.instance.PatreonMembers.Add(new PatreonManager.PatreonMembership(userId, tierName, iconURL, color));
                     }
+                    PatreonManager.instance.MembersChanged();
 
                     if (!GivenPateronMods && !string.IsNullOrEmpty(PhotonNetwork.LocalPlayer.UserId))
                     {

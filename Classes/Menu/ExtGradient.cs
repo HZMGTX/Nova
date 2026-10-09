@@ -45,10 +45,10 @@ namespace Nova.Classes.Menu
         public Color GetColor(int index)
         {
             if (rainbow)
-                return Color.HSVToRGB((Time.time + index / 8) % 1f, 1f, 1f);
+                return Color.HSVToRGB((Time.time + index / 8f) % 1f, 1f, 1f);
 
             if (pastelRainbow)
-                return Color.HSVToRGB(Time.time + index / 8, 0.3f, 1f);
+                return Color.HSVToRGB((Time.time + index / 8f) % 1f, 0.3f, 1f);
 
             if (epileptic)
                 return RandomColor();

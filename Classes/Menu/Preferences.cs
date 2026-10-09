@@ -28,6 +28,7 @@ using Nova.Managers;
 using Nova.Menu;
 using Nova.Mods;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -109,6 +110,8 @@ namespace Nova.Classes.Menu
         private static readonly Stopwatch _writeClock = Stopwatch.StartNew();
         private static long _lastWriteMs = long.MinValue / 2;
         private static bool _writePending;
+        private static bool _flushScheduled;
+        private static bool _quitHooked;
 
         public static bool IsApplyingPreferences { get; private set; }
 
@@ -198,6 +201,12 @@ namespace Nova.Classes.Menu
         {
             if (_cache == null || DisableAutoSave) return;
 
+            if (!_quitHooked)
+            {
+                _quitHooked = true;
+                Application.quitting += FlushPendingWrites;
+            }
+
             long elapsed = _writeClock.ElapsedMilliseconds - _lastWriteMs;
             if (elapsed >= MinWriteIntervalMs)
             {
@@ -206,7 +215,19 @@ namespace Nova.Classes.Menu
             else
             {
                 _writePending = true;
+                if (!_flushScheduled && CoroutineManager.instance != null)
+                {
+                    _flushScheduled = true;
+                    CoroutineManager.instance.StartCoroutine(FlushPendingDelayed((MinWriteIntervalMs - elapsed) / 1000f));
+                }
             }
+        }
+
+        private static IEnumerator FlushPendingDelayed(float delay)
+        {
+            yield return new WaitForSecondsRealtime(delay);
+            _flushScheduled = false;
+            FlushPendingWrites();
         }
 
         public static void FlushPendingWrites()

@@ -35,7 +35,10 @@ namespace Nova.Classes.Mods
         public void Update()
         {
             if (targetTransform == null || targetTransform.gameObject == null)
+            {
                 Destroy(this);
+                return;
+            }
 
             transform.position = targetTransform.position;
             transform.rotation = targetTransform.rotation;

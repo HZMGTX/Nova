@@ -430,6 +430,7 @@ namespace Nova.Menu
                     isKeyboardCondition = toggleButtonActive && keyboardWithToggleButton;
                 }
 
+                keyboardMenuCondition = isKeyboardCondition;
                 buttonCondition |= isKeyboardCondition;
                 buttonCondition |= inTextInput;
 
@@ -498,8 +499,13 @@ namespace Nova.Menu
                     fpsAvgTime = Time.time + 1f;
                 }
 
-                if (fpsCount != null)
+                // The counter only changes once a second, so its text is only rebuilt then.
+                if (fpsCount != null && (fpsCount != fpsShownOn || lastDeltaTime != fpsShownValue || pageNumber != fpsShownPage))
                 {
+                    fpsShownOn = fpsCount;
+                    fpsShownValue = lastDeltaTime;
+                    fpsShownPage = pageNumber;
+
                     string textToSet = ftCount ? $"FT: {Mathf.Floor(1f / lastDeltaTime * 10000f) / 10f} ms" : $"FPS: {lastDeltaTime}";
                     if (hidetitle && !noPageNumber) textToSet += "      ";
                     if (disableFpsCounter) textToSet = "";
@@ -549,26 +555,22 @@ namespace Nova.Menu
                 }
 
                 if (watermarkImage != null)
-                    watermarkImage.GetComponent<RectTransform>().localRotation = Quaternion.Euler(new Vector3(0f, 90f, 90f - (rockWatermark ? (Mathf.Sin(Time.time * 2f) * 10f) : 0f)));
+                    watermarkImage.rectTransform.localRotation = Quaternion.Euler(new Vector3(0f, 90f, 90f - (rockWatermark ? (Mathf.Sin(Time.time * 2f) * 10f) : 0f)));
 
-                if (animatedTitle && title != null)
-                {
-                    string targetString = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
-                    int length = (int)Mathf.PingPong(Time.time / 0.25f, targetString.Length + 1);
-                    title.text = length > 0 ? targetString[..length] : "";
-                }
+                UpdateTitleText();
 
-                if (gradientTitle && title != null)
-                    title.text = RichtextGradient(NoRichtextTags(title.text),
-                        new[]
-                        {
-                            new GradientColorKey(BrightenColor(buttonColors[0].GetColor(0)), 0f),
-                            new GradientColorKey(BrightenColor(buttonColors[0].GetColor(0), 0.95f), 0.5f),
-                            new GradientColorKey(BrightenColor(buttonColors[0].GetColor(0)), 1f)
-                        });
-
+                // The caret blinks about twice a second; the text is only rebuilt when it or the caret changes.
                 if (keyboardInputObject != null)
-                    keyboardInputObject.text = FollowMenuSettings(keyboardInput, false) + (Time.frameCount / 45 % 2 == 0 ? "|" : " ");
+                {
+                    bool caret = Time.frameCount / 45 % 2 == 0;
+                    if (keyboardInputObject != keyboardShownOn || !ReferenceEquals(keyboardInput, keyboardShownInput) || caret != keyboardShownCaret)
+                    {
+                        keyboardShownOn = keyboardInputObject;
+                        keyboardShownInput = keyboardInput;
+                        keyboardShownCaret = caret;
+                        keyboardInputObject.text = FollowMenuSettings(keyboardInput, false) + (caret ? "|" : " ");
+                    }
+                }
                 #endregion
 
                 #region Menu Features
@@ -857,10 +859,19 @@ namespace Nova.Menu
                     Vector2 js = leftJoystick;
                     if (Time.time > joystickDelay)
                     {
-                        int lastButton = PageSize;
+                        // The selection runs over the buttons really on this page (a last page
+                        // can be short), then the search button, which sits at index PageSize.
+                        int onPage = Mathf.Clamp(renderedPageButtons, 0, PageSize);
+                        int lastButton = onPage + (joystickMenuSearching ? 1 : 0);
+                        int ToSlot(int index) => index == PageSize && joystickMenuSearching ? onPage : index;
+                        int FromSlot(int slot) => slot == onPage && joystickMenuSearching ? PageSize : slot;
 
-                        if (joystickMenuSearching)
-                            lastButton++;
+                        if (lastButton > 0 && (ToSlot(joystickButtonSelected) < 0 || ToSlot(joystickButtonSelected) >= lastButton))
+                        {
+                            // Redraw so the highlight and the button a click would press match the new selection
+                            joystickButtonSelected = 0;
+                            ReloadMenu();
+                        }
 
                         if (js.x > 0.5f)
                         {
@@ -884,9 +895,10 @@ namespace Nova.Menu
                             if (dynamicSounds)
                                 SoundManager.Play("Up");
 
-                            joystickButtonSelected--;
-                            if (joystickButtonSelected < 0)
-                                joystickButtonSelected = lastButton - 1;
+                            int slot = ToSlot(joystickButtonSelected) - 1;
+                            if (slot < 0)
+                                slot = Mathf.Max(0, lastButton - 1);
+                            joystickButtonSelected = FromSlot(slot);
 
                             ReloadMenu();
                             joystickDelay = Time.time + 0.2f;
@@ -896,8 +908,10 @@ namespace Nova.Menu
                             if (dynamicSounds)
                                 SoundManager.Play("Down");
 
-                            joystickButtonSelected++;
-                            joystickButtonSelected %= lastButton;
+                            int slot = ToSlot(joystickButtonSelected) + 1;
+                            if (slot >= lastButton)
+                                slot = 0;
+                            joystickButtonSelected = FromSlot(slot);
 
                             ReloadMenu();
                             joystickDelay = Time.time + 0.2f;
@@ -1019,24 +1033,7 @@ namespace Nova.Menu
                 {
                     if (watchMenu)
                     {
-                        ButtonInfo[] toSortOf = Buttons.buttons[Buttons.CurrentCategoryIndex];
-
-                        if (Buttons.CurrentCategoryName == "Favorite Mods")
-                            toSortOf = StringsToInfos(favorites.ToArray());
-
-                        if (Buttons.CurrentCategoryName == "Enabled Mods")
-                        {
-                            List<ButtonInfo> enabledMods = new List<ButtonInfo>();
-                            int categoryIndex = 0;
-                            foreach (ButtonInfo[] buttonList in Buttons.buttons)
-                            {
-                                enabledMods.AddRange(buttonList.Where(v => v.enabled && (!hideSettings || !Buttons.categoryNames[categoryIndex].Contains("Settings")) && (!hideMacros || !Buttons.categoryNames[categoryIndex].Contains("Macro"))));
-                                categoryIndex++;
-                            }
-                            enabledMods = enabledMods.OrderBy(v => v.overlapText ?? v.buttonText).ToList();
-                            enabledMods.Insert(0, Buttons.GetIndex("Exit Enabled Mods"));
-                            toSortOf = enabledMods.ToArray();
-                        }
+                        ButtonInfo[] toSortOf = WatchMenuList();
 
                         TextMeshProUGUI watchText = Watches[0].text;
 
@@ -1045,16 +1042,18 @@ namespace Nova.Menu
                         if (watchMenuIndex >= toSortOf.Length || watchMenuIndex < 0)
                             watchMenuIndex = 0;
 
-                        string text = toSortOf[watchMenuIndex].buttonText;
-
-                        if (toSortOf[watchMenuIndex].overlapText != null)
-                            text = toSortOf[watchMenuIndex].overlapText;
-
-                        text += $"\n<color=grey>[{watchMenuIndex + 1}/{toSortOf.Length}]\n{DateTime.Now:hh:mm tt}</color>";
-
-                        text = FollowMenuSettings(text, false);
-
-                        watchText.SafeSetText(text);
+                        // Rebuilt only when what it shows changes, or the minute turns over.
+                        string label = toSortOf[watchMenuIndex].overlapText ?? toSortOf[watchMenuIndex].buttonText;
+                        int minute = DateTime.Now.Minute;
+                        if (!ReferenceEquals(label, watchShownLabel) || watchMenuIndex != watchShownIndex || toSortOf.Length != watchShownCount || minute != watchShownMinute || watchText != watchShownOn)
+                        {
+                            watchShownLabel = label;
+                            watchShownIndex = watchMenuIndex;
+                            watchShownCount = toSortOf.Length;
+                            watchShownMinute = minute;
+                            watchShownOn = watchText;
+                            watchText.SafeSetText(FollowMenuSettings($"{label}\n<color=grey>[{watchMenuIndex + 1}/{toSortOf.Length}]\n{DateTime.Now:hh:mm tt}</color>", false));
+                        }
 
                         if (watchIndicatorMat == null)
                             watchIndicatorMat = new Material(Shader.Find("GorillaTag/UberShader"));
@@ -1087,6 +1086,7 @@ namespace Nova.Menu
                                 Toggle(toSortOf[watchMenuIndex].buttonText, true);
                                 if (Buttons.CurrentCategoryIndex != archive)
                                     watchMenuIndex = 0;
+                                watchListBuiltAt = -1f;
 
                                 wristMenuDelay = Time.time + 0.2f;
                             }
@@ -1403,12 +1403,21 @@ namespace Nova.Menu
         }
 
         /// <summary>Turns the shoulder camera's virtual camera on or off, if it is there.</summary>
+        private static Transform shoulderVirtualCamera;
+        private static float nextLevelVisibility;
+        private static Renderer pcBackgroundRenderer;
+
         private static void SetShoulderCameraActive(bool active)
         {
-            GameObject shoulder = GetObject("Shoulder Camera");
-            Transform virtualCamera = shoulder != null ? shoulder.transform.Find("CM vcam1") : null;
-            if (virtualCamera != null)
-                virtualCamera.gameObject.SetActive(active);
+            // Found once and kept; looked up again only if the camera is replaced.
+            if (shoulderVirtualCamera == null)
+            {
+                GameObject shoulder = GetObject("Shoulder Camera");
+                shoulderVirtualCamera = shoulder != null ? shoulder.transform.Find("CM vcam1") : null;
+            }
+
+            if (shoulderVirtualCamera != null && shoulderVirtualCamera.gameObject.activeSelf != active)
+                shoulderVirtualCamera.gameObject.SetActive(active);
         }
 
         public static void Postfix()
@@ -1497,6 +1506,55 @@ namespace Nova.Menu
             leftJoystickClick = _leftJoystickClick; rightJoystickClick = _rightJoystickClick;
         }
 
+        private static ButtonInfo[] watchList = Array.Empty<ButtonInfo>();
+        private static readonly List<ButtonInfo> watchListBuilder = new List<ButtonInfo>();
+        private static string watchListCategory;
+        private static float watchListBuiltAt = -1f;
+        private static string watchShownLabel;
+        private static int watchShownIndex = -1, watchShownCount = -1, watchShownMinute = -1;
+        private static TextMeshProUGUI watchShownOn;
+
+        /// <summary>What the watch menu scrolls through, rebuilt four times a second rather than every frame.</summary>
+        private static ButtonInfo[] WatchMenuList()
+        {
+            string category = Buttons.CurrentCategoryName;
+            bool listed = category == "Favorite Mods" || category == "Enabled Mods";
+            if (!listed)
+            {
+                watchListCategory = category;
+                return Buttons.buttons[Buttons.CurrentCategoryIndex];
+            }
+
+            if (category == watchListCategory && Time.time - watchListBuiltAt < 0.25f && watchListBuiltAt >= 0f)
+                return watchList;
+
+            watchListCategory = category;
+            watchListBuiltAt = Time.time;
+
+            if (category == "Favorite Mods")
+                watchList = StringsToInfos(favorites.ToArray());
+            else
+            {
+                watchListBuilder.Clear();
+                for (int categoryIndex = 0; categoryIndex < Buttons.buttons.Length; categoryIndex++)
+                {
+                    string name = categoryIndex < Buttons.categoryNames.Length ? Buttons.categoryNames[categoryIndex] : "";
+                    if ((hideSettings && name.Contains("Settings")) || (hideMacros && name.Contains("Macro")))
+                        continue;
+
+                    foreach (ButtonInfo button in Buttons.buttons[categoryIndex])
+                        if (button.enabled)
+                            watchListBuilder.Add(button);
+                }
+
+                watchListBuilder.Sort((a, b) => string.Compare(a.overlapText ?? a.buttonText, b.overlapText ?? b.buttonText, StringComparison.CurrentCulture)); // Same order as the old culture-aware OrderBy
+                watchListBuilder.Insert(0, Buttons.GetIndex("Exit Enabled Mods"));
+                watchList = watchListBuilder.ToArray();
+            }
+
+            return watchList;
+        }
+
         public static List<Key> lastPressedKeys = new List<Key>();
         public static readonly Dictionary<Key, (float, float)> keyPressedTimes = new Dictionary<Key, (float, float)>();
         public static readonly Key[] detectedKeys = {
@@ -1543,29 +1601,36 @@ namespace Nova.Menu
                 return;
             }
 
-            List<Key> keysPressed = new List<Key>();
+            List<Key> keysPressed = keysPressedSpare;
+            keysPressed.Clear();
             foreach (Key key in detectedKeys)
             {
                 if (UnityInput.GetKey(key))
                 {
+                    // A held key types again once its delay runs out, faster each time. Enter
+                    // and Escape never repeat, so holding them can't submit or close twice.
+                    bool repeat = false;
                     if (keyPressedTimes.TryGetValue(key, out (float, float) delay))
                     {
                         float newDelay = Mathf.Max(delay.Item2 * 0.75f, 0.05f);
 
                         if (Time.time > delay.Item1)
+                        {
                             keyPressedTimes[key] = (Time.time + newDelay, newDelay);
+                            repeat = key != Key.Enter && key != Key.Escape;
+                        }
                         else
                         {
                             keysPressed.Add(key);
                             continue;
                         }
                     }
-                    else
-                        keyPressedTimes[key] = (Time.time + 0.5f, 0.5f);
+                    else // A key already held when typing began (like Q) never repeats until it's let go
+                        keyPressedTimes[key] = (lastPressedKeys.Contains(key) ? float.PositiveInfinity : Time.time + 0.5f, 0.5f);
 
                     keysPressed.Add(key);
 
-                    if (lastPressedKeys.Contains(key)) continue;
+                    if (!repeat && lastPressedKeys.Contains(key)) continue;
 
                     if (UnityInput.GetKey(Key.LeftCtrl))
                     {
@@ -1634,8 +1699,12 @@ namespace Nova.Menu
                 }
             }
 
+            // The two lists swap each frame instead of a new one being made.
+            keysPressedSpare = lastPressedKeys;
             lastPressedKeys = keysPressed;
         }
+
+        private static List<Key> keysPressedSpare = new List<Key>();
         private static void HandleSearchOrPrompt()
         {
             if (isSearching)
@@ -1776,7 +1845,7 @@ namespace Nova.Menu
             if (method != null && !method.label)
             {
                 GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     buttonObject.layer = 2;
 
                 buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -1867,7 +1936,7 @@ namespace Nova.Menu
         private static void AddSearchButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2013,7 +2082,7 @@ namespace Nova.Menu
             bool infoScreenEnabled = Buttons.GetIndex("Info Screen").enabled;
 
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2061,7 +2130,7 @@ namespace Nova.Menu
         private static void AddDonateButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2109,7 +2178,7 @@ namespace Nova.Menu
         private static void AddUpdateButton()
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2157,7 +2226,7 @@ namespace Nova.Menu
         private static void AddReturnButton(bool offcenteredPosition)
         {
             GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+            if (!keyboardMenuCondition && !isKeyboardPc)
                 buttonObject.layer = 2;
 
             buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2219,7 +2288,7 @@ namespace Nova.Menu
             if (!method.label)
             {
                 GameObject buttonObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     buttonObject.layer = 2;
 
                 buttonObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2290,7 +2359,7 @@ namespace Nova.Menu
         public static void CreateReference(bool? rightHandOverride = null)
         {
             reference = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            reference.transform.parent = rightHandOverride ?? (rightHand || (bothHands && ControllerInputPoller.instance.rightControllerSecondaryButton)) ? GorillaTagger.Instance.leftHandTransform : GorillaTagger.Instance.rightHandTransform;
+            reference.transform.parent = rightHandOverride ?? (rightHand || (bothHands && openedwithright)) ? GorillaTagger.Instance.leftHandTransform : GorillaTagger.Instance.rightHandTransform;
             reference.transform.localPosition = pointerOffset;
             reference.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
             buttonCollider = reference.GetComponent<SphereCollider>();
@@ -2734,7 +2803,7 @@ namespace Nova.Menu
             if (inTextInput)
             {
                 GameObject searchBoxObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                if (!UnityInput.GetKey(Key.Q) && !isKeyboardPc)
+                if (!keyboardMenuCondition && !isKeyboardPc)
                     searchBoxObject.layer = 2;
 
                 searchBoxObject.GetComponent<BoxCollider>().isTrigger = true;
@@ -2927,6 +2996,7 @@ namespace Nova.Menu
                             .Take(PageSize - buttonIndexOffset)
                             .ToArray();
 
+                    renderedPageButtons = renderButtons.Length;
                     for (int i = 0; i < renderButtons.Length; i++)
                         AddButton((i + buttonIndexOffset + buttonOffset) * ButtonDistance, i, renderButtons[i]);
                 }
@@ -2988,9 +3058,77 @@ namespace Nova.Menu
 
         private static Vector3? recenterPosition;
         private static Quaternion? recenterRotation;
+        private static TextMeshPro fpsShownOn, keyboardShownOn, titleShownOn;
+        private static float fpsShownValue = -1f;
+        private static int fpsShownPage = -1, titleShownLength = -1;
+        private static string keyboardShownInput, titleBase, titleTarget, titleNameSource, titleAnimated, titleShownPlain;
+        private static bool keyboardShownCaret, titleUsedCustom;
+        private static Color titleShownColor;
+
+        /// <summary>The animated and gradient titles, rebuilt only when the letters shown or the colour change.</summary>
+        private static void UpdateTitleText()
+        {
+            if (title == null || (!animatedTitle && !gradientTitle))
+                return;
+
+            if (title != titleShownOn)
+            {
+                titleShownOn = title;
+                titleBase = NoRichtextTags(title.text);
+                titleShownPlain = null;
+                titleShownLength = -1;
+            }
+
+            string plain = titleBase;
+            if (animatedTitle)
+            {
+                if (titleTarget == null || !ReferenceEquals(customMenuName, titleNameSource) || doCustomName != titleUsedCustom)
+                {
+                    titleNameSource = customMenuName;
+                    titleUsedCustom = doCustomName;
+                    titleTarget = doCustomName ? NoRichtextTags(customMenuName) : "Nova Menu";
+                    titleShownLength = -1;
+                }
+
+                int length = (int)Mathf.PingPong(Time.time / 0.25f, titleTarget.Length + 1);
+                if (length != titleShownLength)
+                {
+                    titleShownLength = length;
+                    titleAnimated = length > 0 ? titleTarget[..Mathf.Min(length, titleTarget.Length)] : "";
+                }
+
+                plain = titleAnimated;
+            }
+
+            Color tint = gradientTitle ? buttonColors[0].GetColor(0) : default;
+            if (ReferenceEquals(plain, titleShownPlain) && tint == titleShownColor)
+                return;
+
+            titleShownPlain = plain;
+            titleShownColor = tint;
+            title.text = gradientTitle
+                ? RichtextGradient(plain, new[]
+                {
+                    new GradientColorKey(BrightenColor(tint), 0f),
+                    new GradientColorKey(BrightenColor(tint, 0.95f), 0.5f),
+                    new GradientColorKey(BrightenColor(tint), 1f)
+                })
+                : plain;
+        }
+
+        /// <summary>Whether the menu is open on PC this frame, after toggle mode, as Prefix worked it out.</summary>
+        /// <remarks>
+        /// RecenterMenu used to read Q again itself, so a PC menu opened in toggle mode
+        /// snapped back to the hand as soon as Q was let go.
+        /// </remarks>
+        private static bool keyboardMenuCondition;
+
+        /// <summary>How many mod buttons the current page really shows, for the joystick menu.</summary>
+        private static int renderedPageButtons;
+
         public static void RecenterMenu()
         {
-            bool isKeyboardCondition = UnityInput.GetKey(Key.Q) || (inTextInput && isKeyboardPc);
+            bool isKeyboardCondition = keyboardMenuCondition || (inTextInput && isKeyboardPc);
             if (clickGUI)
             {
                 if (recenterPosition == null || Vector3.Distance(recenterPosition.Value, GorillaTagger.Instance.bodyCollider.transform.TransformPoint(new Vector3(0f, 0f, 1.5f))) > 1f)
@@ -3057,7 +3195,7 @@ namespace Nova.Menu
                     }
                     else
                     {
-                        if (rightHand || (bothHands && ControllerInputPoller.instance.rightControllerSecondaryButton))
+                        if (rightHand || (bothHands && openedwithright))
                         {
                             menu.transform.position = GorillaTagger.Instance.rightHandTransform.position;
                             Vector3 rotation = GorillaTagger.Instance.rightHandTransform.rotation.eulerAngles;
@@ -3104,10 +3242,14 @@ namespace Nova.Menu
                 SetShoulderCameraActive(false);
                 if (TPC != null)
                 {
-                    isOnPC = true;
-
-                    if (!XRSettings.isDeviceActive)
+                    // Re-applied twice a second rather than every frame, and at once on opening.
+                    if (!XRSettings.isDeviceActive && (!isOnPC || Time.time >= nextLevelVisibility))
+                    {
+                        nextLevelVisibility = Time.time + 0.5f;
                         PrivateUIRoom.instance.ToggleLevelVisibility(true);
+                    }
+
+                    isOnPC = true;
 
                     if (joystickMenu)
                         Toggle("Joystick Menu");
@@ -3118,16 +3260,15 @@ namespace Nova.Menu
                     if (physicalMenu)
                         Toggle("Physical Menu");
 
-                    Vector3[] pcPositions = {
-                        TPC?.transform.position ?? GorillaTagger.Instance.headCollider.transform.position,
-                        new Vector3(10f, 10f, 10f),
-                        new Vector3(10f, 10f, 10f),
-                        new Vector3(-67.9299f, 11.9144f, -84.2019f),
-                        new Vector3(-63f, 3.634f, -65f),
-                        VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.forward * 1.2f
+                    TPC.transform.position = pcbg switch
+                    {
+                        1 => new Vector3(10f, 10f, 10f),
+                        2 => new Vector3(10f, 10f, 10f),
+                        3 => new Vector3(-67.9299f, 11.9144f, -84.2019f),
+                        4 => new Vector3(-63f, 3.634f, -65f),
+                        5 => VRRig.LocalRig.transform.position + VRRig.LocalRig.transform.forward * 1.2f,
+                        _ => TPC.transform.position
                     };
-
-                    TPC.transform.position = pcPositions[pcbg];
                     if (pcbg != 4 && pcbg != 0)
                         TPC.transform.rotation = Quaternion.identity;
 
@@ -3138,12 +3279,21 @@ namespace Nova.Menu
                             pcBackground = GameObject.CreatePrimitive(PrimitiveType.Cube);
                             pcBackground.transform.localScale = new Vector3(10f, 10f, 0.01f);
                             pcBackground.transform.transform.position = TPC.transform.position + TPC.transform.forward;
+                            pcBackgroundRenderer = pcBackground.GetComponent<Renderer>();
 
-                            OnMenuClosed += () => Destroy(pcBackground);
+                            // The renderer's own material copy goes with it, instead of leaking.
+                            GameObject background = pcBackground;
+                            Renderer backgroundRenderer = pcBackgroundRenderer;
+                            OnMenuClosed += () =>
+                            {
+                                if (backgroundRenderer != null)
+                                    Destroy(backgroundRenderer.material);
+                                Destroy(background);
+                            };
                         }
 
                         Color realcolor = menuBackgroundColor.GetCurrentColor();
-                        pcBackground.GetComponent<Renderer>().material.color = new Color32((byte)(realcolor.r * 50), (byte)(realcolor.g * 50), (byte)(realcolor.b * 50), 255);
+                        pcBackgroundRenderer.material.color = new Color32((byte)(realcolor.r * 50), (byte)(realcolor.g * 50), (byte)(realcolor.b * 50), 255);
                     }
 
                     menu.transform.parent = TPC.transform;
@@ -3567,12 +3717,14 @@ namespace Nova.Menu
 
             FollowMenuSettings(promptText);
 
+            // The joystick menu moves over Accept/Decline here, not over the last page of mods
+            renderedPageButtons = CurrentPrompt.DeclineText == null ? 1 : 2;
             joystickButtonSelected %= 2;
 
             {
                 GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-                if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+                if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                     button.layer = 2;
 
                 button.GetComponent<BoxCollider>().isTrigger = true;
@@ -3635,7 +3787,7 @@ namespace Nova.Menu
             {
                 GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-                if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+                if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                     button.layer = 2;
 
                 button.GetComponent<BoxCollider>().isTrigger = true;
@@ -3714,7 +3866,7 @@ namespace Nova.Menu
         {
             GameObject button = GameObject.CreatePrimitive(PrimitiveType.Cube);
 
-            if (!UnityInput.GetKey(Key.Q) && !(inTextInput && isKeyboardPc))
+            if (!keyboardMenuCondition && !(inTextInput && isKeyboardPc))
                 button.layer = 2;
 
             button.GetComponent<BoxCollider>().isTrigger = true;
@@ -5427,6 +5579,22 @@ namespace Nova.Menu
         /// current configuration.
         /// </summary>
         /// <param name="tmp">The canvas object to which the menu appearance settings will be applied.</param>
+        /// <summary>A base font style with the underline, small caps and strikethrough settings added.</summary>
+        /// <remarks>
+        /// Setting the base style and then adding these afterwards changed the style twice a
+        /// frame, and every change made the text rebuild its mesh.
+        /// </remarks>
+        public static FontStyles MenuFontStyle(FontStyles baseStyle)
+        {
+            if (underlineText)
+                baseStyle |= FontStyles.Underline;
+            if (smallCapsText)
+                baseStyle |= FontStyles.SmallCaps;
+            if (strikethroughText)
+                baseStyle |= FontStyles.Strikethrough;
+            return baseStyle;
+        }
+
         public static void FollowMenuSettings(TMP_Text tmp, float? overlapTargetSpacing = null)
         {
             if (tmp == null)

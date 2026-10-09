@@ -46,14 +46,19 @@ namespace Nova.Patches.Menu
                 CoroutineManager.instance.StartCoroutine(
                     Nova.Menu.Main.SerializationDelay(() =>
                     {
-                        float oldDelay = delay.Value;
+                        // delay may have been cleared since this was queued
+                        float? oldDelay = delay;
                         delay = null;
                         try
                         {
-                            __instance.SerializeReadShared(data);
+                            if (__instance != null)
+                                __instance.SerializeReadShared(data);
                         }
                         catch { }
-                        delay = oldDelay;
+                        finally
+                        {
+                            delay = oldDelay;
+                        }
                     }, delay.Value)
                 );
 

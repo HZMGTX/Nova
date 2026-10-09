@@ -23,6 +23,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
+using Nova.Classes.Menu;
 using Nova.Managers;
 using System;
 using System.IO;
@@ -32,11 +33,33 @@ namespace Nova.Mods
 {
     public static class Presets
     {
+        // Sets a cycle button the same way the menu does, so the value shows on the button and is saved.
+        private static void SetSetting(string buttonName, int value)
+        {
+            ButtonInfo button = Nova.Menu.Buttons.GetIndex(buttonName);
+            if (button == null)
+                return;
+
+            button.value = value;
+            button.onValueChanged?.Invoke();
+            Preferences.SaveButton(button);
+        }
+
+        // Only turns mods on, so mods that are already enabled stay enabled.
+        private static void EnableMods(string[] mods)
+        {
+            foreach (string mod in mods)
+            {
+                ButtonInfo button = Nova.Menu.Buttons.GetIndex(mod);
+                if (button != null && !button.enabled)
+                    Toggle(mod);
+            }
+        }
+
         public static void LegitimatePreset()
         {
             string[] presetMods = {
                 "Joystick Menu",
-                "Thin Menu",
                 "Disable Enabled GUI",
                 "Disable Board Colors",
                 "Disable Disconnect Button",
@@ -50,13 +73,9 @@ namespace Nova.Mods
                 "Fix Rig Colors",
             };
 
-            themeType = 28;
-            pageButtonType = 1;
-            fontCycle = -1;
-
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            SetSetting("Change Menu Theme", 28);
+            SetSetting("Change Page Type", 2);
+            SetSetting("Change Font Type", 0);
 
             Settings.Panic();
 
@@ -75,11 +94,10 @@ namespace Nova.Mods
                 "Steam Long Arms",
                 "Break Audio Gun",
                 "No Finger Movement",
-                "Platforms",
-                "Change Arm Length"
+                "Platforms"
             };
 
-            Movement.longarmCycle = 2;
+            SetSetting("Change Arm Length", 3);
 
             Settings.Panic();
 
@@ -123,7 +141,7 @@ namespace Nova.Mods
 
                 string text = File.ReadAllText(file);
                 LogManager.Log(text);
-                Settings.LoadPreferencesFromText(text);
+                Settings.LoadPreferencesFromText(text, false);
 
                 NotificationManager.SendNotification("<color=grey>[</color><color=purple>PRESET</color><color=grey>]</color> Custom preset loaded successfully.");
             }
@@ -144,13 +162,9 @@ namespace Nova.Mods
                 "Disable Ghostview"
             };
 
-            themeType = 30;
-            pageButtonType = 1;
-            fontCycle = 0;
-
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            SetSetting("Change Menu Theme", 30);
+            SetSetting("Change Page Type", 2);
+            SetSetting("Change Font Type", 1);
 
             Settings.Panic();
 
@@ -172,13 +186,9 @@ namespace Nova.Mods
                 "Show Anti Cheat Reports <color=grey>[</color><color=green>Self</color><color=grey>]</color>"
             };
 
-            themeType = 33;
-            pageButtonType = 1;
-            fontCycle = 0;
-
-            Nova.Menu.Buttons.GetIndex("Change Menu Theme").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
-            Nova.Menu.Buttons.GetIndex("Change Font Type").cycleValue(true);
+            SetSetting("Change Menu Theme", 33);
+            SetSetting("Change Page Type", 2);
+            SetSetting("Change Font Type", 1);
 
             Settings.Panic();
 
@@ -197,11 +207,9 @@ namespace Nova.Mods
                 "PC Button Click"
             };
 
-            pageButtonType = 2;
-            Nova.Menu.Buttons.GetIndex("Change Page Type").cycleValue(true);
+            SetSetting("Change Page Type", 3);
 
-            foreach (string mod in presetMods)
-                Toggle(mod);
+            EnableMods(presetMods);
 
             NotificationManager.SendNotification("<color=grey>[</color><color=purple>PRESET</color><color=grey>]</color> Simple preset enabled successfully.");
         }

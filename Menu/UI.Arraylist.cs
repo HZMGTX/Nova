@@ -18,7 +18,27 @@ namespace Nova.Menu
             public float alpha;
             public float measured;
             public int frame = -1;
+            public string measuredText;
+            public int measuredSize = -1;
+            public float measuredLimit = -1;
         }
+
+        // Rows are measured and sorted again only when the list, the text size or the order
+        // setting changes, not on every GUI event.
+        private readonly List<ListRow> sortedRows = new List<ListRow>();
+        private readonly List<ButtonInfo> removedRows = new List<ButtonInfo>();
+        private int listVersion, sortedVersion = -1, sortedSize = -1;
+        private bool sortedByWidth;
+        private int overflowShown = -1;
+        private string overflowText;
+
+        private static readonly System.Comparison<ListRow> ByWidth = (a, b) =>
+        {
+            int order = b.measured.CompareTo(a.measured);
+            return order != 0 ? order : string.CompareOrdinal(a.text, b.text);
+        };
+
+        private static readonly System.Comparison<ListRow> ByName = (a, b) => string.CompareOrdinal(a.text, b.text);
 
         private readonly Dictionary<ButtonInfo, ListRow> listRows = new Dictionary<ButtonInfo, ListRow>();
         private GUIStyle listStyle;
@@ -36,11 +56,17 @@ namespace Nova.Menu
                     row = new ListRow { button = button };
                     listRows.Add(button, row);
                 }
-                row.text = entry.title ?? button.buttonText;
+                string text = entry.title ?? button.buttonText;
+                if (!ReferenceEquals(row.text, text)) listVersion++;
+                row.text = text;
                 row.active = true;
             }
-            foreach (ButtonInfo removed in listRows.Where(pair => !pair.Value.active).Select(pair => pair.Key).ToArray())
+            removedRows.Clear();
+            foreach (KeyValuePair<ButtonInfo, ListRow> pair in listRows)
+                if (!pair.Value.active) removedRows.Add(pair.Key);
+            foreach (ButtonInfo removed in removedRows)
                 listRows.Remove(removed);
+            if (removedRows.Count > 0 || sortedRows.Count != listRows.Count) listVersion++;
         }
 
         private void DrawArraylist()
@@ -63,12 +89,28 @@ namespace Nova.Menu
             float rowHeight = listStyle.fontSize + 12;
             float step = rowHeight + options.listSpacing * fit;
 
+            float limit = ViewWidth * 0.65f;
+            bool remeasured = false;
             foreach (ListRow row in listRows.Values)
-                row.measured = Mathf.Min(ViewWidth * 0.65f, listStyle.CalcSize(new GUIContent(row.text)).x + 28);
+            {
+                if (ReferenceEquals(row.measuredText, row.text) && row.measuredSize == listStyle.fontSize && Mathf.Approximately(row.measuredLimit, limit)) continue;
+                row.measuredText = row.text;
+                row.measuredSize = listStyle.fontSize;
+                row.measuredLimit = limit;
+                row.measured = Mathf.Min(limit, listStyle.CalcSize(Measure(row.text)).x + 28);
+                remeasured = true;
+            }
 
-            List<ListRow> rows = options.listByWidth
-                ? listRows.Values.OrderByDescending(row => row.measured).ThenBy(row => row.text, System.StringComparer.Ordinal).ToList()
-                : listRows.Values.OrderBy(row => row.text, System.StringComparer.Ordinal).ToList();
+            if (remeasured || sortedVersion != listVersion || sortedSize != listStyle.fontSize || sortedByWidth != options.listByWidth)
+            {
+                sortedVersion = listVersion;
+                sortedSize = listStyle.fontSize;
+                sortedByWidth = options.listByWidth;
+                sortedRows.Clear();
+                sortedRows.AddRange(listRows.Values);
+                sortedRows.Sort(options.listByWidth ? ByWidth : ByName);
+            }
+            List<ListRow> rows = sortedRows;
 
             float speed = options.animations ? Ease(12) : 1;
             int overflow = 0;
@@ -101,9 +143,14 @@ namespace Nova.Menu
             if (overflow > 0)
             {
                 GUI.color = Color.white;
-                float width = listStyle.CalcSize(new GUIContent("+" + overflow)).x + 28;
+                if (overflow != overflowShown)
+                {
+                    overflowShown = overflow;
+                    overflowText = "+" + overflow;
+                }
+                float width = listStyle.CalcSize(Measure(overflowText)).x + 28;
                 float x = flipArraylist ? ViewWidth - margin - width : margin;
-                Label(new Rect(x, y, width, rowHeight), "+" + overflow, listStyle, muted);
+                Label(new Rect(x, y, width, rowHeight), overflowText, listStyle, muted);
             }
 
             GUI.matrix = matrix;

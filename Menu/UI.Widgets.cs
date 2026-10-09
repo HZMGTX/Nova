@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -16,7 +17,59 @@ namespace Nova.Menu
             public int frame = -1;
         }
 
-        private readonly Dictionary<string, Motion> motions = new Dictionary<string, Motion>();
+        /// <summary>What a Motion belongs to, kept as parts so no key string is built on every GUI event.</summary>
+        private readonly struct MotionKey : IEquatable<MotionKey>
+        {
+            private readonly string kind, name, extra;
+            private readonly int x, y;
+
+            public MotionKey(string kind, string name = null, string extra = null, int x = 0, int y = 0)
+            {
+                this.kind = kind;
+                this.name = name;
+                this.extra = extra;
+                this.x = x;
+                this.y = y;
+            }
+
+            public bool Equals(MotionKey other) =>
+                x == other.x && y == other.y && string.Equals(kind, other.kind) && string.Equals(name, other.name) && string.Equals(extra, other.extra);
+
+            public override bool Equals(object obj) => obj is MotionKey other && Equals(other);
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = kind?.GetHashCode() ?? 0;
+                    hash = hash * 31 + (name?.GetHashCode() ?? 0);
+                    hash = hash * 31 + (extra?.GetHashCode() ?? 0);
+                    hash = hash * 31 + x;
+                    return hash * 31 + y;
+                }
+            }
+        }
+
+        private readonly Dictionary<MotionKey, Motion> motions = new Dictionary<MotionKey, Motion>();
+        private readonly List<MotionKey> staleMotions = new List<MotionKey>();
+
+        // One content reused for every text measurement, instead of a new one per call.
+        private static readonly GUIContent measureContent = new GUIContent();
+
+        private static GUIContent Measure(string text)
+        {
+            measureContent.text = text;
+            measureContent.tooltip = null;
+            measureContent.image = null;
+            return measureContent;
+        }
+
+        /// <summary>
+        /// A widget's place in its group or scroll view, so same-label widgets in different spots don't share a Motion.
+        /// Not the screen position: that moves every frame while scrolling, dragging or fading, which made a new Motion each frame.
+        /// </summary>
+        private static MotionKey WidgetKey(string kind, string name, Rect rect) =>
+            new MotionKey(kind, name, null, Mathf.RoundToInt(rect.x), Mathf.RoundToInt(rect.y));
         private float cleanAt;
         private bool pointerInside = true;
         private bool snapAnimations;
@@ -24,7 +77,9 @@ namespace Nova.Menu
 
         private float Ease(float speed) => 1 - Mathf.Exp(-Time.unscaledDeltaTime * speed * options.animationSpeed);
 
-        private float Animate(string key, float target, float speed = 14)
+        private float Animate(string key, float target, float speed = 14) => Animate(new MotionKey(key), target, speed);
+
+        private float Animate(MotionKey key, float target, float speed = 14)
         {
             if (!motions.TryGetValue(key, out Motion motion))
             {
@@ -43,7 +98,9 @@ namespace Nova.Menu
 
         private void SnapAnimations() => snapAnimations = true;
 
-        private float Hover(string key, Rect rect) => Animate(key, options.hoverEffects && GUI.enabled && pointerInside && rect.Contains(GuiPoint) ? 1 : 0);
+        private float Hover(string key, Rect rect) => Hover(new MotionKey(key), rect);
+
+        private float Hover(MotionKey key, Rect rect) => Animate(key, options.hoverEffects && GUI.enabled && pointerInside && rect.Contains(GuiPoint) ? 1 : 0);
 
         private static Color Alpha(Color color, float alpha)
         {
@@ -146,7 +203,7 @@ namespace Nova.Menu
             }
             if (showScrollbar && state.max > 0)
             {
-                float amount = Animate("scroll-" + state.GetHashCode(), track.Contains(GuiPoint) || PointerControl == id ? 1 : 0);
+                float amount = Animate(new MotionKey("scroll", null, null, state.GetHashCode()), track.Contains(GuiPoint) || PointerControl == id ? 1 : 0);
                 float width = Mathf.Lerp(4, 8, amount);
                 Color ink = scrollColor ?? accent;
                 Box(new Rect(track.center.x - 2, track.y, 4, track.height), Alpha(scrollColor ?? border, 0.45f), 2);

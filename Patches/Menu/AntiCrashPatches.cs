@@ -85,10 +85,16 @@ namespace Nova.Patches.Menu
         [HarmonyPatch(typeof(DeployedChild), nameof(DeployedChild.Deploy))]
         public class Deploy
         {
-            public static void Prefix(DeployedChild __instance, DeployableObject parent, Vector3 launchPos, Quaternion launchRot, Vector3 releaseVel, bool isRemote = false)
+            // Clamp instead of skipping: by now the parent has already hidden itself for the deploy
+            public static void Prefix(DeployedChild __instance, DeployableObject parent, Vector3 launchPos, Quaternion launchRot, ref Vector3 releaseVel, bool isRemote = false)
             {
-                if (enabled && parent.m_VRRig != VRRig.LocalRig && releaseVel.magnitude > 10f)
-                    return;
+                if (enabled && parent != null && parent.m_VRRig != VRRig.LocalRig)
+                {
+                    if (!releaseVel.IsValid())
+                        releaseVel = Vector3.zero;
+                    else if (releaseVel.magnitude > 10f)
+                        releaseVel = Vector3.ClampMagnitude(releaseVel, 10f);
+                }
             }
         }
 
@@ -101,12 +107,11 @@ namespace Nova.Patches.Menu
                 {
                     if (eventData.Code != 180) return false;
 
-                    Player sender = PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(eventData.Sender);
+                    // Malformed payloads are left to the original, which validates and drops them
+                    if (!(eventData.CustomData is object[] args) || args.Length < 2 || !(args[0] is string command) || !(args[1] is double v))
+                        return true;
 
-                    object[] args = eventData.CustomData == null ? new object[] { } : (object[])eventData.CustomData;
-                    string command = args.Length > 0 ? (string)args[0] : "";
-
-                    if (sender != PhotonNetwork.LocalPlayer && args[1] is double v && v == PhotonNetwork.LocalPlayer.ActorNumber && command == "leaveGame")
+                    if (eventData.Sender != PhotonNetwork.LocalPlayer.ActorNumber && v == PhotonNetwork.LocalPlayer.ActorNumber && command == "leaveGame")
                         return false;
                 }
 
@@ -128,7 +133,7 @@ namespace Nova.Patches.Menu
         {
             public static bool Prefix(GameEntityManager __instance, byte[] stateData, int[] netIds, int joiningActorNum, PhotonMessageInfo info)
             {
-                return stateData.Length <= 255;
+                return stateData != null && stateData.Length < 255;
             }
         }
 

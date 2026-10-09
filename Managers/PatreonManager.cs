@@ -32,8 +32,12 @@ using Nova.Menu;
 using Nova.Mods;
 using Nova.Utilities;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -75,106 +79,222 @@ namespace Nova.Managers
 
         public static KeyValuePair<NetPlayer, PatreonMembership>[] GetAllMembersInRoom()
         {
-            return !NetworkSystem.Instance.InRoom
-                ? Array.Empty<KeyValuePair<NetPlayer, PatreonMembership>>()
-                : NetworkSystem.Instance.PlayerListOthers
-                .Select(player => new { player, membership = instance.PatreonMembers.FirstOrDefault(m => m.UserId == player.UserId) })
-                .Where(x => x.membership.UserId != null)
-                .Select(x => new KeyValuePair<NetPlayer, PatreonMembership>(x.player, x.membership))
-                .ToArray();
+            if (!NetworkSystem.Instance.InRoom)
+                return Array.Empty<KeyValuePair<NetPlayer, PatreonMembership>>();
+
+            Dictionary<string, PatreonMembership> members = instance.MembersById();
+            List<KeyValuePair<NetPlayer, PatreonMembership>> found = new List<KeyValuePair<NetPlayer, PatreonMembership>>();
+            foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
+                if (player?.UserId != null && members.TryGetValue(player.UserId, out PatreonMembership membership))
+                    found.Add(new KeyValuePair<NetPlayer, PatreonMembership>(player, membership));
+            return found.ToArray();
         }
 
         public static bool IsPlayerPatreonMember(NetPlayer player) =>
-            instance.PatreonMembers.Any(m => m.UserId == player.UserId);
+            player?.UserId != null && instance.MembersById().ContainsKey(player.UserId);
+
+        // Members looked up by id instead of searched with LINQ for every player every frame.
+        private readonly Dictionary<string, PatreonMembership> membersById = new Dictionary<string, PatreonMembership>();
+        private int membersVersion = -1, membersByIdVersion = -2;
+
+        /// <summary>Called after the member list is loaded again, so the lookup is rebuilt.</summary>
+        public void MembersChanged() => membersVersion++;
+
+        private Dictionary<string, PatreonMembership> MembersById()
+        {
+            if (membersByIdVersion != membersVersion || membersById.Count == 0 && PatreonMembers.Count > 0)
+            {
+                membersByIdVersion = membersVersion;
+                membersById.Clear();
+                foreach (PatreonMembership member in PatreonMembers)
+                    if (member.UserId != null)
+                        membersById[member.UserId] = member;
+            }
+
+            return membersById;
+        }
 
         public static bool IndicatorsEnabled = true;
         private static readonly HashSet<string> failedIcons = new HashSet<string>();
+        private static readonly HashSet<string> loadingIcons = new HashSet<string>();
+        private readonly Dictionary<VRRig, Material> iconMaterials = new Dictionary<VRRig, Material>();
+        private readonly Dictionary<VRRig, Transform> iconNameTags = new Dictionary<VRRig, Transform>();
+        private readonly Dictionary<VRRig, string> iconUrls = new Dictionary<VRRig, string>();
+        private readonly List<VRRig> staleIcons = new List<VRRig>();
+
         public void Update()
         {
-            List<VRRig> toRemoveRigs = new List<VRRig>();
+            staleIcons.Clear();
+            foreach (KeyValuePair<VRRig, GameObject> indicator in iconPool)
+                if (indicator.Value == null || !IndicatorsEnabled || !indicator.Key.Active() || !IsPlayerPatreonMember(GetPlayerFromVRRig(indicator.Key)) || excludedIndicators.Contains(indicator.Key.GetPhotonPlayer()))
+                    staleIcons.Add(indicator.Key);
 
-            foreach (var indicator in iconPool.Where(indicator => !IndicatorsEnabled || !indicator.Key.Active() || !IsPlayerPatreonMember(GetPlayerFromVRRig(indicator.Key)) || excludedIndicators.Contains(indicator.Key.GetPhotonPlayer())))
-            {
-                toRemoveRigs.Add(indicator.Key);
-                Destroy(indicator.Value);
-            }
-
-            foreach (VRRig rig in toRemoveRigs)
-                iconPool.Remove(rig);
+            foreach (VRRig rig in staleIcons)
+                DestroyIndicator(rig);
 
             if (!IndicatorsEnabled) return;
 
             if (!NetworkSystem.Instance.InRoom) return;
-            var members = GetAllMembersInRoom();
-            foreach (var member in members)
+
+            Dictionary<string, PatreonMembership> members = MembersById();
+            if (members.Count == 0) return;
+
+            Camera viewer = Camera.main;
+            Vector3 head = GorillaTagger.Instance.headCollider.transform.position;
+
+            foreach (NetPlayer player in NetworkSystem.Instance.PlayerListOthers)
             {
-                VRRig playerRig = GetVRRigFromPlayer(member.Key);
-                if (playerRig == null) continue;
-                if (excludedIndicators.Contains(member.Key.GetPlayer())) continue;
+                if (player?.UserId == null || !members.TryGetValue(player.UserId, out PatreonMembership membership)) continue;
 
-                if (!iconPool.TryGetValue(playerRig, out GameObject playerIndicator))
-                {
-                    playerIndicator = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Destroy(playerIndicator.GetComponent<Collider>());
+                // Only rigs the cleanup above keeps, so an indicator isn't destroyed and made
+                // again every frame.
+                VRRig playerRig = GetVRRigFromPlayer(player);
+                if (playerRig == null || !playerRig.Active()) continue;
+                if (excludedIndicators.Contains(player.GetPlayer())) continue;
 
-                    if (iconMaterial == null)
-                    {
-                        iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                if (!iconPool.TryGetValue(playerRig, out GameObject playerIndicator) || playerIndicator == null)
+                    playerIndicator = CreateIndicator(playerRig, player, membership);
 
-                        iconMaterial.SetFloat("_Surface", 1);
-                        iconMaterial.SetFloat("_Blend", 0);
-                        iconMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                        iconMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                        iconMaterial.SetFloat("_ZWrite", 0);
-                        iconMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                        iconMaterial.renderQueue = (int)RenderQueue.Transparent;
-                    }
-
-                    playerIndicator.GetComponent<Renderer>().material = iconMaterial;
-
-                    // An icon that can't be downloaded is tried once, not every frame; it used
-                    // to throw here and leave a stray cube behind on every attempt.
-                    if (!failedIcons.Contains(member.Value.IconURL))
-                    {
-                        try
-                        {
-                            playerIndicator.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL(member.Value.IconURL, $"Images/Patreon/{member.Key.UserId}.{FileUtilities.GetFileExtension(member.Value.IconURL)}");
-                        }
-                        catch (Exception e)
-                        {
-                            failedIcons.Add(member.Value.IconURL);
-                            LogManager.LogError($"Could not load a Patreon icon: {e.Message}");
-                        }
-                    }
-
-                    playerIndicator.GetComponent<Renderer>().material.color = Color.white;
-
-                    GameObject go = new GameObject("Nova_Nametag");
-                    go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
-                    TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
-                    textMesh.fontSize = 4.8f;
-                    textMesh.alignment = TextAlignmentOptions.Center;
-
-                    textMesh.SafeSetText(member.Value.TierName);
-                    textMesh.SafeSetFontStyle(Main.activeFontStyle);
-                    textMesh.SafeSetFont(Main.activeFont);
-                    textMesh.color = member.Value.Color;
-                    textMesh.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
-                    textMesh.transform.SetParent(playerIndicator.transform, false);
-
-                    iconPool.Add(playerRig, playerIndicator);
-                }
-
+                Transform nameTagAnchor = Visuals.GetNameTagTransform(playerRig);
                 float distance = Classes.Menu.Console.GetIndicatorDistance(playerRig);
                 playerIndicator.transform.localScale = new Vector3(0.4f, 0.4f, 0.01f) * playerRig.scaleFactor;
-                playerIndicator.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * (distance * playerRig.scaleFactor);
-                playerIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
+                playerIndicator.transform.position = nameTagAnchor.position + nameTagAnchor.up * (distance * playerRig.scaleFactor);
+                playerIndicator.transform.LookAt(head);
 
-                GameObject nameTag = playerIndicator.transform.Find("Nova_Nametag").gameObject;
-                nameTag.transform.position = Visuals.GetNameTagTransform(playerRig).position + Visuals.GetNameTagTransform(playerRig).up * ((distance + 0.25f) * playerRig.scaleFactor);
-                nameTag.transform.LookAt(Camera.main.transform.position);
-                nameTag.transform.Rotate(0f, 180f, 0f);
+                if (iconNameTags.TryGetValue(playerRig, out Transform nameTag) && nameTag != null)
+                {
+                    nameTag.position = nameTagAnchor.position + nameTagAnchor.up * ((distance + 0.25f) * playerRig.scaleFactor);
+                    if (viewer != null)
+                        nameTag.LookAt(viewer.transform.position);
+                    nameTag.Rotate(0f, 180f, 0f);
+                }
             }
+        }
+
+        private GameObject CreateIndicator(VRRig playerRig, NetPlayer player, PatreonMembership membership)
+        {
+            DestroyIndicator(playerRig);
+
+            GameObject playerIndicator = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Destroy(playerIndicator.GetComponent<Collider>());
+
+            if (iconMaterial == null)
+            {
+                iconMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+
+                iconMaterial.SetFloat("_Surface", 1);
+                iconMaterial.SetFloat("_Blend", 0);
+                iconMaterial.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                iconMaterial.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                iconMaterial.SetFloat("_ZWrite", 0);
+                iconMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                iconMaterial.renderQueue = (int)RenderQueue.Transparent;
+            }
+
+            // Each indicator has its own copy of the material for its own icon; the copy is
+            // destroyed with the indicator instead of being left behind.
+            Renderer renderer = playerIndicator.GetComponent<Renderer>();
+            renderer.material = iconMaterial;
+            Material own = renderer.material;
+            own.color = Color.white;
+            iconMaterials[playerRig] = own;
+            iconUrls[playerRig] = membership.IconURL;
+            ApplyIcon(own, membership.IconURL, $"Images/Patreon/{player.UserId}.{FileUtilities.GetFileExtension(membership.IconURL)}");
+
+            GameObject go = new GameObject("Nova_Nametag");
+            go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
+            TextMeshPro textMesh = go.AddComponent<TextMeshPro>();
+            textMesh.fontSize = 4.8f;
+            textMesh.alignment = TextAlignmentOptions.Center;
+
+            textMesh.SafeSetText(membership.TierName);
+            textMesh.SafeSetFontStyle(Main.activeFontStyle);
+            textMesh.SafeSetFont(Main.activeFont);
+            textMesh.color = membership.Color;
+            textMesh.transform.localScale = new Vector3(0.4f, 0.4f, 0.4f);
+            textMesh.transform.SetParent(playerIndicator.transform, false);
+
+            iconPool[playerRig] = playerIndicator;
+            iconNameTags[playerRig] = go.transform;
+            return playerIndicator;
+        }
+
+        /// <summary>Puts an icon on an indicator, downloading it in the background the first time.</summary>
+        /// <remarks>
+        /// The download used to run on the game's main thread inside Update, freezing the game
+        /// until it finished.
+        /// </remarks>
+        private void ApplyIcon(Material material, string url, string fileName)
+        {
+            if (string.IsNullOrEmpty(url) || failedIcons.Contains(url))
+                return;
+
+            string path = $"{PluginInfo.BaseDirectory}/{fileName}";
+            if (File.Exists(path))
+            {
+                try { material.mainTexture = LoadTextureFromURL(url, fileName); }
+                catch (Exception e)
+                {
+                    failedIcons.Add(url);
+                    LogManager.LogError($"Could not load a Patreon icon: {e.Message}");
+                }
+                return;
+            }
+
+            if (loadingIcons.Add(url))
+                StartCoroutine(DownloadIcon(url, fileName, path));
+        }
+
+        private IEnumerator DownloadIcon(string url, string fileName, string path)
+        {
+            Task download = Task.Run(() =>
+            {
+                string directory = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+
+                // Written beside the final name and moved into place, so a half-finished file
+                // is never taken for a whole one.
+                string partial = path + ".part";
+                using (WebClient client = new WebClient())
+                    client.DownloadFile(url, partial);
+                if (File.Exists(path))
+                    File.Delete(path);
+                File.Move(partial, path);
+            });
+
+            while (!download.IsCompleted)
+                yield return null;
+
+            loadingIcons.Remove(url);
+            if (download.Exception != null)
+            {
+                failedIcons.Add(url);
+                LogManager.LogError($"Could not load a Patreon icon: {download.Exception.GetBaseException().Message}");
+                yield break;
+            }
+
+            // Every indicator still waiting on this icon gets it.
+            foreach (KeyValuePair<VRRig, string> waiting in iconUrls)
+                if (waiting.Value == url && iconMaterials.TryGetValue(waiting.Key, out Material material) && material != null)
+                    ApplyIcon(material, url, fileName);
+        }
+
+        private void DestroyIndicator(VRRig rig)
+        {
+            if (iconMaterials.TryGetValue(rig, out Material material))
+            {
+                if (material != null && material != iconMaterial)
+                    Destroy(material);
+                iconMaterials.Remove(rig);
+            }
+
+            if (iconPool.TryGetValue(rig, out GameObject indicator) && indicator != null)
+                Destroy(indicator);
+
+            iconPool.Remove(rig);
+            iconNameTags.Remove(rig);
+            iconUrls.Remove(rig);
         }
 
         public const byte PatreonByte = 74;
@@ -260,10 +380,10 @@ namespace Nova.Managers
             if (!NetworkSystem.Instance.InRoom)
                 lastPlayerCount = -1;
 
-            if (PhotonNetwork.PlayerList.Length != lastPlayerCount && NetworkSystem.Instance.InRoom)
+            if (NetworkSystem.Instance.InRoom && PhotonNetwork.CurrentRoom.PlayerCount != lastPlayerCount)
             {
                 ShowIndicator(false);
-                lastPlayerCount = PhotonNetwork.PlayerList.Length;
+                lastPlayerCount = PhotonNetwork.CurrentRoom.PlayerCount;
             }
         }
         #endregion

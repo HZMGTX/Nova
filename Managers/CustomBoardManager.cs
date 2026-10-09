@@ -98,7 +98,7 @@ namespace Nova.Managers
                         forestBoard.GetComponent<Renderer>().material = instance.forestMaterial;
 
                     foreach (GameObject board in instance.objectBoards.Values)
-                        Destroy(board);
+                        DestroyBoard(board);
 
                     instance.objectBoards.Clear();
 
@@ -123,7 +123,7 @@ namespace Nova.Managers
                 {
                     foreach (TextMeshPro txt in instance.textMeshPro)
                     {
-                        if (!txt.isActiveAndEnabled) continue;
+                        if (txt == null || !txt.isActiveAndEnabled) continue;
 
                         txt.SafeSetFont(instance.archiveGorillaTagFont);
                         txt.SafeSetFontStyle(FontStyles.Normal);
@@ -179,6 +179,7 @@ namespace Nova.Managers
         }
 
         private static Material monitorMaterial;
+        private Renderer monitorRenderer;
 
         #region Game Boards
         public const int StumpLeaderboardIndex = 3;
@@ -201,9 +202,15 @@ namespace Nova.Managers
 
         private string cachedMotdHeading;
         private string cachedMotdBody;
-        private bool hasFoundAllBoards;
-        public void ReloadBoards() =>
+        private bool hasFoundAllBoards, boardErrorLogged;
+        private float nextBoardSearch;
+        private readonly List<string> rebuiltScenes = new List<string>();
+
+        public void ReloadBoards()
+        {
             hasFoundAllBoards = false;
+            nextBoardSearch = 0f;
+        }
 
         private static GameObject FindBoard(string rootPath, string anchorName)
         {
@@ -244,23 +251,59 @@ namespace Nova.Managers
             return result != null ? result.gameObject : null;
         }
 
+        // A translation that arrives later marks the text to be built again; before, the
+        // "Loading..." placeholder was kept for good.
+        private static void MotdTranslated(string _) => motdTextDirty = true;
+
+        // The text settings the cached MOTD was built with; a change rebuilds it
+        private static (bool, bool, bool, bool, bool, string, string) motdTextSettings;
+        private static void CheckMotdTextSettings()
+        {
+            var current = (translate, lowercaseMode, uppercaseMode, redactText, doCustomName, customMenuName, TranslationManager.language);
+            if (!current.Equals(motdTextSettings))
+            {
+                motdTextSettings = current;
+                motdTextDirty = true;
+            }
+        }
+
         private void RebuildMotdText()
         {
-            cachedMotdHeading = FollowMenuSettings($"Thanks for using {(doCustomName ? customMenuName : menuName)}!");
-            cachedMotdBody = FollowMenuSettings(string.Format(motdTemplate, PluginInfo.Version, fullModAmount, PluginInfo.BetaBuild ? "Beta" : "Release", PluginInfo.BuildTimestamp));
+            string heading = $"Thanks for using {(doCustomName ? customMenuName : menuName)}!";
+            string body = string.Format(motdTemplate, PluginInfo.Version, fullModAmount, PluginInfo.BetaBuild ? "Beta" : "Release", PluginInfo.BuildTimestamp);
+            if (translate)
+            {
+                heading = TranslationManager.TranslateText(heading, MotdTranslated);
+                body = TranslationManager.TranslateText(body, MotdTranslated);
+            }
+
+            cachedMotdHeading = FollowMenuSettings(heading, false);
+            cachedMotdBody = FollowMenuSettings(body, false);
             motdTextDirty = false;
         }
 
         public void Update()
         {
-            if (!hasFoundAllBoards)
+            if (!hasFoundAllBoards && Time.time >= nextBoardSearch)
             {
+                // Retried every few seconds while the boards aren't there yet, not every frame.
+                nextBoardSearch = Time.time + 3f;
                 try
                 {
-                    foreach (GameObject board in objectBoards.Values)
-                        Destroy(board);
-
-                    objectBoards.Clear();
+                    // The per-scene boards are made again with the new look, instead of being
+                    // destroyed and only coming back after the next scene load.
+                    rebuiltScenes.Clear();
+                    rebuiltScenes.AddRange(objectBoards.Keys);
+                    foreach (string scene in rebuiltScenes)
+                    {
+                        if (CustomBoardsEnabled && BoardInformations.TryGetValue(scene, out BoardInformation config) && SceneManager.GetSceneByName(scene).isLoaded)
+                            CreateObjectBoard(scene, config.GameObjectPath, config.Position, config.Rotation, config.Scale);
+                        else if (objectBoards.TryGetValue(scene, out GameObject board))
+                        {
+                            DestroyBoard(board);
+                            objectBoards.Remove(scene);
+                        }
+                    }
 
                     GameObject forestBoard = FindBoard("Environment Objects/LocalObjects_Prefab/Forest", "ForestScoreboardAnchor");
                     if (forestBoard != null)
@@ -288,7 +331,7 @@ namespace Nova.Managers
                             temp.ScreenBG_NotConnectedSoloJoin = NewBoardMaterial(temp.ScreenBG_NotConnectedSoloJoin);
 
                             TextMeshPro text = ui.screenText;
-                            if (!textMeshPro.Contains(text))
+                            if (text != null && !textMeshPro.Contains(text))
                                 textMeshPro.Add(text);
                         }
                         catch { }
@@ -307,29 +350,37 @@ namespace Nova.Managers
                         if (obj != null)
                         {
                             TextMeshPro text = obj.GetComponent<TextMeshPro>();
-                            if (!textMeshPro.Contains(text))
+                            if (text != null && !textMeshPro.Contains(text))
                                 textMeshPro.Add(text);
                         }
                         else
                             LogManager.Log("Could not find " + objectName);
                     }
 
-                    Transform forestTransform = GetObject("Environment Objects/LocalObjects_Prefab/Forest/ForestScoreboardAnchor/GorillaScoreBoard").transform;
-                    for (int i = 0; i < forestTransform.transform.childCount; i++)
+                    // The forest scoreboard may not be loaded yet; then this is tried again
+                    // shortly, quietly, rather than throwing and logging every frame.
+                    GameObject forestScoreboard = GetObject("Environment Objects/LocalObjects_Prefab/Forest/ForestScoreboardAnchor/GorillaScoreBoard");
+                    if (forestScoreboard != null)
                     {
-                        GameObject v = forestTransform.GetChild(i).gameObject;
-                        if ((!v.name.Contains("Board Text") && !v.name.Contains("Scoreboard_OfflineText")) ||
-                            !v.activeSelf) continue;
-                        TextMeshPro text = v.GetComponent<TextMeshPro>();
-                        if (!textMeshPro.Contains(text))
-                            textMeshPro.Add(text);
+                        Transform forestTransform = forestScoreboard.transform;
+                        for (int i = 0; i < forestTransform.childCount; i++)
+                        {
+                            GameObject v = forestTransform.GetChild(i).gameObject;
+                            if ((!v.name.Contains("Board Text") && !v.name.Contains("Scoreboard_OfflineText")) ||
+                                !v.activeSelf) continue;
+                            TextMeshPro text = v.GetComponent<TextMeshPro>();
+                            if (text != null && !textMeshPro.Contains(text))
+                                textMeshPro.Add(text);
+                        }
                     }
 
-                    hasFoundAllBoards = true;
+                    hasFoundAllBoards = forestScoreboard != null;
                 }
                 catch (Exception exc)
                 {
-                    LogManager.LogError($"Error with board colors at {exc.StackTrace}: {exc.Message}");
+                    if (!boardErrorLogged)
+                        LogManager.LogError($"Error with board colors at {exc.StackTrace}: {exc.Message}");
+                    boardErrorLogged = true;
                     hasFoundAllBoards = false;
                 }
             }
@@ -341,7 +392,9 @@ namespace Nova.Managers
             // new material every frame was never freed and piled up all session.
             if (computerMonitor != null)
             {
-                Renderer monitor = computerMonitor.GetComponent<Renderer>();
+                if (monitorRenderer == null || monitorRenderer.gameObject != computerMonitor)
+                    monitorRenderer = computerMonitor.GetComponent<Renderer>();
+                Renderer monitor = monitorRenderer;
                 if (monitorMaterial == null || monitor.sharedMaterial != monitorMaterial)
                 {
                     Material original = monitor.sharedMaterial;
@@ -364,22 +417,24 @@ namespace Nova.Managers
                     motdObject.SetActive(false);
                 }
 
+                // The MOTD texts are styled here only; the board text loop below used to undo
+                // their spacing and style every frame, and this put it back.
                 TextMeshPro motdHeadingText = motdTitle.GetComponent<TextMeshPro>();
-                if (!textMeshPro.Contains(motdHeadingText))
-                    textMeshPro.Add(motdHeadingText);
 
+                // Same colour rule as the board text loop below
+                Color motdColor = CustomBoardsEnabled && CustomBoardTextEnabled ? textColors[0].GetCurrentColor() : Color.white;
+
+                CheckMotdTextSettings();
                 if (motdTextDirty) RebuildMotdText();
 
                 motdHeadingText.richText = true;
                 motdHeadingText.SafeSetFontSize(100);
                 motdHeadingText.SafeSetText(cachedMotdHeading);
-                motdHeadingText.SafeSetFontStyle(activeFontStyle);
+                motdHeadingText.SafeSetFontStyle(MenuFontStyle(activeFontStyle));
                 motdHeadingText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdHeadingText, -4f);
 
-                motdHeadingText.SafeSetText(FollowMenuSettings(motdHeadingText.text));
-
-                motdHeadingText.color = textColors[0].GetCurrentColor();
+                motdHeadingText.color = motdColor;
                 motdHeadingText.overflowMode = TextOverflowModes.Overflow;
 
                 if (motdText == null)
@@ -392,13 +447,11 @@ namespace Nova.Managers
                 }
 
                 TextMeshPro motdBodyText = motdText.GetComponent<TextMeshPro>();
-                if (!textMeshPro.Contains(motdBodyText))
-                    textMeshPro.Add(motdBodyText);
 
                 motdBodyText.richText = true;
                 motdBodyText.SafeSetFontSize(100);
-                motdBodyText.color = textColors[0].GetCurrentColor();
-                motdBodyText.SafeSetFontStyle(activeFontStyle);
+                motdBodyText.color = motdColor;
+                motdBodyText.SafeSetFontStyle(MenuFontStyle(activeFontStyle));
                 motdBodyText.SafeSetFont(activeFont);
                 FollowMenuSettings(motdBodyText, -4f);
 
@@ -414,8 +467,18 @@ namespace Nova.Managers
                 if (!CustomBoardsEnabled || !CustomBoardTextEnabled)
                     targetColor = Color.white;
 
-                foreach (TextMeshPro txt in textMeshPro)
+                for (int i = textMeshPro.Count - 1; i >= 0; i--)
                 {
+                    TextMeshPro txt = textMeshPro[i];
+
+                    // Texts destroyed with their scene are dropped, rather than throwing here
+                    // and skipping every text after them.
+                    if (txt == null)
+                    {
+                        textMeshPro.RemoveAt(i);
+                        continue;
+                    }
+
                     if (!txt.isActiveAndEnabled) continue;
 
                     txt.color = targetColor;
@@ -442,6 +505,18 @@ namespace Nova.Managers
         public readonly List<TextMeshPro> textMeshPro = new List<TextMeshPro>();
         public GameObject computerMonitor;
 
+        /// <summary>Destroys a board along with the material it was given, which used to be left behind.</summary>
+        private static void DestroyBoard(GameObject board)
+        {
+            if (board == null)
+                return;
+
+            Renderer renderer = board.GetComponent<Renderer>();
+            if (renderer != null && renderer.sharedMaterial != null && renderer.sharedMaterial != _boardMaterial)
+                Destroy(renderer.sharedMaterial);
+            Destroy(board);
+        }
+
         public void SceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (!CustomBoardsEnabled) return;
@@ -456,9 +531,7 @@ namespace Nova.Managers
             {
                 if (objectBoards.TryGetValue(scene, out GameObject existingBoard))
                 {
-                    if (existingBoard != null)
-                        Destroy(existingBoard);
-
+                    DestroyBoard(existingBoard);
                     objectBoards.Remove(scene);
                 }
 

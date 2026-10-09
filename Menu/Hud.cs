@@ -129,8 +129,6 @@ namespace Nova.Menu
         bool open;
         float openAmount;
         bool cursorHeld;
-        bool cursorVisible;
-        CursorLockMode cursorLock;
         Window sidebar;
         float fpsTime;
         float fps;
@@ -514,12 +512,15 @@ namespace Nova.Menu
             return color;
         }
 
+        static float ColorDiff(Color a, Color b) => Mathf.Abs(a.r - b.r) + Mathf.Abs(a.g - b.g) + Mathf.Abs(a.b - b.b);
+
+        // Everything the HUD is built from counts, not just five of the colours: opacity,
+        // rounding, row height, accent strength and the muted text changed nothing before.
         static float ThemeDiff(Theme a, Theme b) =>
-            Mathf.Abs(a.background.r - b.background.r) + Mathf.Abs(a.background.g - b.background.g) + Mathf.Abs(a.background.b - b.background.b) +
-            Mathf.Abs(a.panel.r - b.panel.r) + Mathf.Abs(a.panel.g - b.panel.g) + Mathf.Abs(a.panel.b - b.panel.b) +
-            Mathf.Abs(a.border.r - b.border.r) + Mathf.Abs(a.border.g - b.border.g) + Mathf.Abs(a.border.b - b.border.b) +
-            Mathf.Abs(a.accent.r - b.accent.r) + Mathf.Abs(a.accent.g - b.accent.g) + Mathf.Abs(a.accent.b - b.accent.b) +
-            Mathf.Abs(a.bright.r - b.bright.r) + Mathf.Abs(a.bright.g - b.bright.g) + Mathf.Abs(a.bright.b - b.bright.b);
+            ColorDiff(a.background, b.background) + ColorDiff(a.panel, b.panel) + ColorDiff(a.border, b.border) +
+            ColorDiff(a.accent, b.accent) + ColorDiff(a.bright, b.bright) + ColorDiff(a.muted, b.muted) +
+            Mathf.Abs(a.opacity - b.opacity) + Mathf.Abs(a.accentAmount - b.accentAmount) +
+            Mathf.Abs(a.rounding - b.rounding) + Mathf.Abs(a.rowHeight - b.rowHeight) / 24f;
 
         int Radius(float baseRadius) => Mathf.Max(1, Mathf.RoundToInt(baseRadius * (UI.Instance != null ? UI.Instance.UiRounding : 1f)));
 
@@ -1705,6 +1706,11 @@ namespace Nova.Menu
             }
         }
 
+        int statFps = -2, statMinute = -2;
+        TMP_Text statOn;
+        bool themePending;
+        Theme themeSeen;
+
         void UpdateCursor()
         {
             if (!open || XRSettings.isDeviceActive || !Application.isFocused)
@@ -1712,21 +1718,14 @@ namespace Nova.Menu
                 ReleaseCursor();
                 return;
             }
-            if (!cursorHeld)
-            {
-                cursorVisible = Cursor.visible;
-                cursorLock = Cursor.lockState;
-                cursorHeld = true;
-            }
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
+            cursorHeld = true;
+            FreeCursor.Hold(this);
         }
 
         void ReleaseCursor()
         {
             if (!cursorHeld) return;
-            Cursor.visible = cursorVisible;
-            Cursor.lockState = cursorLock;
+            FreeCursor.Release(this);
             cursorHeld = false;
         }
 
@@ -1770,7 +1769,18 @@ namespace Nova.Menu
             if (open && Time.unscaledTime >= nextThemeCheck)
             {
                 nextThemeCheck = Time.unscaledTime + 0.5f;
-                if (ThemeDiff(CurrentTheme(), themeStamp) > 0.02f) Rebuild();
+
+                // The GUI eases between colours; the HUD is rebuilt once they have settled,
+                // instead of several times along the way.
+                Theme current = CurrentTheme();
+                if (ThemeDiff(current, themeStamp) > 0.02f)
+                {
+                    if (themePending && ThemeDiff(current, themeSeen) < 0.005f) Rebuild();
+                    themePending = true;
+                    themeSeen = current;
+                }
+                else
+                    themePending = false;
             }
 
             bool nowDisconnect = DisconnectEnabled();
@@ -1794,7 +1804,7 @@ namespace Nova.Menu
 
                 bool want;
                 if (window == keyboardWindow) want = open && keyboardOpen;
-                else if (window == resultsWindow) want = open && search.Trim().Length > 0;
+                else if (window == resultsWindow) want = open && !string.IsNullOrWhiteSpace(search);
                 else want = open && (window.sidebar || window.state.openWindow);
                 window.showTarget = want ? 1f : 0f;
                 if (window.showTarget > 0f && !window.root.activeSelf)
@@ -1852,12 +1862,22 @@ namespace Nova.Menu
             ApplyFont();
             if (open && openAmount > 0.6f) HandleInput();
 
+            // The FPS changes twice a second and the clock once a minute, so that is when the
+            // text is rebuilt.
             if (watermarkStat != null)
             {
-                string status = "";
-                if (ShowFps) status += Mathf.RoundToInt(fps) + " FPS";
-                if (ShowClock) { if (status.Length > 0) status += "  |  "; status += DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture); }
-                watermarkStat.text = status;
+                int shownFps = ShowFps ? Mathf.RoundToInt(fps) : -1;
+                int minute = ShowClock ? DateTime.Now.Minute : -1;
+                if (shownFps != statFps || minute != statMinute || watermarkStat != statOn)
+                {
+                    statFps = shownFps;
+                    statMinute = minute;
+                    statOn = watermarkStat;
+                    string status = "";
+                    if (ShowFps) status += shownFps + " FPS";
+                    if (ShowClock) { if (status.Length > 0) status += "  |  "; status += DateTime.Now.ToString("h:mm tt", CultureInfo.InvariantCulture); }
+                    watermarkStat.text = status;
+                }
             }
         }
     }

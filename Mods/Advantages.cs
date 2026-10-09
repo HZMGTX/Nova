@@ -46,6 +46,17 @@ namespace Nova.Mods
     {
         public static bool instantTag = true;
 
+        // The override Tag Self installed, so disabling only clears it if nothing else replaced it
+        private static System.Func<bool> tagSelfOverride;
+        public static void DisableTagSelf()
+        {
+            if (tagSelfOverride != null && SerializePatch.OverrideSerialization == tagSelfOverride)
+                SerializePatch.OverrideSerialization = null;
+
+            tagSelfOverride = null;
+            Movement.EnableRig();
+        }
+
         public static void TagSelf()
         {
             static void TurnOff()
@@ -78,9 +89,16 @@ namespace Nova.Mods
                                     + r.LatestVelocity().magnitude)
                         .FirstOrDefault();
 
+                    if (rig == null)
+                    {
+                        if (tagSelfOverride != null && SerializePatch.OverrideSerialization == tagSelfOverride)
+                            SerializePatch.OverrideSerialization = null;
+                        return;
+                    }
+
                     if (instantTag)
                     {
-                        SerializePatch.OverrideSerialization = () =>
+                        tagSelfOverride = () =>
                         {
                             if (VRRig.LocalRig.IsTagged())
                                 return true;
@@ -96,6 +114,7 @@ namespace Nova.Mods
 
                             return false;
                         };
+                        SerializePatch.OverrideSerialization = tagSelfOverride;
                     }
                     else
                     {
@@ -218,7 +237,7 @@ namespace Nova.Mods
                 }
 
                 if (!GetGunInput(true)) return;
-                VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                 if (!gunTarget || gunTarget.IsLocal()) return;
                 if (!PhotonNetwork.IsMasterClient) return;
                 gunLocked = true;
@@ -258,7 +277,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -296,7 +315,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -389,7 +408,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -491,7 +510,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -562,6 +581,9 @@ namespace Nova.Mods
                     VRRig.LocalRig.transform.position = targetRig.transform.position - new Vector3(0f, 3f, 0f);
                 else
                 {
+                    if (lockTarget == null)
+                        return;
+
                     Vector3 position = targetRig.transform.position + RandomVector3();
 
                     VRRig.LocalRig.transform.position = position;
@@ -607,7 +629,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && gunTarget.IsTagged())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -759,7 +781,7 @@ namespace Nova.Mods
                 {
                     try
                     {
-                        VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                        VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                         if (gunTarget && !gunTarget.IsLocal())
                         {
                             tagGunDelay = Time.time + 0.2f;
@@ -983,7 +1005,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -1027,7 +1049,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer owner = GetPlayerFromVRRig(gunTarget);
@@ -1102,7 +1124,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer owner = GetPlayerFromVRRig(gunTarget);

@@ -87,6 +87,22 @@ namespace Nova.Menu
             public string description;
             public string rawTitle;
             public string rawDescription;
+            private string tip, tipTitle, tipDescription;
+
+            /// <summary>"Title: description", built again only when either changes.</summary>
+            public string Tip
+            {
+                get
+                {
+                    if (tip == null || !ReferenceEquals(tipTitle, title) || !ReferenceEquals(tipDescription, description))
+                    {
+                        tipTitle = title;
+                        tipDescription = description;
+                        tip = title + ": " + description;
+                    }
+                    return tip;
+                }
+            }
         }
 
         private sealed class Panel
@@ -108,6 +124,10 @@ namespace Nova.Menu
             public bool hasTarget;
             public Rect target;
             public readonly Scroll scroll = new Scroll();
+            public readonly List<Entry> filtered = new List<Entry>();
+            public int filteredVersion = -1;
+            public string filteredSearch;
+            public bool filteredSorted, filteredIndexed;
         }
 
         private readonly List<Panel> panels = new List<Panel>();
@@ -132,7 +152,8 @@ namespace Nova.Menu
         private bool fontChecked;
         private Texture2D logoRecolor;
         private Texture2D logoRecolorSource;
-        private float logoRecolorHue = -1f;
+        private Color logoRecolorAccent = new Color(-1f, -1f, -1f);
+        private bool logoRecolorFailed;
         private float logoRecolorAt;
         private Panel activePanel;
         private int panelId;
@@ -142,8 +163,6 @@ namespace Nova.Menu
         private bool isOpen;
         private bool textFocused;
         private bool cursorHeld;
-        private bool oldCursorVisible;
-        private CursorLockMode oldCursorLock;
         private bool refresh = true;
         private bool focusSearch;
         private float fade;
@@ -241,7 +260,10 @@ namespace Nova.Menu
             if (saveAt > 0 && Time.unscaledTime >= saveAt) SaveOptions();
             if (Time.unscaledTime >= cleanAt)
             {
-                foreach (string key in motions.Where(pair => Time.unscaledTime - pair.Value.seen > 10).Select(pair => pair.Key).ToArray()) motions.Remove(key);
+                staleMotions.Clear();
+                foreach (KeyValuePair<MotionKey, Motion> pair in motions)
+                    if (Time.unscaledTime - pair.Value.seen > 10) staleMotions.Add(pair.Key);
+                foreach (MotionKey key in staleMotions) motions.Remove(key);
                 cleanAt = Time.unscaledTime + 10;
             }
         }
@@ -262,14 +284,8 @@ namespace Nova.Menu
             }
             if (isOpen && Application.isFocused && !Hud.HasMouse)
             {
-                if (!cursorHeld)
-                {
-                    oldCursorVisible = Cursor.visible;
-                    oldCursorLock = Cursor.lockState;
-                    cursorHeld = true;
-                }
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                cursorHeld = true;
+                FreeCursor.Hold(this);
             }
             else ReleaseCursor();
         }
@@ -300,8 +316,7 @@ namespace Nova.Menu
             ResetPointer();
             draggingWindow = false;
             if (!cursorHeld) return;
-            Cursor.lockState = oldCursorLock;
-            Cursor.visible = oldCursorVisible;
+            FreeCursor.Release(this);
             cursorHeld = false;
             textFocused = false;
             ClearInput();
@@ -466,12 +481,17 @@ namespace Nova.Menu
         private static bool CanSee(string name) =>
             name != "Internal Mods" && (isAdmin || (!name.Contains("Admin") && name != "Mod Givers"));
 
+        private readonly HashSet<ButtonInfo> refreshSeen = new HashSet<ButtonInfo>();
+        private readonly List<ButtonInfo> refreshRemoved = new List<ButtonInfo>();
+
         private void Refresh()
         {
             refresh = false;
             nextRefresh = Time.unscaledTime + 0.2f;
+            entriesVersion++;
             categories.Clear();
-            var seen = new HashSet<ButtonInfo>();
+            HashSet<ButtonInfo> seen = refreshSeen;
+            seen.Clear();
             ButtonInfo[][] groups = Buttons.buttons;
             string[] names = Buttons.categoryNames;
             if (groups == null || names == null) { entries.Clear(); return; }
@@ -510,7 +530,10 @@ namespace Nova.Menu
             if (entryCount < entries.Count) entries.RemoveRange(entryCount, entries.Count - entryCount);
             if (switches.Count > entries.Count + 100)
             {
-                foreach (ButtonInfo removed in switches.Keys.Where(key => !seen.Contains(key)).ToArray())
+                refreshRemoved.Clear();
+                foreach (ButtonInfo key in switches.Keys)
+                    if (!seen.Contains(key)) refreshRemoved.Add(key);
+                foreach (ButtonInfo removed in refreshRemoved)
                     switches.Remove(removed);
             }
             UpdateArraylist();
@@ -519,11 +542,27 @@ namespace Nova.Menu
         private static bool Matches(string value, string query) => value?.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
         private static string Plain(string value) => string.IsNullOrEmpty(value) ? "" : tags.Replace(value, "");
 
-        private List<Entry> FilterPanel(Panel panel, List<Entry> output)
+        private int entriesVersion;
+        private readonly HashSet<ButtonInfo> filterShown = new HashSet<ButtonInfo>();
+
+        /// <summary>A panel's rows, worked out again only when the mods, the search or the sort order change.</summary>
+        private List<Entry> FilterPanel(Panel panel)
         {
+            List<Entry> output = panel.filtered;
+            bool indexed = indexedResultsReady && indexedQuery == search.Trim();
+            if (panel.filteredVersion == entriesVersion && ReferenceEquals(panel.filteredSearch, search) &&
+                panel.filteredSorted == options.sortModules && panel.filteredIndexed == indexed)
+                return output;
+
+            panel.filteredVersion = entriesVersion;
+            panel.filteredSearch = search;
+            panel.filteredSorted = options.sortModules;
+            panel.filteredIndexed = indexed;
+
             output.Clear();
             string query = search.Trim();
-            var shown = new HashSet<ButtonInfo>();
+            HashSet<ButtonInfo> shown = filterShown;
+            shown.Clear();
             foreach (Entry entry in entries)
             {
                 ButtonInfo button = entry.button;
@@ -543,7 +582,7 @@ namespace Nova.Menu
                             if (!indexedResults.Contains(entry)) continue;
                         }
                         else if (!Matches(entry.title, query) && !Matches(button.buttonText, query) &&
-                            !Matches(entry.category, query) && !(button.aliases?.Any(alias => Matches(alias, query)) ?? false)) continue;
+                            !Matches(entry.category, query) && !AliasMatches(button, query)) continue;
                         break;
                     default:
                         if (entry.category != panel.category) continue;
@@ -551,9 +590,34 @@ namespace Nova.Menu
                 }
                 if (shown.Add(button)) output.Add(entry);
             }
-            if (options.sortModules) output.Sort((a, b) => string.Compare(a.title, b.title, StringComparison.OrdinalIgnoreCase));
+            if (options.sortModules) output.Sort(ByTitle);
             return output;
         }
+
+        private static readonly Comparison<Entry> ByTitle = (a, b) => string.Compare(a.title, b.title, StringComparison.OrdinalIgnoreCase);
+
+        private static bool AliasMatches(ButtonInfo button, string query)
+        {
+            if (button.aliases == null) return false;
+            foreach (string alias in button.aliases)
+                if (Matches(alias, query)) return true;
+            return false;
+        }
+
+        private readonly Dictionary<int, Dictionary<string, string>> panelMapKeys = new Dictionary<int, Dictionary<string, string>>();
+
+        /// <summary>The panelMap key for a panel kind and category, made once instead of on every GUI event.</summary>
+        private string PanelMapKey(int kind, string category)
+        {
+            if (!panelMapKeys.TryGetValue(kind, out Dictionary<string, string> byCategory))
+                panelMapKeys[kind] = byCategory = new Dictionary<string, string>();
+            string name = category ?? "";
+            if (!byCategory.TryGetValue(name, out string key))
+                byCategory[name] = key = kind + ":" + name;
+            return key;
+        }
+
+        private readonly GUIContent launcherContent = new GUIContent();
 
         private Font UiFont()
         {
@@ -642,7 +706,7 @@ namespace Nova.Menu
                 if (Time.unscaledTime < statusUntil)
                 {
                     float alpha = Animate("status", Mathf.Clamp01((statusUntil - Time.unscaledTime) * 3));
-                    float toastWidth = Mathf.Min(600, smallStyle.CalcSize(new GUIContent(status)).x + 32);
+                    float toastWidth = Mathf.Min(600, smallStyle.CalcSize(Measure(status)).x + 32);
                     float screenWidth = ViewWidth / scale;
                     float screenHeight = ViewHeight / scale;
                     Box(new Rect((screenWidth - toastWidth) / 2, screenHeight - 42, toastWidth, 28), Alpha(this.panel, alpha), 4);
@@ -947,7 +1011,7 @@ namespace Nova.Menu
             if (bodyFade > 0.5f && options.showGrips)
             {
                 bool gripHover = pointerInside && new Rect(w - 18, h - 18, 18, 18).Contains(GuiPoint);
-                float glow = Animate("grip-" + deck.key, gripHover ? 1 : 0);
+                float glow = Animate(new MotionKey("grip", deck.key), gripHover ? 1 : 0);
                 Color grip = Alpha(Color.Lerp(muted, accent, glow), 0.35f + glow * 0.65f);
                 for (int r = 0; r < 3; r++)
                     for (int c = 0; c <= r; c++)
@@ -964,18 +1028,21 @@ namespace Nova.Menu
             Texture2D logo = customWatermark ?? watermarkImage;
             if (!disableWatermark && logo != null)
             {
-                Color.RGBToHSV(accent, out float _, out float sat, out float _);
-                if (logoRecolor == null || logoRecolorSource != logo ||
-                    (Time.unscaledTime - logoRecolorAt > 0.12f && Mathf.Abs(logoRecolorHue - sat) > 0.02f))
+                // Any change of accent re-tints the logo, not just a change in saturation, and a
+                // logo that can't be recoloured is tried again every few seconds, not every frame.
+                bool accentChanged = Mathf.Abs(logoRecolorAccent.r - accent.r) + Mathf.Abs(logoRecolorAccent.g - accent.g) + Mathf.Abs(logoRecolorAccent.b - accent.b) > 0.02f;
+                bool due = Time.unscaledTime - logoRecolorAt > (logoRecolorFailed ? 5f : 0.12f);
+                if (due && (logoRecolor == null || logoRecolorSource != logo || accentChanged))
                 {
+                    logoRecolorAt = Time.unscaledTime;
                     Texture2D recolored = RecolorLogo(logo, accent);
+                    logoRecolorFailed = recolored == null;
                     if (recolored != null)
                     {
                         if (logoRecolor != null) Destroy(logoRecolor);
                         logoRecolor = recolored;
                         logoRecolorSource = logo;
-                        logoRecolorHue = sat;
-                        logoRecolorAt = Time.unscaledTime;
+                        logoRecolorAccent = accent;
                     }
                 }
                 TintTexture(new Rect(rect.x, rect.y + 1, 22, 22), logoRecolor != null ? logoRecolor : logo,
@@ -1017,18 +1084,19 @@ namespace Nova.Menu
         private void LauncherRow(Panel launcher, string label, int kind, string category, int index)
         {
             Rect row = new Rect(0, index * 24, launcher.rect.width - 30, 22);
-            float hover = Hover("launch-" + kind + category, row);
-            bool open = panelMap.TryGetValue(kind + ":" + (category ?? ""), out Panel existing) && existing.open;
+            float hover = Hover(new MotionKey("launch", category, null, kind), row);
+            bool open = panelMap.TryGetValue(PanelMapKey(kind, category), out Panel existing) && existing.open;
             Box(row, Alpha(accent, (open ? 0.2f : 0f) + hover * 0.08f), 3);
-            if (MenuButton(row, new GUIContent("", label), GUIStyle.none)) TogglePanel(kind, category);
+            launcherContent.text = "";
+            launcherContent.tooltip = label;
+            if (MenuButton(row, launcherContent, GUIStyle.none)) TogglePanel(kind, category);
             Label(new Rect(row.x + 12, row.y, row.width - 16, row.height), label, smallStyle, open ? bright : Color.Lerp(muted, bright, hover * 0.6f));
         }
 
-        private readonly List<Entry> panelEntries = new List<Entry>();
 
         private void DrawModulesBody(Panel panel, float w, float h)
         {
-            List<Entry> list = FilterPanel(panel, panelEntries);
+            List<Entry> list = FilterPanel(panel);
             if (panel.kind == PanelSearch)
             {
                 string value = Input(new Rect(8, 30, w - 16, 22), search, "search", "Search...");
@@ -1076,9 +1144,9 @@ namespace Nova.Menu
                 amount = Mathf.Lerp(amount, button.enabled ? 1 : 0, options.animations ? Ease(16) : 1);
                 switches[button] = amount;
             }
-            float lift = Hover("grow-" + deck.key + "-" + button.buttonText, rect);
+            float lift = Hover(new MotionKey("grow", deck.key, button.buttonText), rect);
             Box(rect, Alpha(accent, amount * 0.22f * options.accentAmount + lift * 0.08f), 3);
-            if (hover) tip = blocked ? "Enable detected mods in the Detected Mods category first" : entry.title + ": " + entry.description;
+            if (hover) tip = blocked ? "Enable detected mods in the Detected Mods category first" : entry.Tip;
 
             bool starred = favorites.Contains(button.buttonText);
             Label(new Rect(rect.x + 10, rect.y, rect.width - 42, rect.height), entry.title, smallStyle,
@@ -1294,18 +1362,43 @@ namespace Nova.Menu
             if (valid) Box(new Rect(274 + pw, 118, 24, 24), new Color32(r, g, b, 255), 3);
         }
 
+        private int linesVersion, consoleVersion = -1;
+        private float consoleWidth = -1, consoleHeight;
+        private string[] consoleLines = Array.Empty<string>();
+        private float[] consoleLineHeights = Array.Empty<float>();
+
         private void DrawConsoleBody(Panel deck, float w, float h)
         {
-            string[] snapshot;
-            lock (lines) snapshot = lines.ToArray();
-            float contentHeight = 8;
-            foreach (string line in snapshot) contentHeight += wrapStyle.CalcHeight(new GUIContent(line), w - 60) + 6;
-            BeginScroll(new Rect(8, 30, w - 16, h - 82), deck.scroll, contentHeight);
-            float y = 4;
-            foreach (string line in snapshot)
+            // The lines are copied and measured again only when one is added or the panel is
+            // resized, not twice over on every GUI event.
+            int version;
+            lock (lines)
             {
-                float lineHeight = wrapStyle.CalcHeight(new GUIContent(line), w - 60);
-                Label(new Rect(6, y, w - 60, lineHeight), line, wrapStyle);
+                version = linesVersion;
+                if (version != consoleVersion) consoleLines = lines.ToArray();
+            }
+            if (version != consoleVersion || !Mathf.Approximately(w, consoleWidth))
+            {
+                consoleVersion = version;
+                consoleWidth = w;
+                if (consoleLineHeights.Length != consoleLines.Length) consoleLineHeights = new float[consoleLines.Length];
+                consoleHeight = 8;
+                for (int i = 0; i < consoleLines.Length; i++)
+                {
+                    consoleLineHeights[i] = wrapStyle.CalcHeight(Measure(consoleLines[i]), w - 60);
+                    consoleHeight += consoleLineHeights[i] + 6;
+                }
+            }
+
+            Rect view = new Rect(8, 30, w - 16, h - 82);
+            BeginScroll(view, deck.scroll, consoleHeight);
+            float y = 4;
+            float top = deck.scroll.value, bottom = deck.scroll.value + view.height;
+            for (int i = 0; i < consoleLines.Length; i++)
+            {
+                float lineHeight = consoleLineHeights[i];
+                if (y + lineHeight >= top && y <= bottom)
+                    Label(new Rect(6, y, w - 60, lineHeight), consoleLines[i], wrapStyle);
                 y += lineHeight + 6;
             }
             EndScroll();
@@ -1318,23 +1411,36 @@ namespace Nova.Menu
             }
         }
 
+        private string tipMeasured;
+        private float tipHeight;
+
         private void DrawTip()
         {
             if (tip != lastTip) { lastTip = tip; tipSince = Time.unscaledTime; }
-            if (!options.tooltips || tip.Length < 40 || Time.unscaledTime - tipSince < 0.5f) return;
+            if (!options.tooltips || string.IsNullOrEmpty(tip) || Time.unscaledTime - tipSince < 0.5f) return;
             float opacity = Mathf.Clamp01((Time.unscaledTime - tipSince - 0.5f) * 7);
             if (!options.animations) opacity = 1;
             Color before = GUI.color;
             GUI.color = new Color(1, 1, 1, before.a * opacity);
-            float height = Mathf.Min(360, wrapStyle.CalcHeight(new GUIContent(tip), 366) + 24);
+            if (!ReferenceEquals(tip, tipMeasured))
+            {
+                tipMeasured = tip;
+                tipHeight = Mathf.Min(360, wrapStyle.CalcHeight(Measure(tip), 366) + 24);
+            }
+            float height = tipHeight;
             Vector2 mouse = GuiPoint;
-            float x = Mathf.Clamp(mouse.x + 16, 12, 658);
-            float y = Mathf.Clamp(mouse.y + 20 + (1 - opacity) * 6, 12, 634 - height);
+            float scale = ScreenScale();
+            float screenWidth = ViewWidth / scale, screenHeight = ViewHeight / scale;
+            float x = Mathf.Clamp(mouse.x + 16, 12, Mathf.Max(12, screenWidth - 390 - 12));
+            float y = Mathf.Clamp(mouse.y + 20 + (1 - opacity) * 6, 12, Mathf.Max(12, screenHeight - height - 12));
             Box(new Rect(x, y, 390, height), border, 7);
             Box(new Rect(x + 1, y + 1, 388, height - 2), panel, 6);
             Label(new Rect(x + 12, y + 12, 366, height - 24), tip, wrapStyle);
             GUI.color = before;
         }
+
+        private string promptMessageSource, promptMessage;
+        private float promptMessageHeight;
 
         private void DrawPrompt()
         {
@@ -1353,8 +1459,14 @@ namespace Nova.Menu
             Box(new Rect(sx, sy, 560, 365), border, 8);
             Box(new Rect(sx + 1, sy + 1, 558, 363), panel, 7);
             Label(new Rect(sx + 26, sy + 22, 490, 28), "Nova", titleStyle);
-            string message = Plain(prompt.Message);
-            float height = wrapStyle.CalcHeight(new GUIContent(message), 484);
+            if (!ReferenceEquals(prompt.Message, promptMessageSource))
+            {
+                promptMessageSource = prompt.Message;
+                promptMessage = Plain(prompt.Message);
+                promptMessageHeight = wrapStyle.CalcHeight(Measure(promptMessage), 484);
+            }
+            string message = promptMessage;
+            float height = promptMessageHeight;
             BeginScroll(new Rect(sx + 26, sy + 74, 508, 155), promptScroll, height);
             Label(new Rect(0, 0, 484, height), message, wrapStyle);
             EndScroll();
@@ -1374,7 +1486,7 @@ namespace Nova.Menu
         {
             string id = "ui-" + name;
             bool focused = focusedInput == id;
-            float amount = Animate("input-" + name, focused ? 1 : 0);
+            float amount = Animate(new MotionKey("input", name), focused ? 1 : 0);
             Box(rect, Color.Lerp(border, accent, amount), 4);
             Box(new Rect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2), background, 3);
 
@@ -1398,7 +1510,7 @@ namespace Nova.Menu
         private void Caret(Rect rect, string text)
         {
             if (Mathf.Repeat(Time.unscaledTime, 1f) >= 0.5f) return;
-            float width = Mathf.Min(textStyle.CalcSize(new GUIContent(text)).x, rect.width - 2);
+            float width = Mathf.Min(textStyle.CalcSize(Measure(text)).x, rect.width - 2);
             Box(new Rect(rect.x + width + 1, rect.y + 4, 1, rect.height - 8), bright, 0);
         }
 
@@ -1454,8 +1566,9 @@ namespace Nova.Menu
 
         private bool TextButton(Rect rect, string text)
         {
-            float hover = Hover("button-" + text + rect.x, rect);
-            float pressed = Animate("press-" + text + rect.x, GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
+            MotionKey key = WidgetKey("button", text, rect);
+            float hover = Hover(key, rect);
+            float pressed = Animate(new MotionKey("press", text, null, key.GetHashCode()), GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
             Rect drawn = new Rect(rect.x + pressed, rect.y + pressed, rect.width - pressed * 2, rect.height - pressed * 2);
             Box(drawn, Color.Lerp(border, accent, hover * 0.4f), 4);
             Box(new Rect(drawn.x + 1, drawn.y + 1, drawn.width - 2, drawn.height - 2), Color.Lerp(panel, accent, hover * 0.12f), 3);
@@ -1466,8 +1579,9 @@ namespace Nova.Menu
 
         private bool IconButton(Rect rect, string name, string tooltip, Color? color = null)
         {
-            float hover = Hover("icon-" + name + rect.x + rect.y, rect);
-            float pressed = Animate("icon-press-" + name + rect.x + rect.y, GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
+            MotionKey key = WidgetKey("icon", name, rect);
+            float hover = Hover(key, rect);
+            float pressed = Animate(new MotionKey("icon-press", name, null, key.GetHashCode()), GUI.enabled && pointerInside && rect.Contains(GuiPoint) && PointerHeld ? 1 : 0, 24);
             Rect drawn = new Rect(rect.x + pressed, rect.y + pressed, rect.width - pressed * 2, rect.height - pressed * 2);
             float amount = Mathf.Max(hover, pressed);
             if (amount > 0.01f) Box(drawn, Alpha(accent, amount * 0.18f), 3);
@@ -1592,7 +1706,7 @@ namespace Nova.Menu
             string text = Plain(value);
             status = text;
             statusUntil = Time.unscaledTime + 5;
-            motions.Remove("status");
+            motions.Remove(new MotionKey("status"));
             NotificationManager.SendNotification("<color=grey>[</color><color=#" + ColorUtility.ToHtmlStringRGB(accent) + ">Nova</color><color=grey>]</color> " + text);
         }
 
@@ -1602,6 +1716,7 @@ namespace Nova.Menu
             {
                 lines.Add(Plain(text));
                 if (lines.Count > 200) lines.RemoveAt(0);
+                linesVersion++;
             }
         }
 

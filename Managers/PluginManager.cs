@@ -26,13 +26,14 @@
 using Nova.Classes.Menu;
 using Nova.Menu;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Networking;
 using static Nova.Menu.Main;
 using static Nova.Utilities.FileUtilities;
 
@@ -59,8 +60,6 @@ namespace Nova.Managers
             public MethodInfo[] OnGUI;
             public MethodInfo[] Update;
         }
-
-        private static readonly HttpClient httpClient = new HttpClient();
 
         public static readonly List<Plugin> Plugins = new List<Plugin>();
         public static void LoadPlugins()
@@ -163,21 +162,33 @@ namespace Nova.Managers
             }
 
             string destination = Path.Combine($"{PluginInfo.BaseDirectory}/Plugins", filename);
+            CoroutineManager.instance.StartCoroutine(DownloadPluginCoroutine(name, uri, destination));
+        }
+
+        private static IEnumerator DownloadPluginCoroutine(string name, Uri uri, string destination)
+        {
+            using UnityWebRequest request = UnityWebRequest.Get(uri);
+            yield return request.SendWebRequest();
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                LogManager.Log("Error downloading plugin " + name + ": " + request.error);
+                NotificationManager.SendNotification("<color=grey>[</color><color=red>FAILED</color><color=grey>]</color> Could not download " + name + ".");
+                yield break;
+            }
 
             try
             {
-                byte[] data = httpClient.GetByteArrayAsync(uri).GetAwaiter().GetResult();
-
                 if (File.Exists(destination))
                     File.Delete(destination);
 
-                File.WriteAllBytes(destination, data);
+                File.WriteAllBytes(destination, request.downloadHandler.data);
             }
             catch (Exception e)
             {
                 LogManager.Log("Error downloading plugin " + name + ": " + e);
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>FAILED</color><color=grey>]</color> Could not download " + name + ".");
-                return;
+                yield break;
             }
 
             LoadPlugins();
