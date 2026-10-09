@@ -120,6 +120,10 @@ namespace Nova.Utilities
                 if (!Directory.Exists(directory))
                     Directory.CreateDirectory(directory);
 
+                // The file was deleted since it was fetched (e.g. the soundboard re-downloads it), so fetch it again
+                if (!File.Exists(filePath) && !downloadingSounds.Contains(fileName))
+                    downloadedSounds.Remove(fileName);
+
                 if (downloadedSounds.Add(fileName))
                 {
                     downloadingSounds.Add(fileName);

@@ -24,6 +24,7 @@
  */
 
 using HarmonyLib;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using static Nova.Menu.Main;
@@ -79,17 +80,50 @@ namespace Nova.Patches.Menu
             material.color = backgroundColor.GetColor(0);
 
             if (material != CrystalMaterial)
-                __result.AddComponent<MaterialInstanceCleanup>().material = material;
+                __result.AddComponent<MaterialInstanceCleanup>().Track(material);
         }
     }
 
-    // Destroys the material instance created by ShaderFix along with its object
+    // Destroys the material instance created by ShaderFix once the last object using it is destroyed.
+    // Instantiate copies this component and the renderer's material reference, so clones share the
+    // instance and are counted too.
     public class MaterialInstanceCleanup : MonoBehaviour
     {
+        private static readonly Dictionary<Material, int> users = new Dictionary<Material, int>();
+
         public Material material;
+
+        public void Track(Material instance)
+        {
+            material = instance;
+            Retain();
+        }
+
+        // Only has a material here when this is a copy made by Instantiate
+        private void Awake()
+        {
+            if (material != null)
+                Retain();
+        }
+
+        private void Retain()
+        {
+            users.TryGetValue(material, out int count);
+            users[material] = count + 1;
+        }
 
         private void OnDestroy()
         {
+            if (ReferenceEquals(material, null))
+                return;
+
+            if (users.TryGetValue(material, out int count) && count > 1)
+            {
+                users[material] = count - 1;
+                return;
+            }
+
+            users.Remove(material);
             if (material != null)
                 Destroy(material);
         }

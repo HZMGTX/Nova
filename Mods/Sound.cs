@@ -487,7 +487,7 @@ namespace Nova.Mods
 
             LoadSoundFromURL(url, filename, clip =>
             {
-                if (clip.length < 20f)
+                if (clip != null && clip.length < 20f)
                     Play2DAudio(clip);
             });
 

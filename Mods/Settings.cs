@@ -460,6 +460,9 @@ namespace Nova.Mods
                     continue;
                 if (button.method == null && button.postMethod == null)
                     continue;
+                // A block is meant to outlast the page; its serialization override keeps running off Blocked
+                if (button.buttonText == "Block Player")
+                    continue;
 
                 button.enabled = false;
                 try { button.disableMethod?.Invoke(); }
@@ -4036,7 +4039,7 @@ exit 0";
             narratorIndex = index;
             narratorName = NarratorNames[index];
 
-            if (krec != null && krec.IsRunning && Time.time > dRestartTime)
+            if (krec != null && krec.IsRunning && Time.time > dRestartTime && !VoiceCommandsOn())
             {
                 CoroutineManager.instance.StartCoroutine(DictationRestart());
                 dRestartTime = Time.time + 1f;
@@ -4197,7 +4200,7 @@ exit 0";
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are not focused on Gorilla Tag. Voice transcription mods will not function. Please focus/click on the game.");
 
             // Dictation dies while unfocused, so restart it once when focus returns.
-            if (focused && !lastFocused && Buttons.GetIndex("AI Assistant")?.enabled == true)
+            if (focused && !lastFocused && Buttons.GetIndex("AI Assistant")?.enabled == true && !VoiceCommandsOn())
                 CoroutineManager.instance.StartCoroutine(DictationRestart());
 
             lastFocused = focused;
@@ -4409,7 +4412,8 @@ exit 0";
                 File.WriteAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt", keyWords);
             keyWords = File.ReadAllLines($"{PluginInfo.BaseDirectory}/Nova_Keywords.txt");
 
-            while (mod.enabled && PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped)
+            // Also wait for the Voice Commands prompt to be answered, so krec never starts alongside it
+            while (mod.enabled && (vc.enabled || PhraseRecognitionSystem.Status != SpeechSystemStatus.Stopped))
                 yield return null;
 
             if (!mod.enabled)
@@ -4526,6 +4530,9 @@ exit 0";
             drec?.Start();
             yield break;
         }
+
+        // A restart shuts the whole speech system down, which would also kill Voice Commands' recognizer
+        private static bool VoiceCommandsOn() => Buttons.GetIndex("Voice Commands")?.enabled == true;
 
         public static IEnumerator DictationRestart()
         {
