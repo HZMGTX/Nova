@@ -628,15 +628,15 @@ namespace Nova.Menu
             new[] { // Movement Mods [9]
                 new ButtonInfo { buttonText = "Exit Movement Mods", method =() => CurrentCategoryName = "Main", isTogglable = false, toolTip = "Returns you back to the main page.", legal = true},
 
-                new ButtonInfo { buttonText = "Platforms", overlapText = "Platforms <color=grey>[</color><color=green>G</color><color=grey>]</color>", postMethod =() => Movement.Platforms(), toolTip = "Spawns platforms on your hands when holding <color=green>grip</color>."},
-                new ButtonInfo { buttonText = "Trigger Platforms", overlapText = "Trigger Platforms <color=grey>[</color><color=green>T</color><color=grey>]</color>", postMethod =() => Movement.Platforms(leftTrigger > 0.5f, rightTrigger > 0.5f), toolTip = "Spawns platforms on your hands when holding <color=green>trigger</color>."},
-                new ButtonInfo { buttonText = "Frozone", overlapText = "Frozone <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.Frozone, toolTip = "Spawns slippery blocks under your hands using <color=green>grip</color>."},
+                new ButtonInfo { buttonText = "Platforms", overlapText = "Platforms <color=grey>[</color><color=green>G</color><color=grey>]</color>", postMethod =() => Movement.Platforms(), disableMethod = Movement.DisablePlatforms, toolTip = "Spawns platforms on your hands when holding <color=green>grip</color>."},
+                new ButtonInfo { buttonText = "Trigger Platforms", overlapText = "Trigger Platforms <color=grey>[</color><color=green>T</color><color=grey>]</color>", postMethod =() => Movement.Platforms(leftTrigger > 0.5f, rightTrigger > 0.5f), disableMethod = Movement.DisablePlatforms, toolTip = "Spawns platforms on your hands when holding <color=green>trigger</color>."},
+                new ButtonInfo { buttonText = "Frozone", overlapText = "Frozone <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.Frozone, disableMethod = Movement.DisableFrozone, toolTip = "Spawns slippery blocks under your hands using <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Platform Spam <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.PlatformSpam, toolTip = "Spawns legacy platforms rapidly at your hand for those who have networked platforms."},
                 new ButtonInfo { buttonText = "Platform Gun", method = Movement.PlatformGun, toolTip = "Spawns legacy platforms rapidly wherever your hand desires for those who have networked platforms."},
 
                 new ButtonInfo { buttonText = "Fly <color=grey>[</color><color=green>A</color><color=grey>]</color>", aliases = new[] { "Super Monke" }, method = Movement.Fly, toolTip = "Sends your character forwards when holding <color=green>A</color>."},
                 new ButtonInfo { buttonText = "Trigger Fly <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = Movement.TriggerFly, toolTip = "Sends your character forwards when holding <color=green>trigger</color>."},
-                new ButtonInfo { buttonText = "Noclip Fly <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Movement.NoclipFly, toolTip = "Sends your character forwards and makes you go through objects when holding <color=green>A</color>."},
+                new ButtonInfo { buttonText = "Noclip Fly <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Movement.NoclipFly, disableMethod = Movement.DisableNoclipFly, toolTip = "Sends your character forwards and makes you go through objects when holding <color=green>A</color>."},
                 new ButtonInfo { buttonText = "Joystick Fly <color=grey>[</color><color=green>J</color><color=grey>]</color>", method = Movement.JoystickFly, toolTip = "Sends your character in whatever direction you are pointing your <color=green>joystick</color> in."},
                 new ButtonInfo { buttonText = "Bark Fly <color=grey>[</color><color=green>J</color><color=grey>]</color>", postMethod = Movement.BarkFly, toolTip = "Acts like the fly that Bark has. Credits to KyleTheScientist."},
                 new ButtonInfo { buttonText = "Hand Fly <color=grey>[</color><color=green>A</color><color=grey>]</color>", method = Movement.HandFly, toolTip = "Sends your character in your hand's direction when holding <color=green>A</color>."},
@@ -657,7 +657,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Drive <color=grey>[</color><color=green>J</color><color=grey>]</color>", aliases = new[] { "Car Monke" }, method = Movement.Drive, toolTip = "Lets you drive around in your invisible car. Use the <color=green>joystick</color> to move."},
                 new ButtonInfo { buttonText = "Hard Drive <color=grey>[</color><color=green>J</color><color=grey>]</color>", overlapText = "Sticky Drive <color=grey>[</color><color=green>J</color><color=grey>]</color>", method = Movement.HardDrive, toolTip = "Similar to drive, but locks you to the ground."},
 
-                new ButtonInfo { buttonText = "Noclip <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = Movement.Noclip, toolTip = "Makes you go through objects when holding <color=green>trigger</color>."},
+                new ButtonInfo { buttonText = "Noclip <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = Movement.Noclip, disableMethod = Movement.DisableNoclip, toolTip = "Makes you go through objects when holding <color=green>trigger</color>."},
                 new ButtonInfo { buttonText = "Up And Down", method = Movement.UpAndDown, toolTip = "Makes you go up when holding your <color=green>trigger</color>, and down when holding your <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Left And Right", method = Movement.LeftAndRight, toolTip = "Makes you go left when holding your <color=green>trigger</color>, and right when holding your <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Forwards And Backwards", method = Movement.ForwardsAndBackwards, toolTip = "Makes you go forwards when holding your <color=green>trigger</color>, and backwards when holding your <color=green>grip</color>."},
@@ -668,7 +668,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Auto Funny Run <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.AutoFunnyRun, toolTip = "Makes your character automatically funny run when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Auto Pinch Climb <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.AutoPinchClimb, toolTip = "Makes your character automatically pinch climb when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Auto Elevator Climb <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.AutoElevatorClimb, toolTip = "Makes your character automatically elevator climb when holding <color=green>grip</color>."},
-                new ButtonInfo { buttonText = "Auto Branch <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.AutoBranch, toolTip = "Makes your character automatically branch when holding <color=green>grip</color>."},
+                new ButtonInfo { buttonText = "Auto Branch <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.AutoBranch, disableMethod = Movement.DisableAutoBranch, toolTip = "Makes your character automatically branch when holding <color=green>grip</color>."},
 
                 new ButtonInfo { buttonText = "Force Tag Freeze", method = Movement.ForceTagFreeze, disableMethod = Movement.NoTagFreeze, toolTip = "Forces tag freeze on your character."},
                 new ButtonInfo { buttonText = "No Tag Freeze", method = Movement.NoTagFreeze, toolTip = "Disables tag freeze on your character."},
@@ -683,7 +683,7 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Wall Walk <color=grey>[</color><color=green>G</color><color=grey>]</color>", postMethod = Movement.WallWalk, toolTip = "Makes you get brought towards any wall you touch when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Legitimate Wall Walk <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Movement.LegitimateWallWalk, toolTip = "Makes you get brought towards any wall you touch when holding <color=green>grip</color>, but less noticable."},
-                new ButtonInfo { buttonText = "Spider Walk", aliases = new[] { "Spider Monke", "Spider Monkey" }, method = Movement.SpiderWalk, disableMethod = Movement.UnflipCharacter, toolTip = "Makes your gravity and character towards any wall you touch. This may cause motion sickness."},
+                new ButtonInfo { buttonText = "Spider Walk", aliases = new[] { "Spider Monke", "Spider Monkey" }, method = Movement.SpiderWalk, disableMethod = Movement.DisableSpiderWalk, toolTip = "Makes your gravity and character towards any wall you touch. This may cause motion sickness."},
 
                 new ButtonInfo { buttonText = "Teleport to Random", method = Movement.TeleportToRandom, isTogglable = false, toolTip = "Teleports you to a random player."},
                 new ButtonInfo { buttonText = "Teleport to Map", method = Movement.EnterTeleportToMap, isTogglable = false, toolTip = "Teleports you to a map of your choosing."},
@@ -890,7 +890,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Tag Lag Detector", method = Important.TagLagDetector, toolTip = "Detects when the master client is not currently allowing tag requests."},
 
                 new ButtonInfo { buttonText = "Fake Lag", method = Movement.FakeLag, disableMethod =() => { SerializePatch.OverrideSerialization = null; PlayerSerializePatch.delay = null; }, toolTip = "Forces your ping to be high."},
-                new ButtonInfo { buttonText = "Lag Range", method = Movement.LagRange, toolTip = "Dynamically changes how much your rig updates depending on how close you are to others."},
+                new ButtonInfo { buttonText = "Lag Range", method = Movement.LagRange, disableMethod = Movement.DisableLagRange, toolTip = "Dynamically changes how much your rig updates depending on how close you are to others."},
                 new ButtonInfo { buttonText = "Blink", method = Movement.Blink, disableMethod = Movement.DisableBlink, toolTip = "Stops your client from sending and receiving player update packets."},
 
                 new ButtonInfo { buttonText = "Paintbrawl Aimbot", overlapText = "Slingshot Aimbot", enableMethod =() => GetLaunchPatch.enabled = true, method = Fun.DebugSlingshotAimbot, disableMethod =() => GetLaunchPatch.enabled = false, toolTip = "Redirects your slingshot to the closest nearby players."},

@@ -166,7 +166,7 @@ namespace Nova.Mods
             if (Buttons.GetIndex("Non-Sticky Platforms").enabled)
                 platform.transform.position += right * ((left ? 1f : -1f) * ((0.025f + platform.transform.localScale.x / 2f) * (scaleWithPlayer ? GTPlayer.Instance.scale : 1f)));
 
-            FriendManager.PlatformSpawned(true, platform.transform.position, platform.transform.rotation, platform.transform.localScale, GetPlatformPrimitiveType());
+            FriendManager.PlatformSpawned(left, platform.transform.position, platform.transform.rotation, platform.transform.localScale, GetPlatformPrimitiveType());
         }
 
         public static int flySpeedCycle = 1;
@@ -218,10 +218,10 @@ namespace Nova.Mods
                             leftplat = null;
                         else
                             rightplat = null;
-                        if (platformMode == 4 && rightplat == null)
+                        if (platformMode == 4 && leftplat == null && rightplat == null)
                             UpdateClipColliders(true);
 
-                        FriendManager.PlatformDespawned(true);
+                        FriendManager.PlatformDespawned(left);
                         break;
                     }
             }
@@ -234,6 +234,12 @@ namespace Nova.Mods
 
             ProcessPlatform(true, left ?? leftGrab);
             ProcessPlatform(false, right ?? rightGrab);
+        }
+
+        public static void DisablePlatforms()
+        {
+            ProcessPlatform(true, false);
+            ProcessPlatform(false, false);
         }
 
         private static readonly Dictionary<bool, List<GameObject>> frozonicPlatforms = new Dictionary<bool, List<GameObject>>();
@@ -279,9 +285,22 @@ namespace Nova.Mods
             {
                 int platformIndex = frozonicPlatformList.Count - 1;
 
-                Object.Destroy(frozonicPlatformList[platformIndex]);
+                DestroyFrozonePlatform(frozonicPlatformList[platformIndex]);
                 frozonicPlatformList.RemoveAt(platformIndex);
             }
+        }
+
+        private static void DestroyFrozonePlatform(GameObject platform)
+        {
+            if (platform == null)
+                return;
+
+            // The colour was set through .material, which cloned it
+            Renderer renderer = platform.GetComponent<Renderer>();
+            if (renderer != null)
+                Object.Destroy(renderer.sharedMaterial);
+
+            Object.Destroy(platform);
         }
 
         public static void Frozone()
@@ -292,23 +311,52 @@ namespace Nova.Mods
             GorillaTagger.Instance.bodyCollider.enabled = !(leftGrab || rightGrab);
         }
 
+        public static void DisableFrozone()
+        {
+            foreach (List<GameObject> frozonicPlatformList in frozonicPlatforms.Values)
+            {
+                foreach (GameObject platform in frozonicPlatformList)
+                    DestroyFrozonePlatform(platform);
+
+                frozonicPlatformList.Clear();
+            }
+
+            platformIndex.Clear();
+            GorillaTagger.Instance.bodyCollider.enabled = true;
+        }
+
         public static readonly float[] SpeedBoostAmounts = { 2f, 7.5f, 8f, 9f, 200f };
         public static readonly float[] SpeedBoostMultipliers = { 0.5f, 1.1f, 1.5f, 2f, 10f };
         public static readonly string[] SpeedBoostNames = { "Slow", "Normal", "Middle", "Fast", "Ultra Fast" };
         public static void ApplySpeedBoostAmount(int index) { jspeed = SpeedBoostAmounts[index]; jmulti = SpeedBoostMultipliers[index]; }
 
+        private static Shader legacyPlatformShader;
+        private static GameObject CreateLegacyPlatform(Vector3 position, Quaternion rotation)
+        {
+            if (legacyPlatformShader == null)
+                legacyPlatformShader = Shader.Find("GorillaTag/UberShader");
+
+            GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.Destroy(platform.GetComponent<BoxCollider>());
+
+            Material material = platform.GetComponent<Renderer>().material;
+            material.color = backgroundColor.GetCurrentColor();
+            material.shader = legacyPlatformShader;
+
+            platform.transform.localScale = new Vector3(0.025f, 0.3f, 0.4f);
+            platform.transform.position = position;
+            platform.transform.rotation = rotation;
+
+            Object.Destroy(platform, 1f);
+            Object.Destroy(material, 1f);
+            return platform;
+        }
+
         public static void PlatformSpam()
         {
             if (rightGrab)
             {
-                GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(platform.GetComponent<BoxCollider>());
-                platform.GetComponent<Renderer>().material.color = backgroundColor.GetCurrentColor();
-                platform.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
-                platform.transform.localScale = new Vector3(0.025f, 0.3f, 0.4f);
-                platform.transform.position = GorillaTagger.Instance.rightHandTransform.position;
-                platform.transform.rotation = GorillaTagger.Instance.rightHandTransform.rotation;
-                Object.Destroy(platform, 1f);
+                GameObject platform = CreateLegacyPlatform(GorillaTagger.Instance.rightHandTransform.position, GorillaTagger.Instance.rightHandTransform.rotation);
                 PhotonNetwork.RaiseEvent(69, new object[] { platform.transform.position, platform.transform.rotation }, new RaiseEventOptions { Receivers = ReceiverGroup.Others }, SendOptions.SendReliable);
             }
         }
@@ -322,14 +370,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Object.Destroy(platform.GetComponent<BoxCollider>());
-                    platform.GetComponent<Renderer>().material.color = backgroundColor.GetCurrentColor();
-                    platform.GetComponent<Renderer>().material.shader = Shader.Find("GorillaTag/UberShader");
-                    platform.transform.localScale = new Vector3(0.025f, 0.3f, 0.4f);
-                    platform.transform.position = NewPointer.transform.position;
-                    platform.transform.rotation = Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360));
-                    Object.Destroy(platform, 1f);
+                    GameObject platform = CreateLegacyPlatform(NewPointer.transform.position, Quaternion.Euler(Random.Range(0, 360), Random.Range(0, 360), Random.Range(0, 360)));
                     PhotonNetwork.RaiseEvent(69, new object[] { platform.transform.position, platform.transform.rotation }, new RaiseEventOptions { Receivers = ReceiverGroup.Others }, SendOptions.SendReliable);
                 }
             }
@@ -361,26 +402,30 @@ namespace Nova.Mods
         }
 
         public static bool noclip;
+        public static bool noclipFly;
+
+        // Noclip and Noclip Fly share the disabled colliders, so only restore them once neither wants them off
+        private static void SetNoclipState(bool noclipActive, bool noclipFlyActive)
+        {
+            bool wasClipping = noclip || noclipFly;
+            noclip = noclipActive;
+            noclipFly = noclipFlyActive;
+
+            bool clipping = noclip || noclipFly;
+            if (clipping != wasClipping)
+                UpdateClipColliders(!clipping);
+        }
+
         public static void NoclipFly()
         {
             if (rightPrimary)
-            {
                 GorillaTagger.Instance.rigidbody.linearVelocity = GorillaTagger.Instance.headCollider.transform.forward * FlySpeed;
-                if (!noclip)
-                {
-                    noclip = true;
-                    UpdateClipColliders(false);
-                }
-            }
-            else
-            {
-                if (noclip)
-                {
-                    noclip = false;
-                    UpdateClipColliders(true);
-                }
-            }
+
+            SetNoclipState(noclip, rightPrimary);
         }
+
+        public static void DisableNoclipFly() =>
+            SetNoclipState(noclip, false);
 
         public static void JoystickFly()
         {
@@ -432,7 +477,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -598,10 +643,10 @@ namespace Nova.Mods
             driveLerpDirection = Vector2.Lerp(driveLerpDirection, joy, 0.05f);
 
             Vector3 addition = GorillaTagger.Instance.bodyCollider.transform.forward * driveLerpDirection.y + GorillaTagger.Instance.bodyCollider.transform.right * driveLerpDirection.x;
-            Physics.Raycast(GorillaTagger.Instance.bodyCollider.transform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, out var Ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
+            bool hit = Physics.Raycast(GorillaTagger.Instance.bodyCollider.transform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, out var Ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
             Vector3 targetVelocity = addition * driveSpeed;
 
-            if (Ray.distance < 0.2f && (Mathf.Abs(driveLerpDirection.x) > 0.05f || Mathf.Abs(driveLerpDirection.y) > 0.05f))
+            if (hit && Ray.distance < 0.2f && (Mathf.Abs(driveLerpDirection.x) > 0.05f || Mathf.Abs(driveLerpDirection.y) > 0.05f))
                 GorillaTagger.Instance.rigidbody.linearVelocity = new Vector3(targetVelocity.x, GorillaTagger.Instance.rigidbody.linearVelocity.y, targetVelocity.z);
         }
 
@@ -724,6 +769,24 @@ namespace Nova.Mods
         public static bool isLeftGrappling;
         public static bool isRightGrappling;
 
+        // Shared by every grapple line instead of cloning a material per line per frame
+        private static Material grappleLineMaterial, grappleAimLineMaterial;
+        private static Material GrappleLineMaterial(bool grappling)
+        {
+            if (grappling)
+            {
+                if (grappleLineMaterial == null)
+                    grappleLineMaterial = new Material(Shader.Find("GorillaTag/UberShader"));
+
+                return grappleLineMaterial;
+            }
+
+            if (grappleAimLineMaterial == null)
+                grappleAimLineMaterial = new Material(Shader.Find("Sprites/Default"));
+
+            return grappleAimLineMaterial;
+        }
+
         public static void SpiderMan()
         {
             if (leftGrab)
@@ -768,7 +831,7 @@ namespace Nova.Mods
                 liner.startColor = thecolor; liner.endColor = thecolor; liner.startWidth = 0.025f; liner.endWidth = 0.025f; liner.positionCount = 2; liner.useWorldSpace = true;
                 liner.SetPosition(0, GorillaTagger.Instance.leftHandTransform.position);
                 liner.SetPosition(1, leftgrapplePoint);
-                liner.material.shader = Shader.Find("GorillaTag/UberShader");
+                liner.sharedMaterial = GrappleLineMaterial(true);
                 Object.Destroy(line, Time.deltaTime);
             }
             else
@@ -782,7 +845,7 @@ namespace Nova.Mods
                     liner.numCapVertices = 10;
                     liner.numCornerVertices = 5;
                 }
-                liner.material.shader = Shader.Find("Sprites/Default");
+                liner.sharedMaterial = GrappleLineMaterial(false);
                 liner.startColor = backgroundColor.GetCurrentColor() - new Color32(0, 0, 0, 128);
                 liner.endColor = backgroundColor.GetCurrentColor(0.5f) - new Color32(0, 0, 0, 128);
                 liner.startWidth = 0.025f;
@@ -841,7 +904,7 @@ namespace Nova.Mods
                 liner.startColor = thecolor; liner.endColor = thecolor; liner.startWidth = 0.025f; liner.endWidth = 0.025f; liner.positionCount = 2; liner.useWorldSpace = true;
                 liner.SetPosition(0, GorillaTagger.Instance.rightHandTransform.position);
                 liner.SetPosition(1, rightgrapplePoint);
-                liner.material.shader = Shader.Find("GorillaTag/UberShader");
+                liner.sharedMaterial = GrappleLineMaterial(true);
                 Object.Destroy(line, Time.deltaTime);
             }
             else
@@ -855,7 +918,7 @@ namespace Nova.Mods
                     liner.numCapVertices = 10;
                     liner.numCornerVertices = 5;
                 }
-                liner.material.shader = Shader.Find("Sprites/Default");
+                liner.sharedMaterial = GrappleLineMaterial(false);
                 liner.startColor = backgroundColor.GetCurrentColor() - new Color32(0, 0, 0, 128);
                 liner.endColor = backgroundColor.GetCurrentColor(0.5f) - new Color32(0, 0, 0, 128);
                 liner.startWidth = 0.025f;
@@ -903,7 +966,7 @@ namespace Nova.Mods
                 liner.startColor = thecolor; liner.endColor = thecolor; liner.startWidth = 0.025f; liner.endWidth = 0.025f; liner.positionCount = 2; liner.useWorldSpace = true;
                 liner.SetPosition(0, GorillaTagger.Instance.leftHandTransform.position);
                 liner.SetPosition(1, leftgrapplePoint);
-                liner.material.shader = Shader.Find("GorillaTag/UberShader");
+                liner.sharedMaterial = GrappleLineMaterial(true);
                 Object.Destroy(line, Time.deltaTime);
             }
             else
@@ -917,7 +980,7 @@ namespace Nova.Mods
                     liner.numCapVertices = 10;
                     liner.numCornerVertices = 5;
                 }
-                liner.material.shader = Shader.Find("Sprites/Default");
+                liner.sharedMaterial = GrappleLineMaterial(false);
                 liner.startColor = backgroundColor.GetCurrentColor() - new Color32(0, 0, 0, 128);
                 liner.endColor = backgroundColor.GetCurrentColor(0.5f) - new Color32(0, 0, 0, 128);
                 liner.startWidth = 0.025f;
@@ -962,7 +1025,7 @@ namespace Nova.Mods
                 liner.startColor = thecolor; liner.endColor = thecolor; liner.startWidth = 0.025f; liner.endWidth = 0.025f; liner.positionCount = 2; liner.useWorldSpace = true;
                 liner.SetPosition(0, GorillaTagger.Instance.rightHandTransform.position);
                 liner.SetPosition(1, rightgrapplePoint);
-                liner.material.shader = Shader.Find("GorillaTag/UberShader");
+                liner.sharedMaterial = GrappleLineMaterial(true);
                 Object.Destroy(line, Time.deltaTime);
             }
             else
@@ -976,7 +1039,7 @@ namespace Nova.Mods
                     liner.numCapVertices = 10;
                     liner.numCornerVertices = 5;
                 }
-                liner.material.shader = Shader.Find("Sprites/Default");
+                liner.sharedMaterial = GrappleLineMaterial(false);
                 liner.startColor = backgroundColor.GetCurrentColor() - new Color32(0, 0, 0, 128);
                 liner.endColor = backgroundColor.GetCurrentColor(0.5f) - new Color32(0, 0, 0, 128);
                 liner.startWidth = 0.025f;
@@ -1003,54 +1066,56 @@ namespace Nova.Mods
         {
             if (Buttons.GetIndex("Spider Man").enabled || Buttons.GetIndex("Grappling Hooks").enabled)
             {
+                BalloonHoldable tb = GetTargetBalloon();
+                if (tb == null)
+                    return;
+
+                BalloonDynamics balloonDynamics = tb.gameObject.GetComponent<BalloonDynamics>();
+
                 if (isLeftGrappling || isRightGrappling)
                 {
-                    BalloonHoldable tb = GetTargetBalloon();
-
                     tb.balloonState = BalloonHoldable.BalloonStates.Normal;
                     tb.maxDistanceFromOwner = float.MaxValue;
 
                     tb.rigidbodyInstance.isKinematic = true;
-                    tb.gameObject.GetComponent<BalloonDynamics>().stringLength = 512f;
-                    tb.gameObject.GetComponent<BalloonDynamics>().stringStrength = 512f;
-                    tb.gameObject.GetComponent<BalloonDynamics>().enableDynamics = false;
-
-                    if (tb != null)
+                    if (balloonDynamics != null)
                     {
-                        if (isLeftGrappling || isRightGrappling)
-                        {
-                            if (!tb.lineRenderer.enabled)
-                                tb.currentState = TransferrableObject.PositionState.InLeftHand;
-                        }
+                        balloonDynamics.stringLength = 512f;
+                        balloonDynamics.stringStrength = 512f;
+                        balloonDynamics.enableDynamics = false;
+                    }
 
-                        if (isLeftGrappling)
-                        {
-                            tb.transform.position = leftgrapplePoint;
-                            tb.transform.LookAt(GorillaTagger.Instance.leftHandTransform.position);
-                        }
-                        else
-                        {
-                            tb.transform.position = rightgrapplePoint;
-                            tb.transform.LookAt(GorillaTagger.Instance.rightHandTransform.position);
-                            tb.transform.Rotate(Vector3.left, 90f, Space.Self);
-                        }
+                    if (!tb.lineRenderer.enabled)
+                        tb.currentState = TransferrableObject.PositionState.InLeftHand;
+
+                    if (isLeftGrappling)
+                    {
+                        tb.transform.position = leftgrapplePoint;
+                        tb.transform.LookAt(GorillaTagger.Instance.leftHandTransform.position);
+                    }
+                    else
+                    {
+                        tb.transform.position = rightgrapplePoint;
+                        tb.transform.LookAt(GorillaTagger.Instance.rightHandTransform.position);
+                        tb.transform.Rotate(Vector3.left, 90f, Space.Self);
                     }
                 }
                 else
                 {
-                    BalloonHoldable tb = GetTargetBalloon();
                     BalloonHoldable.BalloonStates balloonState = tb.balloonState;
 
                     if (balloonState != BalloonHoldable.BalloonStates.Pop && balloonState != BalloonHoldable.BalloonStates.Waiting && balloonState != BalloonHoldable.BalloonStates.Refilling && balloonState != BalloonHoldable.BalloonStates.Returning)
                         tb.balloonState = BalloonHoldable.BalloonStates.Normal;
 
                     tb.rigidbodyInstance.isKinematic = false;
-                    tb.gameObject.GetComponent<BalloonDynamics>().stringLength = 0.5f;
-                    tb.gameObject.GetComponent<BalloonDynamics>().stringStrength = 0.9f;
-                    tb.gameObject.GetComponent<BalloonDynamics>().enableDynamics = true;
+                    if (balloonDynamics != null)
+                    {
+                        balloonDynamics.stringLength = 0.5f;
+                        balloonDynamics.stringStrength = 0.9f;
+                        balloonDynamics.enableDynamics = true;
+                    }
 
-                    if (tb != null)
-                        tb.currentState = TransferrableObject.PositionState.Dropped;
+                    tb.currentState = TransferrableObject.PositionState.Dropped;
                 }
             }
         }
@@ -1109,7 +1174,7 @@ namespace Nova.Mods
             if (portalGun)
             {
                 Transform RayPoint = portalGun.transform.Find("PortalGun/Ray");
-                Physics.Raycast(RayPoint.position, RayPoint.forward, out var ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
+                bool rayHit = Physics.Raycast(RayPoint.position, RayPoint.forward, out var ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
 
                 if (crosshair == null)
                 {
@@ -1120,12 +1185,12 @@ namespace Nova.Mods
                 }
 
                 if (crosshair)
-                    crosshair.transform.position = ray.point == Vector3.zero ? (RayPoint.transform.position + (RayPoint.transform.forward * 20f)) : ray.point;
+                    crosshair.transform.position = !rayHit ? (RayPoint.transform.position + (RayPoint.transform.forward * 20f)) : ray.point;
 
                 if (rightTrigger > 0.5f && Time.time > portalDelay)
                 {
                     var portalNotToUse = flipped ? bluePortal : orangePortal;
-                    if (portalNotToUse && (Vector3.Distance(ray.point, portalNotToUse.transform.position) < 1f || ray.point == Vector3.zero))
+                    if (!rayHit || (portalNotToUse && Vector3.Distance(ray.point, portalNotToUse.transform.position) < 1f))
                     {
                         LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Mods/Movement/PortalGun/portal_invalid.ogg", "Audio/Mods/Movement/PortalGun/portal_invalid.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
                         portalDelay = Time.time + 0.5f;
@@ -1198,8 +1263,8 @@ namespace Nova.Mods
                 if (rightPrimary && (bluePortal || orangePortal))
                 {
                     LoadSoundFromURL($"{PluginInfo.ServerResourcePath}/Audio/Mods/Movement/PortalGun/portal_close.ogg", "Audio/Mods/Movement/PortalGun/portal_close.ogg", clip => Play2DAudio(clip, buttonClickVolume / 10f));
-                    Object.Destroy(bluePortal);
-                    Object.Destroy(orangePortal);
+                    DestroyPortal(bluePortal);
+                    DestroyPortal(orangePortal);
                     playedOpen = false;
                 }
             }
@@ -1264,6 +1329,13 @@ namespace Nova.Mods
         {
             GameObject mainObject = LoadObject<GameObject>(orange ? "OrangePortal" : "BluePortal").transform.Find("Portal").gameObject;
             return mainObject;
+        }
+
+        // GetPortal hands out a child of the instantiated prefab, so destroy the whole instance
+        private static void DestroyPortal(GameObject portal)
+        {
+            if (portal != null)
+                Object.Destroy(portal.transform.root.gameObject);
         }
 
         public static IEnumerator TeleportPortal(GameObject portal)
@@ -1351,8 +1423,8 @@ namespace Nova.Mods
         public static void DisablePortalGun()
         {
             Object.Destroy(portalGun);
-            Object.Destroy(bluePortal);
-            Object.Destroy(orangePortal);
+            DestroyPortal(bluePortal);
+            DestroyPortal(orangePortal);
             Object.Destroy(crosshair);
             playedOpen = false;
         }
@@ -1446,13 +1518,13 @@ namespace Nova.Mods
             }
         }
 
-        private static List<Vector3> posArchive;
+        private static Vector3[] posArchive;
         public static Vector3[] GetAllTreeBranchPositions()
         {
             if (posArchive != null)
-                return posArchive.ToArray();
+                return posArchive;
 
-            posArchive = new List<Vector3>();
+            List<Vector3> positions = new List<Vector3>();
 
             Vector3[] TreeBranchOffsets = {
                 new Vector3(-2.383f, 3.784f, 0.738f),
@@ -1479,6 +1551,10 @@ namespace Nova.Mods
             {
                 GameObject TreeGroupGO = GetObject(SmallTreeTarget);
 
+                // Forest isn't loaded yet; don't cache a partial result
+                if (TreeGroupGO == null)
+                    return Array.Empty<Vector3>();
+
                 for (int i = 0; i < TreeGroupGO.transform.childCount; i++)
                 {
                     GameObject v = TreeGroupGO.transform.GetChild(i).gameObject;
@@ -1487,13 +1563,14 @@ namespace Nova.Mods
                     v.transform.localScale *= 5;
 
                     foreach (Vector3 TreeBranchOffset in TreeBranchOffsets)
-                        posArchive.Add(v.transform.TransformPoint(TreeBranchOffset));
+                        positions.Add(v.transform.TransformPoint(TreeBranchOffset));
 
                     v.transform.localScale = oldlocalscale;
                 }
             }
 
-            return posArchive.ToArray();
+            posArchive = positions.ToArray();
+            return posArchive;
         }
 
         public static Vector3 leftPos = Vector3.zero;
@@ -1582,6 +1659,14 @@ namespace Nova.Mods
             lastOnBranch = isOnBranch;
         }
 
+        public static void DisableAutoBranch()
+        {
+            if (lastOnBranch)
+                UpdateClipColliders(true);
+
+            lastOnBranch = false;
+        }
+
         public static void ForceTagFreeze() =>
             GTPlayer.Instance.disableMovement = true;
 
@@ -1626,48 +1711,57 @@ namespace Nova.Mods
 
         }
 
-        private static readonly List<object[]> playerPositions = new List<object[]>();
+        // Ring buffer of the last 8640 frames, so recording doesn't shift the whole history every frame
+        private const int RewindCapacity = 8640;
+        private static PlayerPosition[] rewindPositions;
+        private static int rewindStart;
+        private static int rewindCount;
         public static void Rewind()
         {
             if (rightTrigger > 0.5f)
             {
-                if (playerPositions.Count > 0)
+                if (rewindCount > 0)
                 {
-                    object[] targetPos = playerPositions[^1];
+                    rewindCount--;
+                    PlayerPosition targetPos = rewindPositions[(rewindStart + rewindCount) % RewindCapacity];
 
-                    TeleportPlayer((Vector3)targetPos[0]);
+                    TeleportPlayer(targetPos.position);
 
-                    GorillaTagger.Instance.leftHandTransform.position = (Vector3)targetPos[1];
-                    GorillaTagger.Instance.leftHandTransform.rotation = (Quaternion)targetPos[2];
+                    GorillaTagger.Instance.leftHandTransform.position = targetPos.leftHand.position;
+                    GorillaTagger.Instance.leftHandTransform.rotation = targetPos.leftHand.rotation;
 
-                    GorillaTagger.Instance.rightHandTransform.position = (Vector3)targetPos[3];
-                    GorillaTagger.Instance.rightHandTransform.rotation = (Quaternion)targetPos[4];
+                    GorillaTagger.Instance.rightHandTransform.position = targetPos.rightHand.position;
+                    GorillaTagger.Instance.rightHandTransform.rotation = targetPos.rightHand.rotation;
 
-                    GorillaTagger.Instance.rigidbody.linearVelocity = (Vector3)targetPos[5] * -1f;
-
-                    playerPositions.RemoveAt(playerPositions.Count - 1);
+                    GorillaTagger.Instance.rigidbody.linearVelocity = targetPos.velocity * -1f;
                 }
             }
             else
             {
-                playerPositions.Add(new object[] {
-                    GorillaTagger.Instance.bodyCollider.transform.position,
+                rewindPositions ??= new PlayerPosition[RewindCapacity];
 
-                    GorillaTagger.Instance.leftHandTransform.position,
-                    GorillaTagger.Instance.leftHandTransform.rotation,
+                rewindPositions[(rewindStart + rewindCount) % RewindCapacity] = new PlayerPosition
+                {
+                    position = GorillaTagger.Instance.bodyCollider.transform.position,
 
-                    GorillaTagger.Instance.rightHandTransform.position,
-                    GorillaTagger.Instance.rightHandTransform.rotation,
+                    leftHand = (GorillaTagger.Instance.leftHandTransform.position, GorillaTagger.Instance.leftHandTransform.rotation),
+                    rightHand = (GorillaTagger.Instance.rightHandTransform.position, GorillaTagger.Instance.rightHandTransform.rotation),
 
-                    GorillaTagger.Instance.rigidbody.linearVelocity
-                });
+                    velocity = GorillaTagger.Instance.rigidbody.linearVelocity
+                };
 
-                if (playerPositions.Count > 8640)
-                    playerPositions.RemoveAt(0);
+                if (rewindCount < RewindCapacity)
+                    rewindCount++;
+                else
+                    rewindStart = (rewindStart + 1) % RewindCapacity;
             }
         }
 
-        public static void ClearRewind() => playerPositions.Clear();
+        public static void ClearRewind()
+        {
+            rewindStart = 0;
+            rewindCount = 0;
+        }
 
         public static float macroPlaybackRange = 1f;
         public static int macroPlaybackRangeIndex = 1;
@@ -1977,7 +2071,8 @@ namespace Nova.Mods
 
         public static void FinalizeRecording()
         {
-            List<PlayerPosition> savedRecordingData = recordingData;
+            // Copy: the next recording clears recordingData while this prompt may still be open
+            List<PlayerPosition> savedRecordingData = new List<PlayerPosition>(recordingData);
             Prompt("Would you like to save your macro?", () =>
             {
                 PromptText("Please name your macro:", () =>
@@ -2103,14 +2198,23 @@ namespace Nova.Mods
             if (rightTrigger < 0.5f || activeMacro != null || didMacro)
                 return;
 
+            if (macro.positions.Count == 0)
+                return;
+
             int position = 0;
             if (midpointMacros)
             {
-                position = macro.positions
-                    .Select((position, index) => new { position, index, distance = Vector3.Distance(GorillaTagger.Instance.bodyCollider.transform.position, position.position) })
-                    .OrderBy(x => x.distance)
-                    .FirstOrDefault()
-                    .index;
+                Vector3 bodyPosition = GorillaTagger.Instance.bodyCollider.transform.position;
+                float closestDistance = float.MaxValue;
+                for (int i = 0; i < macro.positions.Count; i++)
+                {
+                    float distance = Vector3.Distance(bodyPosition, macro.positions[i].position);
+                    if (distance < closestDistance)
+                    {
+                        closestDistance = distance;
+                        position = i;
+                    }
+                }
             }
 
             PlayerPosition startPosition = macro.positions[position];
@@ -2203,8 +2307,8 @@ namespace Nova.Mods
         }
 
 
-        static Quaternion spiderRot;
-        static Quaternion tappedRot;
+        static Quaternion spiderRot = Quaternion.identity;
+        static Quaternion tappedRot = Quaternion.identity;
         public static void SpiderWalk()
         {
             if (GTPlayer.Instance.IsHandTouching(true) || GTPlayer.Instance.IsHandTouching(false))
@@ -2219,6 +2323,13 @@ namespace Nova.Mods
             spiderRot = Quaternion.Slerp(spiderRot, tappedRot, t);
             GTPlayerTransform.ApplyRotationOverride(spiderRot, Time.frameCount);
             GTPlayer.Instance.SetGravityOverride(GTPlayer.Instance, p => p.AddForce(spiderRot * Physics.gravity, ForceMode.Acceleration));
+        }
+
+        public static void DisableSpiderWalk()
+        {
+            spiderRot = Quaternion.identity;
+            tappedRot = Quaternion.identity;
+            UnflipCharacter();
         }
 
         public static void TeleportToRandom()
@@ -2425,8 +2536,12 @@ namespace Nova.Mods
                 }
             }
 
-            if (rightPrimary)
+            if (rightPrimary && checkpoints.Count > 0)
+            {
+                // Checkpoints may have just been removed above
+                selectedCheckpoint = Mathf.Clamp(selectedCheckpoint, 0, checkpoints.Count - 1);
                 TeleportPlayer(checkpoints[selectedCheckpoint].transform.position);
+            }
 
             foreach (GameObject checkpoint in checkpoints)
             {
@@ -2603,18 +2718,29 @@ namespace Nova.Mods
         public static void FunMove() =>
             GorillaTagger.Instance.rigidbody.linearVelocity += GorillaTagger.Instance.rigidbody.linearVelocity * Time.deltaTime;
 
-        public static void DynamicSpeedBoost()
+        // Distance to the closest player on the other side of tag, or float.MaxValue if there is none
+        private static float GetClosestOpposingRigDistance()
         {
             bool isTagged = VRRig.LocalRig.IsTagged();
+            Vector3 bodyPosition = GorillaTagger.Instance.bodyCollider.transform.position;
 
-            VRRig closestRig = VRRigExtensions.ActiveRigs
-                .Where(rig => rig != null && !rig.isLocal &&
-                                  (isTagged ? !rig.IsTagged() : rig.IsTagged()))
-                .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position))
-                .FirstOrDefault();
+            float closestDistance = float.MaxValue;
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+            {
+                if (rig == null || rig.isLocal || rig.IsTagged() == isTagged)
+                    continue;
 
-            float rigDistance = closestRig == null ? float.MaxValue :
-                          Vector3.Distance(GorillaTagger.Instance.bodyCollider.transform.position, closestRig.transform.position);
+                float distance = Vector3.Distance(rig.transform.position, bodyPosition);
+                if (distance < closestDistance)
+                    closestDistance = distance;
+            }
+
+            return closestDistance;
+        }
+
+        public static void DynamicSpeedBoost()
+        {
+            float rigDistance = GetClosestOpposingRigDistance();
 
             if (rigDistance < 15f)
             {
@@ -2627,8 +2753,10 @@ namespace Nova.Mods
                     jmpt = jmpt / 1.1f * GTPlayer.Instance.jumpMultiplier;
                 }
 
-                jspt = Mathf.Lerp(GTPlayer.Instance.maxJumpSpeed, jspt, Mathf.Clamp(rigDistance, 1f, 15f) / 15f);
-                jmpt = Mathf.Lerp(GTPlayer.Instance.jumpMultiplier, jmpt, Mathf.Clamp(rigDistance, 1f, 15f) / 15f);
+                // Full boost at 1m, none at 15m
+                float boost = Mathf.InverseLerp(15f, 1f, rigDistance);
+                jspt = Mathf.Lerp(GTPlayer.Instance.maxJumpSpeed, jspt, boost);
+                jmpt = Mathf.Lerp(GTPlayer.Instance.jumpMultiplier, jmpt, boost);
 
                 if (!Buttons.GetIndex("Disable Max Speed Modification").enabled)
                     GTPlayer.Instance.maxJumpSpeed = jspt;
@@ -2652,40 +2780,50 @@ namespace Nova.Mods
             playspace.enabled = false;
         }
 
+        private static readonly List<MeshCollider> clipDisabledColliders = new List<MeshCollider>();
         public static void UpdateClipColliders(bool enabled)
         {
-            foreach (MeshCollider v in Resources.FindObjectsOfTypeAll<MeshCollider>())
-                v.enabled = enabled;
+            if (enabled)
+            {
+                foreach (MeshCollider collider in clipDisabledColliders)
+                {
+                    if (collider != null)
+                        collider.enabled = true;
+                }
+
+                clipDisabledColliders.Clear();
+            }
+            else
+            {
+                // Remember only what we turn off, so colliders the game disabled itself stay disabled
+                foreach (MeshCollider collider in Resources.FindObjectsOfTypeAll<MeshCollider>())
+                {
+                    if (!collider.enabled)
+                        continue;
+
+                    collider.enabled = false;
+                    clipDisabledColliders.Add(collider);
+                }
+            }
         }
 
         public static void Noclip()
         {
             bool gripNoclip = Buttons.GetIndex("Grip Noclip").enabled;
-            if (gripNoclip ? rightGrab : rightTrigger > 0.5f || Buttons.GetIndex("Constant Noclip").enabled)
-            {
-                if (!noclip)
-                {
-                    noclip = true;
-                    UpdateClipColliders(false);
-                }
-            }
-            else
-            {
-                if (noclip)
-                {
-                    noclip = false;
-                    UpdateClipColliders(true);
-                }
-            }
+            SetNoclipState((gripNoclip ? rightGrab : rightTrigger > 0.5f) || Buttons.GetIndex("Constant Noclip").enabled, noclipFly);
         }
+
+        public static void DisableNoclip() =>
+            SetNoclipState(false, noclipFly);
 
         public static readonly List<GameObject> forestColliders = new List<GameObject>();
         public static void RemoveForestColliders()
         {
-            Transform ForestCollisions = GetObject("Environment Objects/LocalObjects_Prefab/ForestToHoverboard/TurnOnInForestAndHoverboard/ForestDome_CollisionOnly").transform;
-
-            if (ForestCollisions == null)
+            GameObject forestDome = GetObject("Environment Objects/LocalObjects_Prefab/ForestToHoverboard/TurnOnInForestAndHoverboard/ForestDome_CollisionOnly");
+            if (forestDome == null)
                 return;
+
+            Transform ForestCollisions = forestDome.transform;
 
             for (int i = 2; i < 4; i++)
             {
@@ -2712,14 +2850,22 @@ namespace Nova.Mods
         public static void Invisible()
         {
             bool hit = rightSecondary;
-            if (Buttons.GetIndex("Non-Togglable Invisible").enabled)
+            bool nonTogglable = Buttons.GetIndex("Non-Togglable Invisible").enabled;
+            if (nonTogglable)
+            {
+                if (hit && !invisMonke)
+                    wasDisabledAlready = VRRig.LocalRig.enabled;
+                else if (!hit && invisMonke)
+                    VRRig.LocalRig.enabled = wasDisabledAlready;
+
                 invisMonke = hit;
+            }
             if (invisMonke)
             {
                 VRRig.LocalRig.enabled = false;
                 VRRig.LocalRig.transform.position = GorillaTagger.Instance.bodyCollider.transform.position - Vector3.up * 99999f;
             }
-            if (hit && !lastHit2)
+            if (!nonTogglable && hit && !lastHit2)
             {
                 invisMonke = !invisMonke;
                 if (invisMonke)
@@ -3271,8 +3417,13 @@ namespace Nova.Mods
             FixRigHandRotation();
         }
 
-        public static void StareAtNearby() =>
-            VRRig.LocalRig.head.rigTarget.LookAt(GetClosestVRRig().headMesh.transform.position);
+        public static void StareAtNearby()
+        {
+            // Runs inside a Harmony postfix; throwing here would break the other subscribers
+            VRRig closestRig = GetClosestVRRig();
+            if (closestRig != null)
+                VRRig.LocalRig.head.rigTarget.LookAt(closestRig.headMesh.transform.position);
+        }
 
         public static void StareAtTarget() =>
             VRRig.LocalRig.head.rigTarget.LookAt(lockTarget.headMesh.transform.position);
@@ -3287,7 +3438,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (!hasAdded)
@@ -3324,7 +3475,11 @@ namespace Nova.Mods
                 Quaternion headRotArchive = VRRig.LocalRig.head.rigTarget.transform.rotation;
                 foreach (NetPlayer Player in NetworkSystem.Instance.PlayerListOthers)
                 {
-                    VRRig.LocalRig.head.rigTarget.transform.rotation = Quaternion.LookRotation(Vector3.Normalize(GetVRRigFromPlayer(Player).headMesh.transform.position));
+                    VRRig targetRig = GetVRRigFromPlayer(Player);
+                    if (targetRig == null)
+                        continue;
+
+                    VRRig.LocalRig.head.rigTarget.transform.rotation = Quaternion.LookRotation(targetRig.headMesh.transform.position - VRRig.LocalRig.headMesh.transform.position);
                     SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { Player.ActorNumber } });
                 }
 
@@ -3335,11 +3490,26 @@ namespace Nova.Mods
             };
         }
 
+        private static bool IsLocalPlayerCollider(Collider collider)
+        {
+            if (collider == null)
+                return false;
+
+            if (collider == GorillaTagger.Instance.headCollider || collider == GorillaTagger.Instance.bodyCollider)
+                return true;
+
+            VRRig rig = collider.GetComponentInParent<VRRig>();
+            return rig != null && rig.isLocal;
+        }
+
         public static void EyeContact()
         {
-            foreach (VRRig rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()))
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (Physics.SphereCast(rig.headMesh.transform.position + (rig.headMesh.transform.forward * 0.25f), 0.25f, rig.headMesh.transform.forward, out _, 512f, NoInvisLayerMask()))
+                if (rig == null || rig.IsLocal())
+                    continue;
+
+                if (Physics.SphereCast(rig.headMesh.transform.position + (rig.headMesh.transform.forward * 0.25f), 0.25f, rig.headMesh.transform.forward, out RaycastHit hit, 512f, NoInvisLayerMask()) && IsLocalPlayerCollider(hit.collider))
                 {
                     VRRig.LocalRig.head.rigTarget.LookAt(rig.headMesh.transform.position);
                     break;
@@ -3359,10 +3529,21 @@ namespace Nova.Mods
         public static float beesDelay;
         public static void Bees()
         {
+            if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom.PlayerCount < 2)
+            {
+                VRRig.LocalRig.enabled = true;
+                return;
+            }
+
             VRRig.LocalRig.enabled = false;
             if (Time.time > beesDelay)
             {
                 VRRig target = GetRandomVRRig();
+                if (target == null)
+                {
+                    VRRig.LocalRig.enabled = true;
+                    return;
+                }
 
                 VRRig.LocalRig.transform.position = target.transform.position + Vector3.up;
 
@@ -3639,22 +3820,46 @@ namespace Nova.Mods
 
         private static bool leftisclimbing;
         private static bool rightisclimbing;
-        private static GameObject climb;
+        private static GorillaClimbable leftClimbable;
+        private static GorillaClimbable rightClimbable;
+        private static GorillaHandClimber leftHandClimber;
+        private static GorillaHandClimber rightHandClimber;
+
+        // One climbable per hand, reused for every grab instead of adding a component each time
+        private static GorillaClimbable GetClimbyHandsClimbable(ref GorillaClimbable climbable)
+        {
+            if (climbable == null)
+                climbable = new GameObject("GR").AddComponent<GorillaClimbable>();
+
+            return climbable;
+        }
+
+        private static GorillaHandClimber GetHandClimber(ref GorillaHandClimber handClimber, bool left)
+        {
+            if (handClimber == null)
+            {
+                GameObject handClimberObject = GetObject($"Player Objects/Player VR Controller/GorillaPlayer/TurnParent/{(left ? "LeftHand" : "RightHand")} Controller/GorillaHandClimber");
+                if (handClimberObject != null)
+                    handClimber = handClimberObject.GetComponent<GorillaHandClimber>();
+            }
+
+            return handClimber;
+        }
+
         public static void ClimbyHands()
         {
-
-            if (climb == null)
-            {
-                climb = new GameObject("GR");
-                climb.AddComponent<GorillaClimbable>();
-            }
             if (leftGrab)
             {
                 if (GTPlayer.Instance.IsHandTouching(true) && !leftisclimbing)
                 {
-                    climb.transform.position = GorillaTagger.Instance.leftHandTransform.position;
-                    leftisclimbing = true;
-                    GTPlayer.Instance.BeginClimbing(climb.AddComponent<GorillaClimbable>(), GetObject("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/LeftHand Controller/GorillaHandClimber").GetComponent<GorillaHandClimber>());
+                    GorillaHandClimber handClimber = GetHandClimber(ref leftHandClimber, true);
+                    if (handClimber != null)
+                    {
+                        GorillaClimbable climbable = GetClimbyHandsClimbable(ref leftClimbable);
+                        climbable.transform.position = GorillaTagger.Instance.leftHandTransform.position;
+                        leftisclimbing = true;
+                        GTPlayer.Instance.BeginClimbing(climbable, handClimber);
+                    }
                 }
             }
             else
@@ -3664,9 +3869,14 @@ namespace Nova.Mods
             {
                 if (GTPlayer.Instance.IsHandTouching(false) && !rightisclimbing)
                 {
-                    climb.transform.position = GorillaTagger.Instance.rightHandTransform.position;
-                    rightisclimbing = true;
-                    GTPlayer.Instance.BeginClimbing(climb.AddComponent<GorillaClimbable>(), GetObject("Player Objects/Player VR Controller/GorillaPlayer/TurnParent/RightHand Controller/GorillaHandClimber").GetComponent<GorillaHandClimber>());
+                    GorillaHandClimber handClimber = GetHandClimber(ref rightHandClimber, false);
+                    if (handClimber != null)
+                    {
+                        GorillaClimbable climbable = GetClimbyHandsClimbable(ref rightClimbable);
+                        climbable.transform.position = GorillaTagger.Instance.rightHandTransform.position;
+                        rightisclimbing = true;
+                        GTPlayer.Instance.BeginClimbing(climbable, handClimber);
+                    }
                 }
             }
             else
@@ -3675,11 +3885,16 @@ namespace Nova.Mods
 
         public static void DisableClimbyHands()
         {
-            if (climb != null)
-            {
-                Object.Destroy(climb);
-                climb = null;
-            }
+            if (leftClimbable != null)
+                Object.Destroy(leftClimbable.gameObject);
+
+            if (rightClimbable != null)
+                Object.Destroy(rightClimbable.gameObject);
+
+            leftClimbable = null;
+            rightClimbable = null;
+            leftisclimbing = false;
+            rightisclimbing = false;
         }
 
         public static void SetHandEnabled(bool value)
@@ -3704,23 +3919,25 @@ namespace Nova.Mods
         public static void DisableSlideControl() =>
             GTPlayer.Instance.slideControl = oldSlide;
 
-        public static readonly Vector3[] lastLeft = { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
-        public static readonly Vector3[] lastRight = { Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero, Vector3.zero };
+        // Keyed by rig: the old size-10 arrays overflowed with more players and shifted when anyone left
+        public static readonly Dictionary<VRRig, Vector3> lastLeft = new Dictionary<VRRig, Vector3>();
+        public static readonly Dictionary<VRRig, Vector3> lastRight = new Dictionary<VRRig, Vector3>();
 
         public static void PunchMod()
         {
-            int index = -1;
-            foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
+            Vector3 localBodyPos = VRRig.LocalRig.bodyTransform.position;
+            foreach (var vrrig in VRRigExtensions.ActiveRigs)
             {
-                index++;
-                Vector3 localBodyPos = VRRig.LocalRig.bodyTransform.position;
+                if (vrrig == null || vrrig.isLocal)
+                    continue;
 
-                HandlePunch(vrrig.rightHandTransform, ref lastRight[index], localBodyPos);
-                HandlePunch(vrrig.leftHandTransform, ref lastLeft[index], localBodyPos);
+                HandlePunch(vrrig, vrrig.rightHandTransform, lastRight, localBodyPos);
+                HandlePunch(vrrig, vrrig.leftHandTransform, lastLeft, localBodyPos);
 
-                static void HandlePunch(Transform handTransform, ref Vector3 lastPos, Vector3 localBodyPos)
+                static void HandlePunch(VRRig rig, Transform handTransform, Dictionary<VRRig, Vector3> lastPositions, Vector3 localBodyPos)
                 {
                     Vector3 handPos = handTransform.position;
+                    Vector3 lastPos = lastPositions.TryGetValue(rig, out Vector3 storedPos) ? storedPos : handPos;
                     float distance = Vector3.Distance(handPos, localBodyPos);
 
                     if (distance < 0.25f)
@@ -3738,7 +3955,7 @@ namespace Nova.Mods
                             Vector3.Normalize(handPos - lastPos) * 10f;
                     }
 
-                    lastPos = handPos;
+                    lastPositions[rig] = handPos;
                 }
             }
         }
@@ -3752,46 +3969,50 @@ namespace Nova.Mods
             {
                 foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                 {
-                    try
+                    if (vrrig == null || vrrig.isLocal)
+                        continue;
+
+                    if (vrrig.rightIndex.calcT < 0.5f && vrrig.rightMiddle.calcT > 0.5f)
                     {
-                        if (!vrrig.isLocal)
+                        Transform handBone = vrrig.transform.Find("rig/hand.R");
+                        if (handBone != null)
                         {
-                            if (vrrig.rightIndex.calcT < 0.5f && vrrig.rightMiddle.calcT > 0.5f)
+                            Vector3 dir = handBone.up;
+                            if (Physics.SphereCast(vrrig.rightHandTransform.position + dir * 0.1f, 0.3f, dir, out var Ray, 512f, NoInvisLayerMask()) && Ray.collider != null)
                             {
-                                Vector3 dir = vrrig.transform.Find("rig/hand.R").up;
-                                Physics.SphereCast(vrrig.rightHandTransform.position + dir * 0.1f, 0.3f, dir, out var Ray, 512f, NoInvisLayerMask());
+                                VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                                if (gunTarget && gunTarget.isLocal)
                                 {
-                                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                                    if (gunTarget && gunTarget.isLocal)
-                                    {
-                                        sithlord = vrrig;
-                                        sithright = true;
-                                        sithdist = Ray.distance;
-                                    }
-                                }
-                            }
-                            if (vrrig.leftIndex.calcT < 0.5f && vrrig.leftMiddle.calcT > 0.5f)
-                            {
-                                Vector3 dir = vrrig.transform.Find("rig/hand.L").up;
-                                Physics.SphereCast(vrrig.leftHandTransform.position + dir * 0.1f, 0.3f, dir, out var Ray, 512f, NoInvisLayerMask());
-                                {
-                                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
-                                    if (gunTarget && gunTarget.isLocal)
-                                    {
-                                        sithlord = vrrig;
-                                        sithright = false;
-                                        sithdist = Ray.distance;
-                                    }
+                                    sithlord = vrrig;
+                                    sithright = true;
+                                    sithdist = Ray.distance;
                                 }
                             }
                         }
                     }
-                    catch { }
+                    if (vrrig.leftIndex.calcT < 0.5f && vrrig.leftMiddle.calcT > 0.5f)
+                    {
+                        Transform handBone = vrrig.transform.Find("rig/hand.L");
+                        if (handBone != null)
+                        {
+                            Vector3 dir = handBone.up;
+                            if (Physics.SphereCast(vrrig.leftHandTransform.position + dir * 0.1f, 0.3f, dir, out var Ray, 512f, NoInvisLayerMask()) && Ray.collider != null)
+                            {
+                                VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                                if (gunTarget && gunTarget.isLocal)
+                                {
+                                    sithlord = vrrig;
+                                    sithright = false;
+                                    sithdist = Ray.distance;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             else
             {
-                if (sithright ? sithlord.rightIndex.calcT < 0.5f && sithlord.rightMiddle.calcT > 0.5f : sithlord.leftMiddle.calcT < 0.5f && sithlord.leftMiddle.calcT > 0.5f)
+                if (sithright ? sithlord.rightIndex.calcT < 0.5f && sithlord.rightMiddle.calcT > 0.5f : sithlord.leftIndex.calcT < 0.5f && sithlord.leftMiddle.calcT > 0.5f)
                 {
                     Transform hand = sithright ? sithlord.rightHandTransform : sithlord.leftHandTransform;
                     Vector3 dir = sithright ? sithlord.transform.Find("rig/hand.R").up : sithlord.transform.Find("rig/hand.L").up;
@@ -3806,11 +4027,11 @@ namespace Nova.Mods
 
         public static void SafetyBubble()
         {
-            foreach (VRRig rig in
-                VRRigExtensions.ActiveRigs
-                    .Where(rig => rig != null && !rig.isLocal)
-                    .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position)))
+            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
+                if (rig == null || rig.isLocal)
+                    continue;
+
                 if (Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position) < 2f)
                 {
                     Vector3 direction = GorillaTagger.Instance.bodyCollider.transform.position - rig.transform.position;
@@ -4113,6 +4334,10 @@ namespace Nova.Mods
                 }
 
                 wasHandsNearHead = handsNearHead;
+
+                // Stay at normal scale while the hands are by the head instead of undoing the reset right away
+                if (handsNearHead)
+                    return;
             }
 
             GTPlayer.Instance.transform.localScale = Vector3.one * (VRRig.LocalRig.NativeScale * armlength);
@@ -4214,23 +4439,19 @@ namespace Nova.Mods
 
         public static void LagRange()
         {
-            bool isTagged = VRRig.LocalRig.IsTagged();
-
-            VRRig closestRig = VRRigExtensions.ActiveRigs
-                .Where(rig => rig != null && !rig.isLocal &&
-                                  (isTagged ? !rig.IsTagged() : rig.IsTagged()))
-                .OrderBy(rig => Vector3.Distance(rig.transform.position, GorillaTagger.Instance.bodyCollider.transform.position))
-                .FirstOrDefault();
-
-            float rigDistance = closestRig == null ? float.MaxValue :
-                          Vector3.Distance(GorillaTagger.Instance.bodyCollider.transform.position, closestRig.transform.position);
+            float rigDistance = GetClosestOpposingRigDistance();
 
             if (rigDistance < 15f)
             {
                 float lagPower = Mathf.Clamp(rigDistance, 1f, 15f) / 15f;
                 PhotonNetwork.SerializationRate = 4 + (int)Math.Ceiling(lagPower * 6f);
             }
+            else
+                PhotonNetwork.SerializationRate = 10;
         }
+
+        public static void DisableLagRange() =>
+            PhotonNetwork.SerializationRate = 10;
 
         public static bool isBlinking;
         public static void Blink()
@@ -4285,14 +4506,15 @@ namespace Nova.Mods
             {
                 longJumpPower = null;
                 velocity = null;
+                keepVelocityUntil = null;
             }
         }
 
         public static void BunnyHop()
         {
-            Physics.Raycast(GorillaTagger.Instance.bodyCollider.transform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, out var Ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
+            bool hit = Physics.Raycast(GorillaTagger.Instance.bodyCollider.transform.position - new Vector3(0f, 0.2f, 0f), Vector3.down, out var Ray, 512f, GTPlayer.Instance.locomotionEnabledLayers);
 
-            if (Ray.distance < 0.15f)
+            if (hit && Ray.distance < 0.15f)
                 GorillaTagger.Instance.rigidbody.linearVelocity = new Vector3(GorillaTagger.Instance.rigidbody.linearVelocity.x, GTPlayer.Instance.jumpMultiplier * 2.727272727f, GorillaTagger.Instance.rigidbody.linearVelocity.z);
         }
 
@@ -4452,7 +4674,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4501,7 +4723,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4651,7 +4873,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4775,7 +4997,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4889,7 +5111,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -5005,7 +5227,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -5097,7 +5319,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -5141,10 +5363,16 @@ namespace Nova.Mods
 
         public static void ConfuseAllPlayersSplash()
         {
+            if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom.PlayerCount < 2)
+                return;
+
             if (Time.time > Fun.splashDel)
             {
                 Fun.splashDel = Time.time + 0.05f;
                 VRRig rig = GetRandomVRRig();
+                if (rig == null)
+                    return;
+
                 GorillaTagger.Instance.myVRRig.SendRPC("RPC_PlaySplashEffect", rig.GetPlayer(), rig.transform.position + RandomVector3(0.5f), RandomQuaternion(), 4f, 100f, true, false);
             }
         }
@@ -5183,7 +5411,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
                         if (!NetworkSystem.Instance.InRoom) return;
@@ -5332,7 +5560,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
                         gunLocked = true;
@@ -5368,6 +5596,9 @@ namespace Nova.Mods
 
         public static void OverstimulateAll()
         {
+            if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom.PlayerCount < 2)
+                return;
+
             SerializePatch.OverrideSerialization ??= () =>
             {
                 MassSerialize(true, new[] { VRRig.LocalRig.GetPhotonView() });
@@ -5384,6 +5615,8 @@ namespace Nova.Mods
             };
 
             VRRig randomRig = GetRandomVRRig();
+            if (randomRig == null)
+                return;
 
             if (Time.time > Fun.splashDel)
             {
@@ -5442,7 +5675,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -5474,7 +5707,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
                         gunLocked = true;
@@ -5518,7 +5751,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal() && !gunLocked)
                     {
                         gunLocked = true;
@@ -5612,7 +5845,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -5869,7 +6102,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = Ray.collider == null ? null : Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
