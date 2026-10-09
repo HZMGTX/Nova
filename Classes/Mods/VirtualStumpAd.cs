@@ -38,6 +38,9 @@ namespace Nova.Classes.Mods
         public static SpriteRenderer SpriteRenderer { get; private set; }
 
         private bool hasSetupFeaturedMapVideo;
+        private bool replacedMapText;
+        private bool replacedMapImage;
+        private bool toggledDisplayText;
         private VideoPlayer videoPlayer;
 
         public static GameObject LoadingText;
@@ -56,27 +59,58 @@ namespace Nova.Classes.Mods
         private void OnDisable()
         {
             hasSetupFeaturedMapVideo = false;
-            TextMeshPro featuredMapText = MapInfoText.GetComponent<TextMeshPro>();
-            featuredMapText.text = oldText;
-            MapInfoText.SetActive(false);
-            LoadingText.SetActive(true);
 
-            foreach (Transform child in DisplayTextObj.transform)
-                if (child.name.ToLower().EndsWith("tmp"))
-                    child.gameObject.SetActive(!child.gameObject.activeSelf);
+            if (replacedMapText)
+            {
+                replacedMapText = false;
 
-            GameObject featuredMapImage = FeaturedMaps.transform.Find("FeaturedMapImage")?.gameObject;
+                if (MapInfoText != null)
+                {
+                    TextMeshPro featuredMapText = MapInfoText.GetComponent<TextMeshPro>();
+                    if (featuredMapText != null)
+                        featuredMapText.text = oldText;
+                    MapInfoText.SetActive(false);
+                }
 
-            if (featuredMapImage == null)
+                if (LoadingText != null)
+                    LoadingText.SetActive(true);
+            }
+
+            if (toggledDisplayText)
+            {
+                toggledDisplayText = false;
+                ToggleDisplayText();
+            }
+
+            if (!replacedMapImage || FeaturedMaps == null)
                 return;
 
+            replacedMapImage = false;
+
+            Transform featuredMapImageTransform = FeaturedMaps.transform.Find("FeaturedMapImage");
+            if (featuredMapImageTransform == null)
+                return;
+
+            GameObject featuredMapImage = featuredMapImageTransform.gameObject;
+
             Destroy(featuredMapImage.GetOrAddComponent<MeshFilter>());
-            Destroy(featuredMapImage.GetOrAddComponent<MeshRenderer>());
+            // Immediate, so the SpriteRenderer can be added back this frame
+            DestroyImmediate(featuredMapImage.GetOrAddComponent<MeshRenderer>());
 
             featuredMapImage.transform.localScale = oldLocalScale;
             Destroy(featuredMapImage.GetOrAddComponent<VideoPlayer>());
 
             ApplySpriteRenderer(featuredMapImage);
+        }
+
+        private static void ToggleDisplayText()
+        {
+            if (DisplayTextObj == null)
+                return;
+
+            foreach (Transform child in DisplayTextObj.transform)
+                if (child.name.ToLower().EndsWith("tmp"))
+                    child.gameObject.SetActive(!child.gameObject.activeSelf);
         }
 
         private void Update()
@@ -97,32 +131,34 @@ namespace Nova.Classes.Mods
             FeaturedMaps = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/ModIOFeaturedMapsDisplay");
             DisplayTextObj = GetObject("Environment Objects/LocalObjects_Prefab/TreeRoom/ModIOFeaturedMapsDisplay/DisplayText");
 
-            if (DisplayTextObj != null)
-                foreach (Transform child in DisplayTextObj.transform)
-                    if (child.name.ToLower().EndsWith("tmp"))
-                        child.gameObject.SetActive(!child.gameObject.activeSelf);
-
             if (MapInfoText == null || FeaturedMaps == null)
                 return;
 
             try
             {
                 TextMeshPro featuredMapText = MapInfoText.GetComponent<TextMeshPro>();
-                if (featuredMapText != null)
+                if (featuredMapText != null && !replacedMapText)
                 {
                     oldText = featuredMapText.text;
                     featuredMapText.text = "<b><color=#7C00FA>Nova Menu</color></b>";
                     MapInfoText.SetActive(true);
+                    replacedMapText = true;
+
+                    if (LoadingText != null)
+                        LoadingText.SetActive(false);
                 }
 
-                LoadingText?.SetActive(false);
-
-                GameObject featuredMapImage = FeaturedMaps.transform.Find("FeaturedMapImage")?.gameObject;
-
-                if (featuredMapImage == null)
+                Transform featuredMapImageTransform = FeaturedMaps.transform.Find("FeaturedMapImage");
+                if (featuredMapImageTransform == null)
                     return;
 
-                CacheAndRemoveSpriteRenderer(featuredMapImage);
+                GameObject featuredMapImage = featuredMapImageTransform.gameObject;
+
+                if (!replacedMapImage)
+                {
+                    CacheAndRemoveSpriteRenderer(featuredMapImage);
+                    replacedMapImage = true;
+                }
 
                 MeshFilter mf = featuredMapImage.GetOrAddComponent<MeshFilter>();
                 mf.mesh = Resources.GetBuiltinResource<Mesh>("Quad.fbx");
@@ -149,6 +185,12 @@ namespace Nova.Classes.Mods
                 featuredMapImage.SetActive(true);
 
                 hasSetupFeaturedMapVideo = true;
+
+                if (!toggledDisplayText)
+                {
+                    ToggleDisplayText();
+                    toggledDisplayText = true;
+                }
             }
             catch { }
         }

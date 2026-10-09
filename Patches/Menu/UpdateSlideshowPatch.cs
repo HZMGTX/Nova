@@ -26,20 +26,37 @@
 using HarmonyLib;
 using Nova.Classes.Mods;
 using TMPro;
+using UnityEngine;
 
 namespace Nova.Patches.Menu
 {
     [HarmonyPatch(typeof(NewMapsDisplay), nameof(NewMapsDisplay.UpdateSlideshow))]
     public static class UpdateSlideshowPatch
     {
+        private static GameObject cachedMapInfoText;
+        private static TextMeshPro cachedMapInfoTMP;
+
         public static bool Prefix(NewMapsDisplay __instance)
         {
-            if (VirtualStumpAd.Instance == null)
+            if (VirtualStumpAd.Instance == null || VirtualStumpAd.MapInfoText == null)
                 return true;
 
+            if (cachedMapInfoText != VirtualStumpAd.MapInfoText)
+            {
+                cachedMapInfoText = VirtualStumpAd.MapInfoText;
+                cachedMapInfoTMP = cachedMapInfoText.GetComponent<TextMeshPro>();
+            }
+
             __instance.mapImage = VirtualStumpAd.SpriteRenderer;
-            __instance.mapInfoTMP = VirtualStumpAd.MapInfoText.GetComponent<TextMeshPro>();
-            return __instance.mapImage != null && __instance.mapImage.gameObject != null;
+            if (cachedMapInfoTMP != null)
+                __instance.mapInfoTMP = cachedMapInfoTMP;
+
+            if (__instance.mapImage != null && __instance.mapImage.gameObject != null)
+                return true;
+
+            // Wait a full interval before trying again instead of retrying every frame
+            __instance.lastSlideshowUpdate = Time.time;
+            return false;
         }
     }
 }

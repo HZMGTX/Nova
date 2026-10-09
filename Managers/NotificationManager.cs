@@ -356,7 +356,7 @@ namespace Nova.Managers
                 }
 
                 if (/*notificationSoundIndex != 0 && */(!soundOnError || notificationText.Contains("<color=red>ERROR</color>")) && Time.time > timeMenuStarted + 5f)
-                    SoundManager.Play(SoundManager.DefaultSounds["Notification"], action: clip => AudioSource.PlayClipAtPoint(clip, Camera.main.transform.position, buttonClickVolume / 10f));
+                    SoundManager.Play(SoundManager.DefaultSounds["Notification"], action: clip => AudioSource.PlayClipAtPoint(clip, Camera.main.transform.position, buttonClickVolume / 10f), category: "Notifications");
 
                 if (inputTextColor != "green")
                     notificationText = notificationText.Replace("<color=green>", "<color=" + inputTextColor + ">");
@@ -409,7 +409,7 @@ namespace Nova.Managers
         }
 
         public static void PlayNotificationSound() =>
-            SoundManager.Play(SoundManager.DefaultSounds["Notification"], action: clip => AudioSource.PlayClipAtPoint(clip, Camera.main.transform.position, buttonClickVolume / 10f));
+            SoundManager.Play(SoundManager.DefaultSounds["Notification"], action: clip => AudioSource.PlayClipAtPoint(clip, Camera.main.transform.position, buttonClickVolume / 10f), category: "Notifications");
 
         /// <summary>
         /// Clears all active notifications and stops any ongoing notification clearing operations.

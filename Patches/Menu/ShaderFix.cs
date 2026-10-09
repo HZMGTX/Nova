@@ -33,27 +33,65 @@ namespace Nova.Patches.Menu
     [HarmonyPatch(typeof(GameObject), nameof(GameObject.CreatePrimitive))]
     public class ShaderFix
     {
+        private static Shader litShader;
+        private static Shader unlitShader;
+        private static Shader uberShader;
+
+        private static Shader FindShader(ref Shader cache, string name)
+        {
+            if (cache == null)
+                cache = Shader.Find(name);
+
+            return cache;
+        }
+
         private static void Postfix(GameObject __result)
         {
-            if (crystallizeMenu && CrystalMaterial != null)
-                __result.GetComponent<Renderer>().material = CrystalMaterial;
-            else if (transparentMenu)
+            Renderer renderer = __result.GetComponent<Renderer>();
+            if (renderer == null)
+                return;
+
+            bool crystal = crystallizeMenu && CrystalMaterial != null;
+            if (crystal)
+                renderer.material = CrystalMaterial;
+
+            // Accessing .material creates a per-object instance, so only do it once
+            Material material = renderer.material;
+
+            if (!crystal)
             {
-                Material material = __result.GetComponent<Renderer>().material;
-                material.shader = Shader.Find(shinyMenu ? "Universal Render Pipeline/Lit" : "Universal Render Pipeline/Unlit");
+                if (transparentMenu)
+                {
+                    material.shader = shinyMenu ? FindShader(ref litShader, "Universal Render Pipeline/Lit") : FindShader(ref unlitShader, "Universal Render Pipeline/Unlit");
 
-                material.SetFloat("_Surface", 1);
-                material.SetFloat("_Blend", 0);
-                material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
-                material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
-                material.SetFloat("_ZWrite", 0);
-                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-                material.renderQueue = (int)RenderQueue.Transparent;
+                    material.SetFloat("_Surface", 1);
+                    material.SetFloat("_Blend", 0);
+                    material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                    material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                    material.SetFloat("_ZWrite", 0);
+                    material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                    material.renderQueue = (int)RenderQueue.Transparent;
+                }
+                else
+                    material.shader = shinyMenu ? FindShader(ref litShader, "Universal Render Pipeline/Lit") : FindShader(ref uberShader, "GorillaTag/UberShader");
             }
-            else
-                __result.GetComponent<Renderer>().material.shader = Shader.Find(shinyMenu ? "Universal Render Pipeline/Lit" : "GorillaTag/UberShader");
 
-            __result.GetComponent<Renderer>().material.color = backgroundColor.GetColor(0);
+            material.color = backgroundColor.GetColor(0);
+
+            if (material != CrystalMaterial)
+                __result.AddComponent<MaterialInstanceCleanup>().material = material;
+        }
+    }
+
+    // Destroys the material instance created by ShaderFix along with its object
+    public class MaterialInstanceCleanup : MonoBehaviour
+    {
+        public Material material;
+
+        private void OnDestroy()
+        {
+            if (material != null)
+                Destroy(material);
         }
     }
 }

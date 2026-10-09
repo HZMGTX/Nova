@@ -30,8 +30,10 @@ using PlayFab.CloudScriptModels;
 using PlayFab.Internal;
 using Nova.Managers;
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using System.Globalization;
+using System.Linq;
 
 namespace Nova.Patches.Menu
 {
@@ -111,34 +113,39 @@ namespace Nova.Patches.Menu
                 if (callRequestContainer.ErrorCallback != null)
                 {
                     Action<PlayFabError> errorCallback = callRequestContainer.ErrorCallback;
-                    PlayFabError fakeError = null;
                     void overrideError(PlayFabError error)
                     {
-                        if (error.ErrorMessage.ToLower().Contains("ban") || error.ErrorMessage.ToLower().Contains("banned") || error.ErrorMessage.ToLower().Contains("suspended") || error.ErrorMessage.ToLower().Contains("suspension"))
+                        string lowerMessage = error?.ErrorMessage?.ToLower() ?? "";
+                        if (lowerMessage.Contains("ban") || lowerMessage.Contains("banned") || lowerMessage.Contains("suspended") || lowerMessage.Contains("suspension"))
                         {
-                            if (error.ErrorMessage.ToLower().Contains("this ip"))
+                            bool ipBan = lowerMessage.Contains("this ip");
+                            if (ipBan)
                                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ANTI-BAN</color><color=grey>]</color> Your IP address is currently banned.");
                             else
                                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ANTI-BAN</color><color=grey>]</color> Your account is currently banned.");
-                            Dictionary<string, List<string>>.Enumerator enumerator = error.ErrorDetails.GetEnumerator();
-                            if (enumerator.Current.Value[0] == null || enumerator.Current.Value[0] == "Indefinite")
+
+                            string target = ipBan ? "IP address" : "account";
+                            string expiry = error.ErrorDetails?.Values.FirstOrDefault(details => details != null && details.Count > 0)?[0];
+
+                            string fakeMessage;
+                            if (expiry == null || expiry == "Indefinite")
+                                fakeMessage = $"Your {target} has been banned indefinitely.";
+                            else if (DateTime.TryParse(expiry, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime expiryTime))
+                                fakeMessage = $"Your {target} has been banned. Hours left: {(int)((expiryTime - DateTime.UtcNow).TotalHours + 1.0)}";
+                            else
+                                fakeMessage = $"Your {target} has been banned.";
+
+                            PlayFabError fakeError = new PlayFabError
                             {
-                                fakeError = new PlayFabError
-                                {
-                                    Error = PlayFabErrorCode.UnknownError,
-                                    ErrorMessage = $"Your {(error.ErrorMessage.ToLower().Contains("this ip") ? "IP address" : "account")} has been banned indefinitely.",
-                                    ErrorDetails = new Dictionary<string, List<string>>()
-                                };
-                            }
-                            else if (enumerator.Current.Value[0] != "Indefinite")
-                            {
-                                fakeError = new PlayFabError
-                                {
-                                    Error = PlayFabErrorCode.UnknownError,
-                                    ErrorMessage = $"Your {(error.ErrorMessage.ToLower().Contains("this ip") ? "IP address" : "account")} has been banned. Hours left: {(int)((DateTime.Parse(enumerator.Current.Value[0]) - DateTime.UtcNow).TotalHours + 1.0)}",
-                                    ErrorDetails = new Dictionary<string, List<string>>()
-                                };
-                            }
+                                Error = PlayFabErrorCode.UnknownError,
+                                ErrorMessage = fakeMessage,
+                                ErrorDetails = new Dictionary<string, List<string>>()
+                            };
+
+                            // PlayFab invokes error callbacks on the main thread
+                            if (NetworkSystem.Instance == null || !NetworkSystem.Instance.InRoom)
+                                ShowFailureMessage(fakeMessage);
+
                             errorCallback?.Invoke(fakeError);
                             return;
                         }
@@ -146,17 +153,25 @@ namespace Nova.Patches.Menu
                     }
 
                     callRequestContainer.ErrorCallback = overrideError;
-                    if (!NetworkSystem.Instance.InRoom)
-                        Task.Run(async () =>
-                        {
-                            while (GorillaComputer.instance == null)
-                                await Task.Delay(16);
-
-                            GorillaComputer.instance.GeneralFailureMessage(fakeError.ErrorMessage);
-                        });
                 }
 
                 return true;
+            }
+
+            private static void ShowFailureMessage(string message)
+            {
+                if (GorillaComputer.instance != null)
+                    GorillaComputer.instance.GeneralFailureMessage(message);
+                else if (CoroutineManager.instance != null)
+                    CoroutineManager.instance.StartCoroutine(ShowFailureMessageDelayed(message));
+            }
+
+            private static IEnumerator ShowFailureMessageDelayed(string message)
+            {
+                while (GorillaComputer.instance == null)
+                    yield return null;
+
+                GorillaComputer.instance.GeneralFailureMessage(message);
             }
         }
 

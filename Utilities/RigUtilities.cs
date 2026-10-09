@@ -50,10 +50,12 @@ namespace Nova.Utilities
         public static Player NetPlayerToPlayer(NetPlayer p) =>
             p.GetPlayerRef();
 
-        public static Player GetRandomPlayer(bool includeSelf = false) =>
-            includeSelf ?
-            PhotonNetwork.PlayerList[Random.Range(0, PhotonNetwork.PlayerList.Length)] :
-            PhotonNetwork.PlayerListOthers[Random.Range(0, PhotonNetwork.PlayerListOthers.Length)];
+        public static Player GetRandomPlayer(bool includeSelf = false)
+        {
+            // Each access builds a new array, so read it once
+            Player[] players = includeSelf ? PhotonNetwork.PlayerList : PhotonNetwork.PlayerListOthers;
+            return players == null || players.Length == 0 ? null : players[Random.Range(0, players.Length)];
+        }
 
         private static VRRig rigTarget;
         private static float rigTargetChange;
@@ -66,8 +68,11 @@ namespace Nova.Utilities
             return rigTarget;
         }
 
-        public static VRRig GetRandomVRRig(bool includeSelf = false) =>
-            GetVRRigFromPlayer(GetRandomPlayer(includeSelf));
+        public static VRRig GetRandomVRRig(bool includeSelf = false)
+        {
+            Player player = GetRandomPlayer(includeSelf);
+            return player == null ? null : GetVRRigFromPlayer(player);
+        }
 
         public static NetworkView GetNetworkViewFromVRRig(VRRig p) =>
             p.netView;

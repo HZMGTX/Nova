@@ -35,10 +35,19 @@ namespace Nova.Patches.Menu
     {
         public static bool enabled;
 
-        public static bool Prefix(TakeMyHand_HandLink __instance, bool __result, DropZone zoneReleased, GameObject releasingHand)
+        public static bool Prefix(TakeMyHand_HandLink __instance, ref bool __result, DropZone zoneReleased, GameObject releasingHand)
         {
             if (enabled)
             {
+                // Same hand check as HoldableObject.OnRelease
+                EquipmentInteractor interactor = EquipmentInteractor.instance;
+                if ((ReferenceEquals(interactor.rightHandHeldEquipment, __instance) && releasingHand != interactor.rightHand) ||
+                    (ReferenceEquals(interactor.leftHandHeldEquipment, __instance) && releasingHand != interactor.leftHand))
+                {
+                    __result = false;
+                    return false;
+                }
+
                 if (!__instance.myRig.isOfflineVRRig)
                 {
                     bool grounded = false;
@@ -66,6 +75,8 @@ namespace Nova.Patches.Menu
 
                     handLink.BreakLink();
                 }
+
+                __result = true;
                 return false;
             }
 
