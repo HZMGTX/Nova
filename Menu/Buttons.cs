@@ -2219,7 +2219,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Leave Party", method =() => FriendshipGroupDetection.Instance.LeaveParty(), isTogglable = false, toolTip = "Leaves the party, incase you can't pull off the string." },
                 new ButtonInfo { buttonText = "Party Break Network Triggers", method = Overpowered.PartyBreakNetworkTriggers, toolTip = "Breaks the network triggers for anyone in your party." },
 
-                new ButtonInfo { buttonText = "Party Kick Gun", method = Overpowered.PartyKickGun, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Kicks whoever your hand desires if they're in your party from the room."},
+                new ButtonInfo { buttonText = "Party Kick Gun", method = Overpowered.PartyKickGun, disableMethod =() => { Overpowered.OptimizeEvents = false; SerializePatch.OverrideSerialization = null; }, toolTip = "Kicks whoever your hand desires if they're in your party from the room."},
                 new ButtonInfo { buttonText = "Party Kick All", method = Overpowered.PartyKickAll, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Kicks everyone in your party from the room."},
                 new ButtonInfo { buttonText = "Party Kick Aura", method = Overpowered.PartyKickAura, disableMethod = Overpowered.ReleasePartyKickFreeze, toolTip = "Kicks nearby party members from the room."},
                 new ButtonInfo { buttonText = "Party Kick On Touch", method = Overpowered.PartyKickOnTouch, disableMethod = Overpowered.ReleasePartyKickFreeze, toolTip = "Kicks party members you touch from the room."},
