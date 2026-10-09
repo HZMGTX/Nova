@@ -63,15 +63,25 @@ namespace Nova.Mods
     {
         public static readonly Dictionary<(long, float, PrimitiveType), GameObject> visualizePool = new Dictionary<(long, float, PrimitiveType), GameObject>();
 
+        // Pooled visuals are destroyed every frame they go unused, so they share one material
+        // and take their color from a property block instead of cloning a material each.
+        private static Material visualizeMaterial;
+        private static MaterialPropertyBlock visualizeBlock;
+        private static readonly int visualizeColorId = Shader.PropertyToID("_Color");
+
         public static void Visualize(PrimitiveType shape, Vector3 position, Quaternion rotation, Vector3 scale, Color color, long? indexId = null, float alpha = 0.25f, float rangeKeyComponent = 0f)
         {
             long index = indexId ?? BitPackUtils.PackWorldPosForNetwork(position);
             var key = (index, rangeKeyComponent, shape);
 
+            if (visualizeMaterial == null)
+                visualizeMaterial = new Material(Shader.Find("GUI/Text Shader"));
+
             if (!visualizePool.TryGetValue(key, out GameObject visualizeGO))
             {
                 visualizeGO = GameObject.CreatePrimitive(shape);
                 Object.Destroy(visualizeGO.GetComponent<Collider>());
+                visualizeGO.GetComponent<Renderer>().sharedMaterial = visualizeMaterial;
                 visualizePool.Add(key, visualizeGO);
             }
 
@@ -84,11 +94,14 @@ namespace Nova.Mods
             if (Buttons.GetIndex("Hidden on Camera").enabled)
                 visualizeGO.layer = 19;
 
-            Renderer visualizeRenderer = visualizeGO.GetComponent<Renderer>();
             Color clr = color;
             clr.a = alpha;
-            visualizeRenderer.material.shader = Shader.Find("GUI/Text Shader");
-            visualizeRenderer.material.color = clr;
+
+            if (visualizeBlock == null)
+                visualizeBlock = new MaterialPropertyBlock();
+
+            visualizeBlock.SetColor(visualizeColorId, clr);
+            visualizeGO.GetComponent<Renderer>().SetPropertyBlock(visualizeBlock);
         }
 
         private static float debugUpdateTimer;
@@ -218,7 +231,11 @@ namespace Nova.Mods
             if (tt)
                 coreESPColor.a = 0.5f;
 
-            List<GameEntity> cores = ManagerRegistry.GhostReactor.GameEntityManager.entities.Where(entity => entity != null && entity.typeId == Overpowered.ObjectByName["GhostReactorCollectibleCore"]).ToList();
+            // ObjectByName builds a new dictionary on every access, so look the id up once.
+            if (!Overpowered.ObjectByName.TryGetValue("GhostReactorCollectibleCore", out int coreTypeId))
+                return;
+
+            List<GameEntity> cores = ManagerRegistry.GhostReactor.GameEntityManager.entities.Where(entity => entity != null && entity.typeId == coreTypeId).ToList();
             if (cores.Count <= 0)
                 return;
 
@@ -363,17 +380,26 @@ namespace Nova.Mods
         }
 
         private static bool previousFullbrightStatus;
+        private static bool fullbrightApplied;
         public static void SetFullbrightStatus(bool fullBright)
         {
             if (fullBright)
             {
-                previousFullbrightStatus = GameLightingManager.instance.customVertexLightingEnabled;
+                // Runs every frame; only the state from before the first frame is worth restoring.
+                if (!fullbrightApplied)
+                {
+                    previousFullbrightStatus = GameLightingManager.instance.customVertexLightingEnabled;
+                    fullbrightApplied = true;
+                }
+
                 GameLightingManager.instance.SetCustomDynamicLightingEnabled(false);
             }
             else
             {
-                if (previousFullbrightStatus)
+                if (fullbrightApplied && previousFullbrightStatus)
                     GameLightingManager.instance.SetCustomDynamicLightingEnabled(true);
+
+                fullbrightApplied = false;
             }
         }
 
@@ -589,16 +615,20 @@ namespace Nova.Mods
         public static void DoCustomSkyboxColor()
         {
             GameObject sky = GetObject("Environment Objects/LocalObjects_Prefab/Standard Sky");
-            oldSkyMat = sky.GetComponent<Renderer>().material;
+            oldSkyMat = sky.GetComponent<Renderer>().sharedMaterial;
         }
 
         public static void CustomSkyboxColor() =>
-            GetObject("Environment Objects/LocalObjects_Prefab/Standard Sky").GetComponent<Renderer>().material = CustomBoardManager.BoardMaterial;
+            GetObject("Environment Objects/LocalObjects_Prefab/Standard Sky").GetComponent<Renderer>().sharedMaterial = CustomBoardManager.BoardMaterial;
 
         public static void UnCustomSkyboxColor()
         {
+            if (oldSkyMat == null)
+                return;
+
             GameObject sky = GetObject("Environment Objects/LocalObjects_Prefab/Standard Sky");
-            sky.GetComponent<Renderer>().material = oldSkyMat;
+            sky.GetComponent<Renderer>().sharedMaterial = oldSkyMat;
+            oldSkyMat = null;
         }
 
         public static TrailRenderer trailRenderer;
@@ -708,7 +738,7 @@ namespace Nova.Mods
 
                 if (age > 1f || obj == null)
                 {
-                    if (obj != null) Object.Destroy(obj);
+                    DestroyWithMaterial(obj);
                     handTaps.RemoveAt(i);
                     continue;
                 }
@@ -731,15 +761,80 @@ namespace Nova.Mods
         public static void DisableGamesenseRing()
         {
             foreach (var ringData in handTaps)
-            {
-                GameObject obj = (GameObject)ringData[3];
-                if (obj != null) Object.Destroy(obj);
-            }
+                DestroyWithMaterial((GameObject)ringData[3]);
 
             handTaps.Clear();
 
             HandTapPatch.OnHandTap -= OnHandTapGamesenseRing;
         }
+
+        /// <summary>
+        /// Destroys an object along with the material clone its renderer made when <c>renderer.material</c>
+        /// was read; the clone is not owned by the object and would otherwise outlive it.
+        /// </summary>
+        private static void DestroyWithMaterial(GameObject obj)
+        {
+            if (obj == null)
+                return;
+
+            DestroyOwnMaterial(obj.GetComponent<Renderer>());
+            Object.Destroy(obj);
+        }
+
+        private static void DestroyOwnMaterial(Renderer renderer)
+        {
+            if (renderer == null)
+                return;
+
+            // Returns this renderer's own clone (or makes one), never the shared asset.
+            Material material = renderer.material;
+            if (material != null)
+                Object.Destroy(material);
+        }
+
+        private static void SetLayerRecursively(GameObject obj, int layer)
+        {
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+                SetLayerRecursively(child.gameObject, layer);
+        }
+
+        private static readonly List<VRRig> staleRigs = new List<VRRig>();
+
+        /// <summary>
+        /// Fills a reused list with the rigs whose entry should go: rigs no longer in the room, the local
+        /// rig when <paramref name="keepLocal"/> is false (e.g. 'Show Self Nametag' was turned off), and
+        /// any rig <paramref name="alsoStale"/> matches.
+        /// </summary>
+        private static List<VRRig> GetStaleRigs<T>(Dictionary<VRRig, T> entries, bool keepLocal = true, Func<VRRig, bool> alsoStale = null)
+        {
+            staleRigs.Clear();
+            foreach (KeyValuePair<VRRig, T> entry in entries)
+            {
+                if (!VRRigExtensions.ActiveRigs.Contains(entry.Key) || (!keepLocal && entry.Key.isLocal) || (alsoStale != null && alsoStale(entry.Key)))
+                    staleRigs.Add(entry.Key);
+            }
+
+            return staleRigs;
+        }
+
+        private static void CleanupRigEntries(Dictionary<VRRig, GameObject> entries, bool keepLocal = true, bool destroyMaterial = false, Func<VRRig, bool> alsoStale = null)
+        {
+            foreach (VRRig rig in GetStaleRigs(entries, keepLocal, alsoStale))
+            {
+                if (destroyMaterial)
+                    DestroyWithMaterial(entries[rig]);
+                else
+                    Object.Destroy(entries[rig]);
+
+                entries.Remove(rig);
+            }
+        }
+
+        // One InfectedList() per frame instead of one per IsTagged() call.
+        private static bool IsInfected(List<NetPlayer> infected, VRRig rig) =>
+            rig != null && infected.Contains(rig.GetPlayer());
+
         public static bool PerformanceVisuals;
 
         public static float PerformanceModeStep = 0.2f;
@@ -767,7 +862,7 @@ namespace Nova.Mods
             if (frames[0] == Time.frameCount)
             {
                 frames.Add(Time.frameCount);
-                return 0.1f + Time.frameCount * 0.1f;
+                return 0.1f + frames.Count * 0.1f;
             }
 
             frames.Clear();
@@ -811,25 +906,52 @@ namespace Nova.Mods
 
             TextMeshPro.SafeSetText(text);
 
+            PositionLabel(go, leftHand);
+        }
+
+        private static void PositionLabel(GameObject go, bool leftHand)
+        {
             go.transform.position = (leftHand ? GorillaTagger.Instance.leftHandTransform : GorillaTagger.Instance.rightHandTransform).position + Vector3.up * (GetLabelDistance(leftHand) * (scaleWithPlayer ? GTPlayer.Instance.scale : 1f));
             go.transform.LookAt(Camera.main.transform.position);
             go.transform.Rotate(0f, 180f, 0f);
         }
 
+        /// <summary>
+        /// Keeps an existing label shown and following the hand on a frame where performance mode skips
+        /// refreshing it; otherwise the per-frame label clean up hides it and destroys it the frame after.
+        /// </summary>
+        private static void KeepLabel(string codeName, bool leftHand)
+        {
+            if (!labelDictionary.TryGetValue(codeName, out GameObject go) || go == null)
+                return;
+
+            go.SetActive(true);
+            PositionLabel(go, leftHand);
+        }
+
 
         public static string OverallPlaytime;
         private static float playtime;
+        private static int lastPlaytimeSecond = -1;
         public static void UpdatePlaytime()
-        {
-            CoroutineManager.instance.StartCoroutine(Updateplaytime());
-        }
-        private static IEnumerator Updateplaytime()
         {
             playtime += Time.deltaTime;
 
-            TimeSpan time = TimeSpan.FromSeconds(playtime);
+            int seconds = (int)playtime;
+            if (seconds == lastPlaytimeSecond && OverallPlaytime != null)
+                return;
+
+            lastPlaytimeSecond = seconds;
+            TimeSpan time = TimeSpan.FromSeconds(seconds);
             OverallPlaytime = $"{time.Hours:D2}:{time.Minutes:D2}:{time.Seconds:D2}";
-            yield return new WaitForSeconds(0.1f);
+        }
+
+        public static void DisablePlaytime()
+        {
+            NotificationManager.information.Remove("Playtime");
+            playtime = 0f;
+            lastPlaytimeSecond = -1;
+            OverallPlaytime = null;
         }
 
         public static void ExtraRoomInfo(bool? overlapInRoom = null)
@@ -848,6 +970,7 @@ namespace Nova.Mods
             else
             {
                 NotificationManager.information.Remove("Language");
+                NotificationManager.information.Remove("Platform");
                 NotificationManager.information.Remove("MMR Tier");
             }
         }
@@ -855,7 +978,10 @@ namespace Nova.Mods
         public static void VelocityLabel()
         {
             if (DoPerformanceCheck())
+            {
+                KeepLabel("Velocity", false);
                 return;
+            }
 
             GetLabel
             (
@@ -882,15 +1008,19 @@ namespace Nova.Mods
         public static void TimeLabel()
         {
             if (DoPerformanceCheck())
+            {
+                KeepLabel("Time", false);
                 return;
+            }
 
             if (NetworkSystem.Instance.InRoom)
             {
-                bool isThereTagged = InfectedList().Count > 0;
+                List<NetPlayer> infected = InfectedList();
+                bool isThereTagged = infected.Count > 0;
 
                 if (isThereTagged)
                 {
-                    bool playerIsTagged = VRRig.LocalRig.IsTagged();
+                    bool playerIsTagged = IsInfected(infected, VRRig.LocalRig);
                     switch (playerIsTagged)
                     {
                         case true when !lastWasTagged:
@@ -932,10 +1062,12 @@ namespace Nova.Mods
         {
             if (DoPerformanceCheck())
                 return;
+            List<NetPlayer> infected = InfectedList();
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
             float closest = float.MaxValue;
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (vrrig.IsTagged() != VRRig.LocalRig.IsTagged())
+                if (IsInfected(infected, vrrig) != selfTagged)
                 {
                     float dist = Vector3.Distance(GorillaTagger.Instance.headCollider.transform.position, vrrig.headMesh.transform.position);
                     if (dist < closest)
@@ -967,7 +1099,7 @@ namespace Nova.Mods
                     NotificationManager.information["Turn"] = $"{lockTarget.turnType.ToTitleCase()} {lockTarget.turnFactor}";
                 }
 
-                if (GetGunInput(true))
+                if (GetGunInput(true) && Ray.collider != null)
                 {
                     VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
                     if (gunTarget && !gunTarget.IsLocal())
@@ -979,8 +1111,12 @@ namespace Nova.Mods
             }
             else
             {
+                // Cleared here so the keys are only removed once, not on every frame the gun is down.
                 if (gunLocked)
                 {
+                    gunLocked = false;
+                    lockTarget = null;
+
                     NotificationManager.information.Remove("Name");
                     NotificationManager.information.Remove("Color");
                     NotificationManager.information.Remove("ID");
@@ -1022,14 +1158,19 @@ namespace Nova.Mods
         public static void NearbyTaggerLabel()
         {
             if (DoPerformanceCheck())
+            {
+                KeepLabel("NearbyTagger", true);
                 return;
+            }
 
-            if (!VRRig.LocalRig.IsTagged())
+            List<NetPlayer> infected = InfectedList();
+            if (!IsInfected(infected, VRRig.LocalRig))
             {
                 float closest = float.MaxValue;
                 foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                 {
-                    if (vrrig.IsTagged() != VRRig.LocalRig.IsTagged())
+                    // The local rig is untagged here, so this finds the nearest tagged rig.
+                    if (IsInfected(infected, vrrig))
                     {
                         float dist = Vector3.Distance(GorillaTagger.Instance.headCollider.transform.position, vrrig.headMesh.transform.position);
                         if (dist < closest)
@@ -1058,12 +1199,16 @@ namespace Nova.Mods
         public static void LastLabel()
         {
             if (DoPerformanceCheck())
+            {
+                KeepLabel("LastLabel", true);
                 return;
+            }
 
             if (NetworkSystem.Instance.InRoom)
             {
-                bool isThereTagged = InfectedList().Count > 0;
-                int left = PhotonNetwork.PlayerList.Length - InfectedList().Count;
+                List<NetPlayer> infected = InfectedList();
+                bool isThereTagged = infected.Count > 0;
+                int left = PhotonNetwork.PlayerList.Length - infected.Count;
 
                 if (isThereTagged)
                 {
@@ -1072,7 +1217,7 @@ namespace Nova.Mods
                         "LastLabel",
                         true,
                         left + " left",
-                        left <= 1 && !VRRig.LocalRig.IsTagged() ? Color.green : Color.white
+                        left <= 1 && !IsInfected(infected, VRRig.LocalRig) ? Color.green : Color.white
                     );
                 }
             }
@@ -1186,16 +1331,11 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, LineRenderer> predictions = new Dictionary<VRRig, LineRenderer>();
         public static void JumpPredictions()
         {
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in predictions.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
+            foreach (VRRig rig in GetStaleRigs(predictions))
             {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value.gameObject);
-            }
-
-            foreach (VRRig rig in toRemove)
+                Object.Destroy(predictions[rig].gameObject);
                 predictions.Remove(rig);
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -1242,7 +1382,11 @@ namespace Nova.Mods
                 Vector3 velocity = rig.LatestVelocity();
 
                 if (velocity.magnitude < 1.5f)
+                {
+                    // Otherwise the last trajectory stays drawn, frozen, until they jump again.
+                    Line.enabled = false;
                     continue;
+                }
 
                 DrawTrajectory(position, velocity, Line);
             }
@@ -1263,23 +1407,14 @@ namespace Nova.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var box in hitboxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                hitboxESP.Remove(rig);
+            CleanupRigEntries(hitboxESP);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
                 if (!hitboxESP.TryGetValue(vrrig, out GameObject box))
                 {
                     box = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                    Object.Destroy(box.GetComponent<BoxCollider>());
+                    Object.Destroy(box.GetComponent<Collider>());
 
                     box.transform.localScale = new Vector3(0.5f, 0.5f, 0f);
                     box.GetComponent<Renderer>().material.shader = Shader.Find("GUI/Text Shader");
@@ -1340,6 +1475,12 @@ namespace Nova.Mods
             foreach (SlingshotProjectile item in toRemoveTrajectories)
                 trajectoryPool.Remove(item);
 
+            // Looked up once; the local rig may not be holding a slingshot at all.
+            Slingshot localSlingshot = VRRig.LocalRig.GetSlingshot() as Slingshot;
+            SlingshotProjectile localDummyProjectile = localSlingshot != null && localSlingshot.dummyProjectile != null
+                ? localSlingshot.dummyProjectile.GetComponent<SlingshotProjectile>()
+                : null;
+
             void LoopProjectileArray(LoopingArray<ProjectileTracker.ProjectileInfo> projectileArray)
             {
                 if (projectileArray == null || projectileArray.Length <= 0) return;
@@ -1348,7 +1489,7 @@ namespace Nova.Mods
                     SlingshotProjectile projectileInstance = projectileArray[index].projectileInstance;
                     if (projectileInstance == null || !projectileInstance.gameObject.activeSelf) continue;
 
-                    if ((VRRig.LocalRig.GetSlingshot() as Slingshot).dummyProjectile && (VRRig.LocalRig.GetSlingshot() as Slingshot).dummyProjectile.GetComponent<SlingshotProjectile>() == projectileInstance) continue;
+                    if (localDummyProjectile != null && localDummyProjectile == projectileInstance) continue;
 
                     if (!trajectoryPool.TryGetValue(projectileInstance, out LineRenderer Line))
                     {
@@ -1462,14 +1603,13 @@ namespace Nova.Mods
             {
                 if (!localTrajectoryLine.gameObject.activeSelf)
                 {
-                    localTrajectoryLine = null;
                     Object.Destroy(localTrajectoryLine.gameObject);
+                    localTrajectoryLine = null;
                 }
                 else
                     localTrajectoryLine.gameObject.SetActive(false);
             }
 
-            Slingshot localSlingshot = VRRig.LocalRig.GetSlingshot() as Slingshot;
             if (localSlingshot == null || !localSlingshot.InDrawingState())
                 return;
 
@@ -1528,12 +1668,15 @@ namespace Nova.Mods
             }
         }
 
+        private const int trajectoryStepCount = 25;
+        private static readonly Vector3[] trajectoryPoints = new Vector3[trajectoryStepCount];
+
         public static void DrawTrajectory(Vector3 position, Vector3 velocity, LineRenderer lineRenderer, int? overrideLayerMask = null, Vector3? overrideGravity = null)
         {
             lineRenderer.enabled = true;
 
-            int stepCount = 25;
-            Vector3[] points = new Vector3[stepCount];
+            int stepCount = trajectoryStepCount;
+            Vector3[] points = trajectoryPoints;
 
             VRRig hitPlayer = null;
             int i;
@@ -1570,11 +1713,9 @@ namespace Nova.Mods
             lineRenderer.startColor = lineColor;
             lineRenderer.endColor = lineColor;
 
-            Vector3[] finalPoints = new Vector3[i];
-            Array.Copy(points, finalPoints, i);
-
-            lineRenderer.positionCount = finalPoints.Length;
-            lineRenderer.SetPositions(finalPoints);
+            // SetPositions only reads the first positionCount points of the shared buffer.
+            lineRenderer.positionCount = i;
+            lineRenderer.SetPositions(points);
         }
 
         public static void VisualizeNetworkTriggers()
@@ -1650,7 +1791,8 @@ namespace Nova.Mods
             }
             else
             {
-                optimizeDelay = Time.time + (PerformanceVisuals ? PerformanceVisualDelay : 0.1f);
+                // PerformanceVisualDelay is a timestamp, not an interval; adding it roughly doubled the wait every refresh.
+                optimizeDelay = Time.time + (PerformanceVisuals ? PerformanceModeStep : 0.1f);
                 optimizeChangeStep = Time.frameCount;
             }
 
@@ -1673,12 +1815,7 @@ namespace Nova.Mods
 
         public static void NameTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = nametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                nametags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(nametags, selfNameTag);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
@@ -1725,12 +1862,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> velnametags = new Dictionary<VRRig, GameObject>();
         public static void VelocityTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = velnametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                velnametags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(velnametags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -1783,12 +1915,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> fpsNametags = new Dictionary<VRRig, GameObject>();
         public static void FPSTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = fpsNametags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                fpsNametags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(fpsNametags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -1840,12 +1967,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> targetFPSNameTags = new Dictionary<VRRig, GameObject>();
         public static void TargetFPSTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = targetFPSNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                targetFPSNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(targetFPSNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -1898,12 +2020,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> idNameTags = new Dictionary<VRRig, GameObject>();
         public static void IDTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = idNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                idNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(idNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -1956,12 +2073,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> platformTags = new Dictionary<VRRig, GameObject>();
         public static void PlatformTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = platformTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                platformTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(platformTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2014,23 +2126,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> kidNameTags = new Dictionary<VRRig, GameObject>();
         public static void KIDNameTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> kidNameTagsCopy = kidNameTags.ToList();
-            foreach (KeyValuePair<VRRig, GameObject> nametag in kidNameTagsCopy)
-            {
-                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
-                {
-                    Object.Destroy(nametag.Value);
-                    kidNameTags.Remove(nametag.Key);
-                }
-                else
-                {
-                    if (!nametag.Key.IsKIDRestricted())
-                    {
-                        Object.Destroy(nametag.Value);
-                        kidNameTags.Remove(nametag.Key);
-                    }
-                }
-            }
+            CleanupRigEntries(kidNameTags, selfNameTag, alsoStale: rig => !rig.IsKIDRestricted());
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2085,23 +2181,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> subNameTags = new Dictionary<VRRig, GameObject>();
         public static void SubscriberNameTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> subNameTagsCopy = subNameTags.ToList();
-            foreach (KeyValuePair<VRRig, GameObject> nametag in subNameTagsCopy)
-            {
-                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
-                {
-                    Object.Destroy(nametag.Value);
-                    subNameTags.Remove(nametag.Key);
-                }
-                else
-                {
-                    if (SubscriptionManager.GetSubscriptionDetails(nametag.Key).tier <= 0)
-                    {
-                        Object.Destroy(nametag.Value);
-                        subNameTags.Remove(nametag.Key);
-                    }
-                }
-            }
+            CleanupRigEntries(subNameTags, selfNameTag, alsoStale: rig => SubscriptionManager.GetSubscriptionDetails(rig).tier <= 0);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2157,12 +2237,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> creationDateTags = new Dictionary<VRRig, GameObject>();
         public static void CreationDateTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = creationDateTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                creationDateTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(creationDateTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2215,12 +2290,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> pingNameTags = new Dictionary<VRRig, GameObject>();
         public static void PingTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = pingNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                pingNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(pingNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2273,12 +2343,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> turnNameTags = new Dictionary<VRRig, GameObject>();
         public static void TurnTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = turnNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                turnNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(turnNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2334,12 +2399,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> taggedNameTags = new Dictionary<VRRig, GameObject>();
         public static void TaggedTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = taggedNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                taggedNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(taggedNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2490,12 +2550,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> modNameTags = new Dictionary<VRRig, GameObject>();
         public static void ModTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = modNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                modNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(modNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2538,7 +2593,8 @@ namespace Nova.Mods
                             }
 
                             CosmeticsController.CosmeticSet cosmeticSet = vrrig.cosmeticSet;
-                            if (cosmeticSet.items.Any(cosmetic => !cosmetic.isNullItem && !vrrig.Cosmetics().Contains(cosmetic.itemName)))
+                            string ownedCosmetics = vrrig.Cosmetics();
+                            if (cosmeticSet.items.Any(cosmetic => !cosmetic.isNullItem && !ownedCosmetics.Contains(cosmetic.itemName)))
                             {
                                 if (specialMods == null)
                                     specialMods = "Cosmetx";
@@ -2595,18 +2651,13 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> cosmeticNameTags = new Dictionary<VRRig, GameObject>();
         public static void CosmeticTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = cosmeticNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                cosmeticNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(cosmeticNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 try
                 {
-                    if ((!vrrig.isLocal || selfNameTag) && cosmetics == null)
+                    if (!vrrig.isLocal || selfNameTag)
                     {
                         if (!cosmeticNameTags.ContainsKey(vrrig))
                         {
@@ -2623,21 +2674,25 @@ namespace Nova.Mods
                         TextMeshPro tmp = nameTag.GetOrAddComponent<TextMeshPro>();
                         if (NameTagOptimize())
                         {
-                            string cosmetics = null;
-                            foreach (var cosmetic in specialCosmetics.Where(cosmetic => vrrig.Cosmetics().Contains(cosmetic.Key)))
+                            string ownedCosmetics = vrrig.Cosmetics();
+                            string cosmeticText = null;
+                            foreach (var cosmetic in specialCosmetics)
                             {
-                                if (cosmetics == null)
-                                    cosmetics = cosmetic.Value;
+                                if (!ownedCosmetics.Contains(cosmetic.Key))
+                                    continue;
+
+                                if (cosmeticText == null)
+                                    cosmeticText = cosmetic.Value;
                                 else
                                 {
-                                    if (cosmetics.Contains("&"))
-                                        cosmetics = cosmetic.Value + ", " + cosmetics;
+                                    if (cosmeticText.Contains("&"))
+                                        cosmeticText = cosmetic.Value + ", " + cosmeticText;
                                     else
-                                        cosmetics += " & " + cosmetic.Value;
+                                        cosmeticText += " & " + cosmetic.Value;
                                 }
                             }
 
-                            tmp.SafeSetText(cosmetics);
+                            tmp.SafeSetText(cosmeticText);
 
                             tmp.color = vrrig.GetColor();
                             tmp.SafeSetFontStyle(activeFontStyle);
@@ -2767,12 +2822,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> verifiedNameTags = new Dictionary<VRRig, GameObject>();
         public static void VerifiedTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = verifiedNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                verifiedNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(verifiedNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2839,26 +2889,22 @@ namespace Nova.Mods
         }
 
         private static readonly Dictionary<VRRig, GameObject> crashedNameTags = new Dictionary<VRRig, GameObject>();
+
+        private static Color GetCrashedColor(int crashPower)
+        {
+            if (crashPower > 5000)
+                return Color.black;
+            if (crashPower > 2500)
+                return Color.red;
+            if (crashPower > 1500)
+                return new Color32(255, 128, 0, 255);
+
+            return Color.yellow;
+        }
+
         public static void CrashedTags()
         {
-            List<KeyValuePair<VRRig, GameObject>> crashedNameTagsCopy = crashedNameTags.ToList();
-            foreach (KeyValuePair<VRRig, GameObject> nametag in crashedNameTagsCopy)
-            {
-                if (!VRRigExtensions.ActiveRigs.Contains(nametag.Key))
-                {
-                    Object.Destroy(nametag.Value);
-                    crashedNameTags.Remove(nametag.Key);
-                }
-                else
-                {
-                    bool crashed = nametag.Key.GetTruePing() > 500;
-                    if (!crashed)
-                    {
-                        Object.Destroy(nametag.Value);
-                        crashedNameTags.Remove(nametag.Key);
-                    }
-                }
-            }
+            CleanupRigEntries(crashedNameTags, selfNameTag, alsoStale: rig => rig.GetTruePing() <= 500);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -2873,13 +2919,7 @@ namespace Nova.Mods
 
                             if (crashed)
                             {
-                                Color crashedColor = Color.yellow;
-                                if (crashPower > 5000)
-                                    crashedColor = Color.black;
-                                else if (crashPower > 2500)
-                                    crashedColor = Color.red;
-                                else if (crashPower > 1500)
-                                    crashedColor = new Color32(255, 128, 0, 255);
+                                Color crashedColor = GetCrashedColor(crashPower);
 
                                 GameObject go = new GameObject("Nova_Crashedtag");
                                 go.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
@@ -2898,16 +2938,9 @@ namespace Nova.Mods
 
                         if (crashedNameTags.TryGetValue(vrrig, out GameObject nameTag))
                         {
-                            double crashPower = Math.Abs(vrrig.velocityHistoryList[0].time * 1000 - PhotonNetwork.ServerTimestamp);
-
-                            Color crashedColor = Color.yellow;
-                            if (crashPower > 2500)
-                                crashedColor = Color.red;
-                            else if (crashPower > 1500)
-                                crashedColor = new Color32(255, 128, 0, 255);
-
+                            // Same measure and thresholds the tag was created with.
                             TextMeshPro tmp = nameTag.GetOrAddComponent<TextMeshPro>();
-                            tmp.color = crashedColor;
+                            tmp.color = GetCrashedColor(vrrig.GetTruePing());
                             if (nameTagChams)
                                 tmp.Chams();
                             nameTag.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f) * vrrig.scaleFactor;
@@ -2961,16 +2994,45 @@ namespace Nova.Mods
             return fps < 30 ? $"<color=red>{fps}</color>" : fps < 60 ? $"<color=yellow>{fps}</color>" : $"<color=green>{fps}</color>";
         }
 
+        // Per-rig references and measured sizes, so the children are not searched for and the
+        // text is not re-measured on every frame.
+        private class CompactTagParts
+        {
+            public TextMeshPro info;
+            public TextMeshPro name;
+            public LineRenderer infoBackground;
+            public LineRenderer nameBackground;
+            public float infoBackgroundHeight;
+            public float nameBackgroundHeight;
+        }
+
+        private static readonly Dictionary<VRRig, CompactTagParts> compactTagParts = new Dictionary<VRRig, CompactTagParts>();
+
+        private static void DestroyCompactTag(GameObject text, GameObject background)
+        {
+            if (text != null)
+                Object.Destroy(text);
+
+            if (background != null)
+            {
+                // Each background line holds its own material clone.
+                foreach (LineRenderer line in background.GetComponentsInChildren<LineRenderer>(true))
+                    DestroyOwnMaterial(line);
+
+                Object.Destroy(background);
+            }
+        }
+
         public static void CompactTags()
         {
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = compactNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
+            foreach (VRRig rig in GetStaleRigs(compactNameTags, selfNameTag))
             {
-                Object.Destroy(nametag.Value);
-                Object.Destroy(compactTagBackgrounds[nametag.Key]);
-                compactNameTags.Remove(nametag.Key);
-                compactTagBackgrounds.Remove(nametag.Key);
+                compactTagBackgrounds.TryGetValue(rig, out GameObject staleBackground);
+                DestroyCompactTag(compactNameTags[rig], staleBackground);
+                compactNameTags.Remove(rig);
+                compactTagBackgrounds.Remove(rig);
+                compactTagParts.Remove(rig);
             }
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
@@ -2979,11 +3041,10 @@ namespace Nova.Mods
                 {
                     if (!vrrig.IsLocal() || selfNameTag)
                     {
+                        bool created = false;
                         if (!compactNameTags.ContainsKey(vrrig))
                         {
                             GameObject textContainer = new GameObject("Nova_vrctag_text");
-                            if (hoc)
-                                textContainer.layer = 19;
 
                             GameObject infoTag = new GameObject("infotag");
                             infoTag.transform.parent = textContainer.transform;
@@ -3005,8 +3066,6 @@ namespace Nova.Mods
                             nameMesh.richText = true;
 
                             GameObject bgContainer = new GameObject("Nova_vrctag_background");
-                            if (hoc)
-                                bgContainer.layer = 19;
 
                             GameObject infoBg = new GameObject("infobg");
                             infoBg.transform.parent = bgContainer.transform;
@@ -3040,78 +3099,80 @@ namespace Nova.Mods
                             rendererName.startWidth = 0.1f;
                             rendererName.endWidth = 0.1f;
 
+                            // The children are what render, so they need the layer as well.
+                            if (hoc)
+                            {
+                                SetLayerRecursively(textContainer, 19);
+                                SetLayerRecursively(bgContainer, 19);
+                            }
+
                             compactNameTags.Add(vrrig, textContainer);
                             compactTagBackgrounds.Add(vrrig, bgContainer);
+                            compactTagParts[vrrig] = new CompactTagParts
+                            {
+                                info = infoMesh,
+                                name = nameMesh,
+                                infoBackground = rendererInfo,
+                                nameBackground = rendererName
+                            };
+                            created = true;
                         }
 
                         GameObject textCont = compactNameTags[vrrig];
                         GameObject bgCont = compactTagBackgrounds[vrrig];
+                        CompactTagParts parts = compactTagParts[vrrig];
 
-                        Transform infoTextTr = textCont.transform.Find("infotag");
-                        Transform nameTextTr = textCont.transform.Find("nametag");
-                        Transform infoBgTr = bgCont.transform.Find("infobg");
-                        Transform nameBgTr = bgCont.transform.Find("namebg");
-
-                        string tagText =
-                            $"{(vrrig.GetTruePing() > 2500 && !vrrig.IsLocal() ? "[<color=red>Unresponsive</color>] | " : "")}" +
-                            $"[<color=#00FFFF>{GetCreationDate(vrrig.GetPlayer().UserId, null, "MMM dd, yyyy")}</color>] | " +
-                            $"[{GetPrettyPlatform(vrrig)}] | " +
-                            $"[Ping: {GetPrettyPing(vrrig)}] | " +
-                            $"[FPS: {GetPrettyFPS(vrrig)}] | " +
-                            $"[Target FPS: {GetPrettyFPS(vrrig, true)}]" +
-                            $"{(vrrig.IsVIMSubscriber() ? " | [<color=yellow>VIM Subscriber</color>]" : "")}" +
-                            $"{(vrrig.GetPlayer().IsMasterClient ? " | [<color=#00FFFF>Master</color>]" : "")}";
-
-                        if (NameTagOptimize())
+                        if (NameTagOptimize() || created)
                         {
-                            infoTextTr.GetComponent<TextMeshPro>().SafeSetText(tagText);
-                            infoTextTr.GetComponent<TextMeshPro>().SafeSetFontStyle(activeFontStyle);
-                            infoTextTr.GetComponent<TextMeshPro>().SafeSetFont(activeFont);
+                            string tagText =
+                                $"{(vrrig.GetTruePing() > 2500 && !vrrig.IsLocal() ? "[<color=red>Unresponsive</color>] | " : "")}" +
+                                $"[<color=#00FFFF>{GetCreationDate(vrrig.GetPlayer().UserId, null, "MMM dd, yyyy")}</color>] | " +
+                                $"[{GetPrettyPlatform(vrrig)}] | " +
+                                $"[Ping: {GetPrettyPing(vrrig)}] | " +
+                                $"[FPS: {GetPrettyFPS(vrrig)}] | " +
+                                $"[Target FPS: {GetPrettyFPS(vrrig, true)}]" +
+                                $"{(vrrig.IsVIMSubscriber() ? " | [<color=yellow>VIM Subscriber</color>]" : "")}" +
+                                $"{(vrrig.GetPlayer().IsMasterClient ? " | [<color=#00FFFF>Master</color>]" : "")}";
+
+                            parts.info.SafeSetText(tagText);
+                            parts.info.SafeSetFontStyle(activeFontStyle);
+                            parts.info.SafeSetFont(activeFont);
+                            parts.infoBackgroundHeight = parts.info.GetPreferredValues(NoRichtextTags(tagText)).x * 0.65f + 0.15f;
+
+                            string playerName = CleanPlayerName(vrrig.GetPlayer().NickName);
+                            parts.name.SafeSetText(playerName);
+                            parts.name.SafeSetFontStyle(activeFontStyle);
+                            parts.name.SafeSetFont(activeFont);
+                            parts.nameBackgroundHeight = parts.name.GetPreferredValues(playerName).x * 0.5f + 0.2f;
                         }
 
-
-                        TextMeshPro tm = infoTextTr.GetComponent<TextMeshPro>();
                         if (nameTagChams)
-                            tm.Chams();
-                        string plainText = NoRichtextTags(tagText);
-                        float textWidth = tm.GetPreferredValues(plainText).x * 0.65f;
-                        float bgHeight = textWidth + 0.15f;
-
-                        string playerName = CleanPlayerName(vrrig.GetPlayer().NickName);
-                        TextMeshPro nameTm = nameTextTr.GetComponent<TextMeshPro>();
-
-                        if (NameTagOptimize())
                         {
-                            nameTm.SafeSetText(playerName);
-                            nameTm.SafeSetFontStyle(activeFontStyle);
-                            nameTm.SafeSetFont(activeFont);
+                            parts.info.Chams();
+                            parts.name.Chams();
                         }
-                        if (nameTagChams)
-                            nameTm.Chams();
-                        nameTm.color = vrrig.playerColor;
 
-                        float nameTextWidth = nameTm.GetPreferredValues(playerName).x * 0.5f;
-                        float nameBgHeight = nameTextWidth + 0.2f;
+                        parts.name.color = vrrig.playerColor;
 
                         Color nameBgColor = DarkenColor(vrrig.playerColor);
                         nameBgColor.a = 0.6f;
-                        nameBgTr.GetComponent<LineRenderer>().material.color = nameBgColor;
+                        parts.nameBackground.material.color = nameBgColor;
 
                         float finalScale = 0.15f * vrrig.scaleFactor;
                         textCont.transform.localScale = new Vector3(finalScale, finalScale, finalScale);
                         bgCont.transform.localScale = new Vector3(finalScale, finalScale, finalScale);
 
-                        LineRenderer infoRenderer = infoBgTr.GetComponent<LineRenderer>();
+                        LineRenderer infoRenderer = parts.infoBackground;
                         infoRenderer.startWidth = 0.05f * vrrig.scaleFactor;
                         infoRenderer.endWidth = 0.05f * vrrig.scaleFactor;
-                        infoRenderer.SetPosition(0, new Vector3(0f, -bgHeight, 0f));
-                        infoRenderer.SetPosition(1, new Vector3(0f, bgHeight, 0f));
+                        infoRenderer.SetPosition(0, new Vector3(0f, -parts.infoBackgroundHeight, 0f));
+                        infoRenderer.SetPosition(1, new Vector3(0f, parts.infoBackgroundHeight, 0f));
 
-                        LineRenderer nameRenderer = nameBgTr.GetComponent<LineRenderer>();
+                        LineRenderer nameRenderer = parts.nameBackground;
                         nameRenderer.startWidth = 0.1f * vrrig.scaleFactor;
                         nameRenderer.endWidth = 0.1f * vrrig.scaleFactor;
-                        nameRenderer.SetPosition(0, new Vector3(0f, -nameBgHeight, 0f));
-                        nameRenderer.SetPosition(1, new Vector3(0f, nameBgHeight, 0f));
+                        nameRenderer.SetPosition(0, new Vector3(0f, -parts.nameBackgroundHeight, 0f));
+                        nameRenderer.SetPosition(1, new Vector3(0f, parts.nameBackgroundHeight, 0f));
 
                         Vector3 tagPosition = GetNameTagPosition(vrrig);
 
@@ -3131,13 +3192,14 @@ namespace Nova.Mods
         public static void DisableCompactTags()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in compactNameTags)
-                Object.Destroy(nametag.Value);
-
-            foreach (KeyValuePair<VRRig, GameObject> background in compactTagBackgrounds)
-                Object.Destroy(background.Value);
+            {
+                compactTagBackgrounds.TryGetValue(nametag.Key, out GameObject background);
+                DestroyCompactTag(nametag.Value, background);
+            }
 
             compactNameTags.Clear();
             compactTagBackgrounds.Clear();
+            compactTagParts.Clear();
         }
 
         private static readonly Dictionary<VRRig, GameObject> minecraftNameTags = new Dictionary<VRRig, GameObject>();
@@ -3147,13 +3209,15 @@ namespace Nova.Mods
         {
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
 
-            List<KeyValuePair<VRRig, GameObject>> tagCopy = minecraftNameTags.ToList();
-            foreach (var tag in tagCopy.Where(tag => !VRRigExtensions.ActiveRigs.Contains(tag.Key)))
+            foreach (VRRig rig in GetStaleRigs(minecraftNameTags, selfNameTag))
             {
-                Object.Destroy(tag.Value);
-                Object.Destroy(minecraftTagBackgrounds[tag.Key]);
-                minecraftNameTags.Remove(tag.Key);
-                minecraftTagBackgrounds.Remove(tag.Key);
+                // The background is a child of the tag, so destroying the tag takes it too.
+                if (minecraftTagBackgrounds.TryGetValue(rig, out GameObject staleBackground) && staleBackground != null)
+                    DestroyOwnMaterial(staleBackground.GetComponent<Renderer>());
+
+                Object.Destroy(minecraftNameTags[rig]);
+                minecraftNameTags.Remove(rig);
+                minecraftTagBackgrounds.Remove(rig);
             }
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
@@ -3164,8 +3228,6 @@ namespace Nova.Mods
                 if (!minecraftNameTags.ContainsKey(vrrig))
                 {
                     GameObject tagContainer = new GameObject("Nova_MinecraftTag");
-                    if (hoc)
-                        tagContainer.layer = 19;
 
                     GameObject textobj = new GameObject("text");
                     textobj.transform.SetParent(tagContainer.transform, false);
@@ -3216,8 +3278,9 @@ namespace Nova.Mods
                 container.transform.LookAt(Camera.main.transform.position);
                 container.transform.Rotate(0f, 180f, 0f);
 
-                container.layer = hoc ? 19 : container.layer;
-                bg.layer = hoc ? 19 : bg.layer;
+                // The text child renders too, so it needs the layer as well as the container and background.
+                if (hoc && tmp.gameObject.layer != 19)
+                    SetLayerRecursively(container, 19);
             }
         }
 
@@ -3227,7 +3290,7 @@ namespace Nova.Mods
                 Object.Destroy(tag.Value);
 
             foreach (KeyValuePair<VRRig, GameObject> bg in minecraftTagBackgrounds)
-                Object.Destroy(bg.Value);
+                DestroyWithMaterial(bg.Value);
 
             minecraftNameTags.Clear();
             minecraftTagBackgrounds.Clear();
@@ -3239,12 +3302,7 @@ namespace Nova.Mods
         {
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
 
-            List<KeyValuePair<VRRig, GameObject>> nametagsCopy = castingNameTags.ToList();
-            foreach (var nametag in nametagsCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                castingNameTags.Remove(nametag.Key);
-            }
+            CleanupRigEntries(castingNameTags, selfNameTag);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -3460,16 +3518,20 @@ namespace Nova.Mods
                     }
                 }
             }
-            else
-            {
-                if (disabledRenderers.Count > 0)
-                {
-                    foreach (Renderer renderer in disabledRenderers.Where(rend => rend != null && rend.gameObject != null))
-                        renderer.enabled = true;
+            else if (disabledRenderers.Count > 0)
+                DisableXray();
+        }
 
-                    disabledRenderers.Clear();
-                }
+        // Also the button's disable method: turning X-Ray off while holding trigger left the world hidden.
+        public static void DisableXray()
+        {
+            foreach (Renderer renderer in disabledRenderers)
+            {
+                if (renderer != null)
+                    renderer.enabled = true;
             }
+
+            disabledRenderers.Clear();
         }
 
         public static void NoSmoothRigs()
@@ -3539,38 +3601,37 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> cosmeticIndicators = new Dictionary<VRRig, GameObject>();
         private static readonly Dictionary<string, Texture2D> cosmeticTextures = new Dictionary<string, Texture2D>();
         private static Material cosmeticMat;
+        private static readonly (string codename, string name)[] indicatorCosmetics =
+        {
+            ("LBAAD.", "admin"),
+            ("LBAAK.", "stick"),
+            ("LMAPY.", "forestguide"),
+            ("LBADE.", "fingerpainter"),
+            ("LBAGS.", "illustrator"),
+            ("LBANI.", "aa")
+        };
+
         public static void CosmeticIndicators()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = cosmeticIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                cosmeticIndicators.Remove(nametag.Key);
-            }
-
-            List<(string codename, string name)> cosmetics = new List<(string codename, string name)>
-            {
-                ("LBAAD.", "admin"),
-                ("LBAAK.", "stick"),
-                ("LMAPY.", "forestguide"),
-                ("LBADE.", "fingerpainter"),
-                ("LBAGS.", "illustrator"),
-                ("LBANI.", "aa")
-            };
+            CleanupRigEntries(cosmeticIndicators, destroyMaterial: true);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
+                if (vrrig.isLocal)
+                    continue;
+
+                string ownedCosmetics = vrrig.Cosmetics();
                 string currentCosmetic = null;
-                foreach (var (codename, name) in cosmetics)
+                foreach (var (codename, name) in indicatorCosmetics)
                 {
-                    if (vrrig.Cosmetics().Contains(codename))
+                    if (ownedCosmetics.Contains(codename))
                     {
                         currentCosmetic = name;
                         break;
                     }
                 }
 
-                if (!vrrig.isLocal && currentCosmetic != null)
+                if (currentCosmetic != null)
                 {
                     if (!cosmeticIndicators.TryGetValue(vrrig, out GameObject indicator))
                     {
@@ -3595,9 +3656,9 @@ namespace Nova.Mods
                     indicator.transform.position = GetNameTagPosition(vrrig);
                     indicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                 }
-                else if (currentCosmetic == null && cosmeticIndicators.TryGetValue(vrrig, out GameObject staleIndicator))
+                else if (cosmeticIndicators.TryGetValue(vrrig, out GameObject staleIndicator))
                 {
-                    Object.Destroy(staleIndicator);
+                    DestroyWithMaterial(staleIndicator);
                     cosmeticIndicators.Remove(vrrig);
                 }
             }
@@ -3606,7 +3667,7 @@ namespace Nova.Mods
         public static void DisableCosmeticIndicators()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in cosmeticIndicators)
-                Object.Destroy(nametag.Value);
+                DestroyWithMaterial(nametag.Value);
 
             cosmeticIndicators.Clear();
         }
@@ -3630,12 +3691,7 @@ namespace Nova.Mods
 
         public static void PlatformIndicators()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = platformIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                platformIndicators.Remove(nametag.Key);
-            }
+            CleanupRigEntries(platformIndicators, selfNameTag, true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
@@ -3671,12 +3727,7 @@ namespace Nova.Mods
 
         public static void PlatformESP()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = platformIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                platformIndicators.Remove(nametag.Key);
-            }
+            CleanupRigEntries(platformIndicators, selfNameTag, true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal || selfNameTag))
             {
@@ -3684,8 +3735,6 @@ namespace Nova.Mods
                 {
                     indicator = GameObject.CreatePrimitive(PrimitiveType.Quad);
                     Object.Destroy(indicator.GetComponent<Collider>());
-
-                    indicator.GetComponent<Renderer>().material.shader = Shader.Find("GUI/Text Shader");
 
                     if (platformEspMat == null)
                         platformEspMat = new Material(Shader.Find("GUI/Text Shader"));
@@ -3706,7 +3755,7 @@ namespace Nova.Mods
         public static void DisablePlatformIndicators()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in platformIndicators)
-                Object.Destroy(nametag.Value);
+                DestroyWithMaterial(nametag.Value);
 
             platformIndicators.Clear();
         }
@@ -3718,12 +3767,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, GameObject> voiceIndicators = new Dictionary<VRRig, GameObject>();
         public static void VoiceIndicators()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = voiceIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                voiceIndicators.Remove(nametag.Key);
-            }
+            CleanupRigEntries(voiceIndicators, selfNameTag, true);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -3734,9 +3778,13 @@ namespace Nova.Mods
                     if (recorder != null)
                         size = recorder.Loudness * 3f;
 
+                    // Kept and hidden while they are quiet, rather than destroyed and made again each time they talk.
+                    if (voiceIndicators.TryGetValue(vrrig, out GameObject volIndicator) && volIndicator != null)
+                        volIndicator.GetComponent<Renderer>().enabled = size > 0f;
+
                     if (size > 0f)
                     {
-                        if (!voiceIndicators.TryGetValue(vrrig, out GameObject volIndicator))
+                        if (volIndicator == null)
                         {
                             volIndicator = GameObject.CreatePrimitive(PrimitiveType.Cube);
                             Object.Destroy(volIndicator.GetComponent<Collider>());
@@ -3759,7 +3807,7 @@ namespace Nova.Mods
                                 voiceMat.renderQueue = (int)RenderQueue.Transparent;
                             }
                             volIndicator.GetComponent<Renderer>().material = voiceMat;
-                            voiceIndicators.Add(vrrig, volIndicator);
+                            voiceIndicators[vrrig] = volIndicator;
                         }
 
                         volIndicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
@@ -3767,35 +3815,26 @@ namespace Nova.Mods
                         volIndicator.transform.position = GetNameTagPosition(vrrig);
                         volIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
                     }
-                    else
-                    {
-                        if (voiceIndicators.TryGetValue(vrrig, out GameObject existing))
-                        {
-                            Object.Destroy(existing);
-                            voiceIndicators.Remove(vrrig);
-                        }
-                    }
                 }
             }
         }
 
         public static void VoiceESP()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = voiceIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                voiceIndicators.Remove(nametag.Key);
-            }
+            CleanupRigEntries(voiceIndicators, false, true);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
                 if (!vrrig.isLocal)
                 {
                     float size = vrrig.GetRecorderLoudness() * 3f;
+
+                    if (voiceIndicators.TryGetValue(vrrig, out GameObject volIndicator) && volIndicator != null)
+                        volIndicator.GetComponent<Renderer>().enabled = size > 0f;
+
                     if (size > 0f)
                     {
-                        if (!voiceIndicators.TryGetValue(vrrig, out GameObject volIndicator))
+                        if (volIndicator == null)
                         {
                             volIndicator = GameObject.CreatePrimitive(PrimitiveType.Quad);
                             Object.Destroy(volIndicator.GetComponent<Collider>());
@@ -3809,21 +3848,13 @@ namespace Nova.Mods
                             voiceEspMat.mainTexture = voiceTxt;
 
                             volIndicator.GetComponent<Renderer>().material = voiceEspMat;
-                            voiceIndicators.Add(vrrig, volIndicator);
+                            voiceIndicators[vrrig] = volIndicator;
                         }
 
                         volIndicator.GetComponent<Renderer>().material.color = vrrig.GetColor();
                         volIndicator.transform.localScale = new Vector3(size, size, 0.01f) * vrrig.scaleFactor;
                         volIndicator.transform.position = GetNameTagPosition(vrrig);
                         volIndicator.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
-                    }
-                    else
-                    {
-                        if (voiceIndicators.TryGetValue(vrrig, out GameObject existing))
-                        {
-                            Object.Destroy(existing);
-                            voiceIndicators.Remove(vrrig);
-                        }
                     }
                 }
             }
@@ -3832,7 +3863,7 @@ namespace Nova.Mods
         public static void DisableVoiceIndicators()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in voiceIndicators)
-                Object.Destroy(nametag.Value);
+                DestroyWithMaterial(nametag.Value);
 
             voiceIndicators.Clear();
         }
@@ -3842,12 +3873,7 @@ namespace Nova.Mods
         private static Texture2D gripTxt;
         public static void GripESP()
         {
-            List<KeyValuePair<VRRig, GameObject>> indicatorCopy = gripIndicators.ToList();
-            foreach (var nametag in indicatorCopy.Where(nametag => !VRRigExtensions.ActiveRigs.Contains(nametag.Key)))
-            {
-                Object.Destroy(nametag.Value);
-                gripIndicators.Remove(nametag.Key);
-            }
+            CleanupRigEntries(gripIndicators, destroyMaterial: true);
 
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
@@ -3881,7 +3907,7 @@ namespace Nova.Mods
                     }
 
                     gripIcon.GetComponent<Renderer>().material = gripEspMat;
-                    gripIndicators.Add(vrrig, gripIcon);
+                    gripIndicators[vrrig] = gripIcon;
                 }
 
                 Renderer renderer = gripIcon.GetComponent<Renderer>();
@@ -3900,7 +3926,7 @@ namespace Nova.Mods
         public static void DisableGripESP()
         {
             foreach (KeyValuePair<VRRig, GameObject> nametag in gripIndicators)
-                Object.Destroy(nametag.Value);
+                DestroyWithMaterial(nametag.Value);
             gripIndicators.Clear();
         }
 
@@ -3960,18 +3986,7 @@ namespace Nova.Mods
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
-            {
-                toRemove.Add(boness.Key);
-
-                foreach (LineRenderer renderer in boness.Value)
-                    Object.Destroy(renderer);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boneESP.Remove(rig);
+            RemoveStaleBones();
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -4019,6 +4034,9 @@ namespace Nova.Mods
                 liner.startColor = color;
                 liner.endColor = color;
 
+                // The infection and hunt variants share these lines and may have hidden them.
+                liner.enabled = true;
+
                 liner.SetPosition(0, vrrig.head.rigTarget.transform.position + new Vector3(0f, 0.16f, 0f));
                 liner.SetPosition(1, vrrig.head.rigTarget.transform.position - new Vector3(0f, 0.4f, 0f));
 
@@ -4037,6 +4055,8 @@ namespace Nova.Mods
 
                     liner.material.shader = Shader.Find("GUI/Text Shader");
 
+                    liner.enabled = true;
+
                     liner.SetPosition(0, vrrig.mainSkin.bones[bones[i * 2]].position);
                     liner.SetPosition(1, vrrig.mainSkin.bones[bones[i * 2 + 1]].position);
                 }
@@ -4049,20 +4069,11 @@ namespace Nova.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
-            bool selfTagged = VRRig.LocalRig.IsTagged();
+            List<NetPlayer> infected = InfectedList();
+            bool noneInfected = infected.Count <= 0;
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
-            {
-                toRemove.Add(boness.Key);
-
-                foreach (LineRenderer renderer in boness.Value)
-                    Object.Destroy(renderer);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boneESP.Remove(rig);
+            RemoveStaleBones();
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -4096,7 +4107,8 @@ namespace Nova.Mods
 
                 LineRenderer liner = Lines[0];
 
-                bool playerTagged = vrrig.IsTagged();
+                bool playerTagged = IsInfected(infected, vrrig);
+                bool shown = (selfTagged ? !playerTagged : playerTagged) || noneInfected;
                 Color color = selfTagged ? vrrig.playerColor : vrrig.GetColor();
 
                 if (fmt)
@@ -4112,7 +4124,7 @@ namespace Nova.Mods
                 liner.startColor = color;
                 liner.endColor = color;
 
-                liner.enabled = (selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0;
+                liner.enabled = shown;
 
                 liner.SetPosition(0, vrrig.head.rigTarget.transform.position + new Vector3(0f, 0.16f, 0f));
                 liner.SetPosition(1, vrrig.head.rigTarget.transform.position - new Vector3(0f, 0.4f, 0f));
@@ -4132,7 +4144,7 @@ namespace Nova.Mods
 
                     liner.material.shader = Shader.Find("GUI/Text Shader");
 
-                    liner.enabled = (selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0;
+                    liner.enabled = shown;
 
                     liner.SetPosition(0, vrrig.mainSkin.bones[bones[i * 2]].position);
                     liner.SetPosition(1, vrrig.mainSkin.bones[bones[i * 2 + 1]].position);
@@ -4142,28 +4154,31 @@ namespace Nova.Mods
 
         public static void HuntBoneESP()
         {
-            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            {
+                // Hidden rather than left frozen where they were drawn last.
+                RemoveStaleBones();
+                foreach (List<LineRenderer> lines in boneESP.Values)
+                {
+                    foreach (LineRenderer line in lines)
+                    {
+                        if (line != null)
+                            line.enabled = false;
+                    }
+                }
+
                 return;
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var boness in boneESP.Where(boness => !VRRigExtensions.ActiveRigs.Contains(boness.Key)))
-            {
-                toRemove.Add(boness.Key);
-
-                foreach (LineRenderer renderer in boness.Value)
-                    Object.Destroy(renderer);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boneESP.Remove(rig);
+            RemoveStaleBones();
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -4242,6 +4257,17 @@ namespace Nova.Mods
             }
         }
 
+        private static void RemoveStaleBones()
+        {
+            foreach (VRRig rig in GetStaleRigs(boneESP))
+            {
+                foreach (LineRenderer renderer in boneESP[rig])
+                    Object.Destroy(renderer);
+
+                boneESP.Remove(rig);
+            }
+        }
+
         public static void DisableBoneESP()
         {
             foreach (var renderer in boneESP.SelectMany(bones => bones.Value))
@@ -4264,10 +4290,11 @@ namespace Nova.Mods
 
         public static void InfectionSkeletonESP()
         {
+            List<NetPlayer> infected = InfectedList();
             bool isInfectedPlayers = false;
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (vrrig.IsTagged())
+                if (IsInfected(infected, vrrig))
                 {
                     isInfectedPlayers = true;
                     break;
@@ -4275,14 +4302,14 @@ namespace Nova.Mods
             }
             if (isInfectedPlayers)
             {
-                if (!VRRig.LocalRig.IsTagged())
+                if (!IsInfected(infected, VRRig.LocalRig))
                 {
                     foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                     {
-                        if (vrrig.IsTagged() && !vrrig.isLocal)
+                        if (IsInfected(infected, vrrig) && !vrrig.isLocal)
                         {
                             vrrig.skeleton.renderer.enabled = true;
-                            vrrig.mainSkin.material.shader = Shader.Find("GUI/Text Shader");
+                            vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
                             vrrig.skeleton.renderer.material.color = vrrig.GetColor();
                             if (Buttons.GetIndex("Follow Menu Theme").enabled) { vrrig.skeleton.renderer.material.color = backgroundColor.GetCurrentColor(); }
                             if (Buttons.GetIndex("Transparent Theme").enabled) { vrrig.skeleton.renderer.material.color = new Color(vrrig.skeleton.renderer.material.color.r, vrrig.skeleton.renderer.material.color.g, vrrig.skeleton.renderer.material.color.b, 0.5f); }
@@ -4298,7 +4325,7 @@ namespace Nova.Mods
                 }
                 else
                 {
-                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
+                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !IsInfected(infected, vrrig) && !vrrig.isLocal))
                     {
                         vrrig.skeleton.renderer.enabled = true;
                         vrrig.skeleton.renderer.material.shader = Shader.Find("GUI/Text Shader");
@@ -4372,16 +4399,11 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, SkinnedWireframeRenderer> wireframes = new Dictionary<VRRig, SkinnedWireframeRenderer>();
         public static void CasualWireframeESP()
         {
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
+            foreach (VRRig rig in GetStaleRigs(wireframes))
             {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
+                Object.Destroy(wireframes[rig]);
                 wireframes.Remove(rig);
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -4405,7 +4427,7 @@ namespace Nova.Mods
                 if (tt)
                     color = new Color(color.r, color.g, color.b, 0.5f);
 
-                wireframe.meshRenderer.material.color = color;
+                wireframe.Color = color;
 
                 Vector3 toTarget = rig.transform.position - GorillaTagger.Instance.headCollider.transform.position;
                 float angle = Vector3.Angle(GorillaTagger.Instance.headCollider.transform.forward, toTarget);
@@ -4434,21 +4456,18 @@ namespace Nova.Mods
 
         public static void InfectionWireframeESP()
         {
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
+            foreach (VRRig rig in GetStaleRigs(wireframes))
             {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
+                Object.Destroy(wireframes[rig]);
                 wireframes.Remove(rig);
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
-            bool selfTagged = VRRig.LocalRig.IsTagged();
+            List<NetPlayer> infected = InfectedList();
+            bool noneInfected = infected.Count <= 0;
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
 
             foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
@@ -4458,7 +4477,7 @@ namespace Nova.Mods
                     wireframes.Add(rig, wireframe);
                 }
 
-                bool playerTagged = rig.IsTagged();
+                bool playerTagged = IsInfected(infected, rig);
                 Color color = selfTagged ? rig.playerColor : rig.GetColor();
 
                 if (fmt)
@@ -4468,9 +4487,9 @@ namespace Nova.Mods
                 if (hoc)
                     wireframe.wireframeObj.layer = 19;
 
-                wireframe.meshRenderer.material.color = color;
+                wireframe.Color = color;
 
-                bool enabled = (selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0;
+                bool enabled = (selfTagged ? !playerTagged : playerTagged) || noneInfected;
 
                 Vector3 toTarget = rig.transform.position - GorillaTagger.Instance.headCollider.transform.position;
                 float angle = Vector3.Angle(GorillaTagger.Instance.headCollider.transform.forward, toTarget);
@@ -4502,16 +4521,11 @@ namespace Nova.Mods
             if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
                 return;
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in wireframes.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
+            foreach (VRRig rig in GetStaleRigs(wireframes))
             {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
+                Object.Destroy(wireframes[rig]);
                 wireframes.Remove(rig);
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -4540,7 +4554,7 @@ namespace Nova.Mods
                 if (hoc)
                     wireframe.wireframeObj.layer = 19;
 
-                wireframe.meshRenderer.material.color = color;
+                wireframe.Color = color;
 
                 bool enabled = owner == target || theirTarget == NetworkSystem.Instance.LocalPlayer;
 
@@ -4573,7 +4587,14 @@ namespace Nova.Mods
         {
             foreach (KeyValuePair<VRRig, SkinnedWireframeRenderer> pred in wireframes)
             {
-                pred.Key.mainSkin.sharedMaterial.shader = Shader.Find("GorillaTag/UberShader");
+                if (pred.Key != null)
+                {
+                    // Same restore as DisableChams, or the fur keeps the ESP color.
+                    pred.Key.mainSkin.sharedMaterial.shader = Shader.Find("GorillaTag/UberShader");
+                    if (pred.Key.mainSkin.sharedMaterial.name.Contains("gorilla_body"))
+                        pred.Key.mainSkin.material.color = pred.Key.playerColor;
+                }
+
                 Object.Destroy(pred.Value);
             }
 
@@ -4587,10 +4608,21 @@ namespace Nova.Mods
             public MeshFilter meshFilter;
             public MeshRenderer meshRenderer;
             public GameObject wireframeObj;
+
+            // Owned here and assigned as the shared material, so reading renderer.material never clones it.
+            private Material wireframeMaterial;
+
+            // Reused for every bake; a new mesh per bake was never destroyed.
+            private Mesh bakedMesh;
+            private readonly List<Vector3> bakedVertices = new List<Vector3>();
+            private readonly List<int> bakedTriangles = new List<int>();
+            private readonly List<Vector3> lineVertices = new List<Vector3>();
+            private readonly List<int> lineIndices = new List<int>();
+
             public Color Color
             {
-                get => meshRenderer.sharedMaterial.color;
-                set => meshRenderer.material.color = value;
+                get => wireframeMaterial.color;
+                set => wireframeMaterial.color = value;
             }
 
             void Awake()
@@ -4602,13 +4634,16 @@ namespace Nova.Mods
 
                 meshFilter = wireframeObj.AddComponent<MeshFilter>();
                 meshRenderer = wireframeObj.AddComponent<MeshRenderer>();
-                meshRenderer.material = new Material(Shader.Find("GUI/Text Shader"))
+                wireframeMaterial = new Material(Shader.Find("GUI/Text Shader"))
                 {
                     color = Color.green
                 };
+                meshRenderer.sharedMaterial = wireframeMaterial;
 
                 lineMesh = new Mesh();
                 meshFilter.mesh = lineMesh;
+
+                bakedMesh = new Mesh();
             }
 
             void Update()
@@ -4616,38 +4651,40 @@ namespace Nova.Mods
                 if (Time.frameCount % 3 > 0)
                     return;
 
-                Mesh bakedMesh = new Mesh();
                 skinnedMeshRenderer.BakeMesh(bakedMesh);
+                bakedMesh.GetVertices(bakedVertices);
 
-                Vector3[] vertices = bakedMesh.vertices;
-                int[] triangles = bakedMesh.triangles;
+                lineVertices.Clear();
+                lineIndices.Clear();
 
-                List<Vector3> lineVertices = new List<Vector3>();
-                List<int> lineIndices = new List<int>();
-
-                for (int i = 0; i < triangles.Length; i += 3)
+                for (int subMesh = 0; subMesh < bakedMesh.subMeshCount; subMesh++)
                 {
-                    int i0 = triangles[i];
-                    int i1 = triangles[i + 1];
-                    int i2 = triangles[i + 2];
+                    bakedMesh.GetTriangles(bakedTriangles, subMesh);
 
-                    lineVertices.Add(vertices[i0]);
-                    lineVertices.Add(vertices[i1]);
+                    for (int i = 0; i < bakedTriangles.Count; i += 3)
+                    {
+                        int i0 = bakedTriangles[i];
+                        int i1 = bakedTriangles[i + 1];
+                        int i2 = bakedTriangles[i + 2];
 
-                    lineVertices.Add(vertices[i1]);
-                    lineVertices.Add(vertices[i2]);
+                        lineVertices.Add(bakedVertices[i0]);
+                        lineVertices.Add(bakedVertices[i1]);
 
-                    lineVertices.Add(vertices[i2]);
-                    lineVertices.Add(vertices[i0]);
+                        lineVertices.Add(bakedVertices[i1]);
+                        lineVertices.Add(bakedVertices[i2]);
 
-                    int baseIndex = lineVertices.Count - 6;
-                    for (int j = 0; j < 6; j++)
-                        lineIndices.Add(baseIndex + j);
+                        lineVertices.Add(bakedVertices[i2]);
+                        lineVertices.Add(bakedVertices[i0]);
+
+                        int baseIndex = lineVertices.Count - 6;
+                        for (int j = 0; j < 6; j++)
+                            lineIndices.Add(baseIndex + j);
+                    }
                 }
 
                 lineMesh.Clear();
                 lineMesh.SetVertices(lineVertices);
-                lineMesh.SetIndices(lineIndices.ToArray(), MeshTopology.Lines, 0);
+                lineMesh.SetIndices(lineIndices, MeshTopology.Lines, 0);
             }
 
             void OnDestroy()
@@ -4658,16 +4695,22 @@ namespace Nova.Mods
                     lineMesh = null;
                 }
 
+                if (bakedMesh != null)
+                {
+                    Destroy(bakedMesh);
+                    bakedMesh = null;
+                }
+
                 if (wireframeObj != null)
                 {
                     Destroy(wireframeObj);
                     wireframeObj = null;
                 }
 
-                if (meshRenderer != null && meshRenderer.material != null)
+                if (wireframeMaterial != null)
                 {
-                    Destroy(meshRenderer.material);
-                    meshRenderer.material = null;
+                    Destroy(wireframeMaterial);
+                    wireframeMaterial = null;
                 }
             }
         }
@@ -4687,6 +4730,11 @@ namespace Nova.Mods
         public static Shader uberChams;
 
         private static readonly Dictionary<Renderer, Material[]> originalMaterials = new Dictionary<Renderer, Material[]>();
+
+        // Cosmetic materials are shared assets, used by every rig wearing that cosmetic (the local one
+        // included), so chams gives each renderer its own material and keeps the originals to put back.
+        private static readonly Dictionary<Renderer, Material[]> cosmeticOriginalMaterials = new Dictionary<Renderer, Material[]>();
+        private static readonly Dictionary<Renderer, Material> cosmeticChamsMaterials = new Dictionary<Renderer, Material>();
 
         public static void Chams()
         {
@@ -4754,14 +4802,29 @@ namespace Nova.Mods
                         Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
                         foreach (Renderer renderer in renderers)
                         {
-                            if (!originalMaterials.ContainsKey(renderer))
+                            if (!cosmeticOriginalMaterials.TryGetValue(renderer, out Material[] originals))
                             {
-                                Material[] originals = new Material[renderer.sharedMaterials.Length];
-                                for (int i = 0; i < renderer.sharedMaterials.Length; i++)
-                                    originals[i] = new Material(renderer.sharedMaterials[i]);
-                                originalMaterials[renderer] = originals;
+                                originals = renderer.sharedMaterials;
+                                if (originals.Length <= 0 || originals[0] == null)
+                                    continue;
+
+                                cosmeticOriginalMaterials[renderer] = originals;
                             }
-                            updateShader(renderer.sharedMaterial, originalMaterials[renderer][0], renderer.sharedMaterial.color);
+
+                            if (!cosmeticChamsMaterials.TryGetValue(renderer, out Material chamsMaterial) || chamsMaterial == null)
+                            {
+                                chamsMaterial = new Material(originals[0]);
+                                cosmeticChamsMaterials[renderer] = chamsMaterial;
+                            }
+
+                            updateShader(chamsMaterial, originals[0], originals[0].color);
+
+                            Material[] current = renderer.sharedMaterials;
+                            if (current.Length > 0 && current[0] != chamsMaterial)
+                            {
+                                current[0] = chamsMaterial;
+                                renderer.sharedMaterials = current;
+                            }
                         }
                     }
                 }
@@ -4790,24 +4853,24 @@ namespace Nova.Mods
                         faceRenderer.material = new Material(originalMaterials[faceRenderer][0]);
                         originalMaterials.Remove(faceRenderer);
                     }
-
-                    foreach (GameObject obj in vrrig.cosmetics)
-                    {
-                        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>();
-                        foreach (Renderer renderer in renderers)
-                        {
-                            if (originalMaterials.ContainsKey(renderer))
-                            {
-                                Material[] restoredMaterials = new Material[originalMaterials[renderer].Length];
-                                for (int i = 0; i < restoredMaterials.Length; i++)
-                                    restoredMaterials[i] = new Material(originalMaterials[renderer][i]);
-                                renderer.materials = restoredMaterials;
-                                originalMaterials.Remove(renderer);
-                            }
-                        }
-                    }
                 }
             }
+
+            // Every cosmetic renderer gets exactly the materials it had back, including ones on rigs that left.
+            foreach (KeyValuePair<Renderer, Material[]> original in cosmeticOriginalMaterials)
+            {
+                if (original.Key != null)
+                    original.Key.sharedMaterials = original.Value;
+            }
+
+            foreach (Material chamsMaterial in cosmeticChamsMaterials.Values)
+            {
+                if (chamsMaterial != null)
+                    Object.Destroy(chamsMaterial);
+            }
+
+            cosmeticOriginalMaterials.Clear();
+            cosmeticChamsMaterials.Clear();
         }
 
         public static void CasualChams()
@@ -4825,10 +4888,11 @@ namespace Nova.Mods
 
         public static void InfectionChams()
         {
+            List<NetPlayer> infected = InfectedList();
             bool isInfectedPlayers = false;
             foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
             {
-                if (vrrig.IsTagged())
+                if (IsInfected(infected, vrrig))
                 {
                     isInfectedPlayers = true;
                     break;
@@ -4836,11 +4900,11 @@ namespace Nova.Mods
             }
             if (isInfectedPlayers)
             {
-                if (!VRRig.LocalRig.IsTagged())
+                if (!IsInfected(infected, VRRig.LocalRig))
                 {
                     foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
                     {
-                        if (vrrig.IsTagged() && !vrrig.isLocal)
+                        if (IsInfected(infected, vrrig) && !vrrig.isLocal)
                         {
                             FixRigMaterialESPColors(vrrig);
 
@@ -4859,7 +4923,7 @@ namespace Nova.Mods
                 }
                 else
                 {
-                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.IsTagged() && !vrrig.isLocal))
+                    foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !IsInfected(infected, vrrig) && !vrrig.isLocal))
                     {
                         FixRigMaterialESPColors(vrrig);
 
@@ -4938,16 +5002,7 @@ namespace Nova.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boxESP.Remove(rig);
+            CleanupRigEntries(boxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -4972,6 +5027,9 @@ namespace Nova.Mods
 
                 box.GetComponent<Renderer>().material.color = color;
 
+                // The infection and hunt variants share these boxes and may have hidden them.
+                box.SetActive(true);
+
                 box.transform.position = vrrig.transform.position;
                 box.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
             }
@@ -4982,18 +5040,11 @@ namespace Nova.Mods
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
-            bool selfTagged = VRRig.LocalRig.IsTagged();
+            List<NetPlayer> infected = InfectedList();
+            bool noneInfected = infected.Count <= 0;
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boxESP.Remove(rig);
+            CleanupRigEntries(boxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -5018,8 +5069,8 @@ namespace Nova.Mods
 
                 box.GetComponent<Renderer>().material.color = color;
 
-                bool playerTagged = vrrig.IsTagged();
-                box.SetActive((selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0);
+                bool playerTagged = IsInfected(infected, vrrig);
+                box.SetActive((selfTagged ? !playerTagged : playerTagged) || noneInfected);
 
                 box.transform.position = vrrig.transform.position;
                 box.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
@@ -5028,25 +5079,22 @@ namespace Nova.Mods
 
         public static void HuntBoxESP()
         {
-            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            {
+                // Hidden rather than left frozen where they were drawn last.
+                CleanupRigEntries(boxESP, destroyMaterial: true);
+                HideRigEntries(boxESP);
                 return;
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var box in boxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                boxESP.Remove(rig);
+            CleanupRigEntries(boxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -5081,10 +5129,19 @@ namespace Nova.Mods
             }
         }
 
+        private static void HideRigEntries(Dictionary<VRRig, GameObject> entries)
+        {
+            foreach (GameObject entry in entries.Values)
+            {
+                if (entry != null)
+                    entry.SetActive(false);
+            }
+        }
+
         public static void DisableBoxESP()
         {
             foreach (KeyValuePair<VRRig, GameObject> box in boxESP)
-                Object.Destroy(box.Value);
+                DestroyWithMaterial(box.Value);
 
             boxESP.Clear();
         }
@@ -5097,16 +5154,7 @@ namespace Nova.Mods
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                hollowBoxESP.Remove(rig);
+            CleanupRigEntries(hollowBoxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -5161,10 +5209,14 @@ namespace Nova.Mods
                     color = backgroundColor.GetCurrentColor();
                 if (tt)
                     color.a = 0.5f;
-                if (hoc)
-                    box.layer = 19;
+                // The outline children are what render, so they need the layer too.
+                if (hoc && box.layer != 19)
+                    SetLayerRecursively(box, 19);
 
                 box.GetComponent<Renderer>().material.color = color;
+
+                // The infection and hunt variants share these boxes and may have hidden them.
+                box.SetActive(true);
 
                 box.transform.position = vrrig.transform.position;
                 box.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
@@ -5177,18 +5229,11 @@ namespace Nova.Mods
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
-            bool selfTagged = VRRig.LocalRig.IsTagged();
+            List<NetPlayer> infected = InfectedList();
+            bool noneInfected = infected.Count <= 0;
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
 
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                hollowBoxESP.Remove(rig);
+            CleanupRigEntries(hollowBoxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -5243,13 +5288,14 @@ namespace Nova.Mods
                     color = backgroundColor.GetCurrentColor();
                 if (tt)
                     color.a = 0.5f;
-                if (hoc)
-                    box.layer = 19;
+                // The outline children are what render, so they need the layer too.
+                if (hoc && box.layer != 19)
+                    SetLayerRecursively(box, 19);
 
                 box.GetComponent<Renderer>().material.color = color;
 
-                bool playerTagged = vrrig.IsTagged();
-                box.SetActive((selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0);
+                bool playerTagged = IsInfected(infected, vrrig);
+                box.SetActive((selfTagged ? !playerTagged : playerTagged) || noneInfected);
 
                 box.transform.position = vrrig.transform.position;
                 box.transform.LookAt(GorillaTagger.Instance.headCollider.transform.position);
@@ -5258,26 +5304,23 @@ namespace Nova.Mods
 
         public static void HollowHuntBoxESP()
         {
-            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
+            {
+                // Hidden rather than left frozen where they were drawn last.
+                CleanupRigEntries(hollowBoxESP, destroyMaterial: true);
+                HideRigEntries(hollowBoxESP);
                 return;
+            }
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            List<VRRig> toRemove = new List<VRRig>();
             GorillaHuntManager hunt = (GorillaHuntManager)GorillaGameManager.instance;
             NetPlayer target = hunt.GetTargetOf(NetworkSystem.Instance.LocalPlayer);
 
-            foreach (var box in hollowBoxESP.Where(box => !VRRigExtensions.ActiveRigs.Contains(box.Key)))
-            {
-                toRemove.Add(box.Key);
-                Object.Destroy(box.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                hollowBoxESP.Remove(rig);
+            CleanupRigEntries(hollowBoxESP, destroyMaterial: true);
 
             foreach (var vrrig in VRRigExtensions.ActiveRigs.Where(vrrig => !vrrig.isLocal))
             {
@@ -5335,8 +5378,9 @@ namespace Nova.Mods
                     color = backgroundColor.GetCurrentColor();
                 if (tt)
                     color.a = 0.5f;
-                if (hoc)
-                    box.layer = 19;
+                // The outline children are what render, so they need the layer too.
+                if (hoc && box.layer != 19)
+                    SetLayerRecursively(box, 19);
 
                 box.GetComponent<Renderer>().material.color = color;
                 box.SetActive(owner == target || theirTarget == NetworkSystem.Instance.LocalPlayer);
@@ -5349,7 +5393,7 @@ namespace Nova.Mods
         public static void DisableHollowBoxESP()
         {
             foreach (KeyValuePair<VRRig, GameObject> box in hollowBoxESP)
-                Object.Destroy(box.Value);
+                DestroyWithMaterial(box.Value);
 
             hollowBoxESP.Clear();
         }
@@ -5357,16 +5401,7 @@ namespace Nova.Mods
         private static readonly Dictionary<VRRig, TrailRenderer> breadcrumbs = new Dictionary<VRRig, TrailRenderer>();
         public static void CasualBreadcrumbs()
         {
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
-            {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                breadcrumbs.Remove(rig);
+            RemoveStaleBreadcrumbs();
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -5409,28 +5444,24 @@ namespace Nova.Mods
 
                 trail.startColor = color;
                 trail.endColor = color;
+
+                // The infection and hunt variants share these trails and may have turned them off.
+                trail.enabled = true;
             }
         }
 
         public static void InfectionBreadcrumbs()
         {
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
-            {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
-            }
-
-            foreach (VRRig rig in toRemove)
-                breadcrumbs.Remove(rig);
+            RemoveStaleBreadcrumbs();
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
             bool tt = Buttons.GetIndex("Transparent Theme").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
             bool shortBreadcrumbs = Buttons.GetIndex("Short Breadcrumbs").enabled;
-            bool selfTagged = VRRig.LocalRig.IsTagged();
+            List<NetPlayer> infected = InfectedList();
+            bool noneInfected = infected.Count <= 0;
+            bool selfTagged = IsInfected(infected, VRRig.LocalRig);
 
             foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.isLocal))
             {
@@ -5455,7 +5486,7 @@ namespace Nova.Mods
                 trail.startWidth = thinTracers ? 0.0075f : 0.025f;
                 trail.endWidth = thinTracers ? 0.0075f : 0.025f;
 
-                bool playerTagged = rig.IsTagged();
+                bool playerTagged = IsInfected(infected, rig);
                 Color color = selfTagged ? rig.playerColor : rig.GetColor();
 
                 if (fmt)
@@ -5468,25 +5499,25 @@ namespace Nova.Mods
                 trail.startColor = color;
                 trail.endColor = color;
 
-                trail.enabled = (selfTagged ? !playerTagged : playerTagged) || InfectedList().Count <= 0;
+                trail.enabled = (selfTagged ? !playerTagged : playerTagged) || noneInfected;
             }
         }
 
         public static void HuntBreadcrumbs()
         {
-            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
-                return;
-
-            List<VRRig> toRemove = new List<VRRig>();
-
-            foreach (var lines in breadcrumbs.Where(lines => !VRRigExtensions.ActiveRigs.Contains(lines.Key)))
+            if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null || GorillaGameManager.instance.GameType() != GameModeType.HuntDown)
             {
-                toRemove.Add(lines.Key);
-                Object.Destroy(lines.Value);
+                RemoveStaleBreadcrumbs();
+                foreach (TrailRenderer trail in breadcrumbs.Values)
+                {
+                    if (trail != null)
+                        trail.enabled = false;
+                }
+
+                return;
             }
 
-            foreach (VRRig rig in toRemove)
-                breadcrumbs.Remove(rig);
+            RemoveStaleBreadcrumbs();
 
             bool fmt = Buttons.GetIndex("Follow Menu Theme").enabled;
             bool hoc = Buttons.GetIndex("Hidden on Camera").enabled;
@@ -5539,6 +5570,15 @@ namespace Nova.Mods
             }
         }
 
+        private static void RemoveStaleBreadcrumbs()
+        {
+            foreach (VRRig rig in GetStaleRigs(breadcrumbs))
+            {
+                Object.Destroy(breadcrumbs[rig]);
+                breadcrumbs.Remove(rig);
+            }
+        }
+
         public static void DisableBreadcrumbs()
         {
             foreach (KeyValuePair<VRRig, TrailRenderer> pred in breadcrumbs)
@@ -5587,7 +5627,7 @@ namespace Nova.Mods
                     RightSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     Object.Destroy(RightSphere.GetComponent<SphereCollider>());
 
-                    RightSphere.transform.parent = GorillaTagger.Instance.leftHandTransform;
+                    RightSphere.transform.parent = GorillaTagger.Instance.rightHandTransform;
                     RightSphere.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
                 }
             }
@@ -5610,9 +5650,16 @@ namespace Nova.Mods
 
         public static void AutomaticESP(Action infection, Action hunt, Action other)
         {
-            if (!NetworkSystem.Instance.InRoom) return;
             try
             {
+                // Out of a room the casual variant still runs, so it cleans up the entries of rigs
+                // that left instead of leaving them frozen where they were last drawn.
+                if (!NetworkSystem.Instance.InRoom || GorillaGameManager.instance == null)
+                {
+                    other.Invoke();
+                    return;
+                }
+
                 switch (GorillaGameManager.instance.GameType())
                 {
                     case GameModeType.Infection:
@@ -5727,8 +5774,9 @@ namespace Nova.Mods
             bool transparentTheme = Buttons.GetIndex("Transparent Theme").enabled;
             float lineWidth = (Buttons.GetIndex("Thin Tracers").enabled ? 0.0075f : 0.025f) * (scaleWithPlayer ? GTPlayer.Instance.scale : 1f);
 
-            bool LocalTagged = VRRig.LocalRig.IsTagged();
-            bool NoInfected = InfectedList().Count == 0;
+            List<NetPlayer> infected = InfectedList();
+            bool LocalTagged = IsInfected(infected, VRRig.LocalRig);
+            bool NoInfected = infected.Count == 0;
 
             foreach (VRRig playerRig in VRRigExtensions.ActiveRigs)
             {
@@ -5741,12 +5789,12 @@ namespace Nova.Mods
                 {
                     if (LocalTagged)
                     {
-                        if (playerRig.IsTagged())
+                        if (IsInfected(infected, playerRig))
                             continue;
                     }
                     else
                     {
-                        if (!playerRig.IsTagged())
+                        if (!IsInfected(infected, playerRig))
                             continue;
 
                         lineColor = playerRig.GetColor();
@@ -5879,8 +5927,9 @@ namespace Nova.Mods
             _ = Buttons.GetIndex("Hidden on Camera").enabled;
             bool thinTracers = Buttons.GetIndex("Thin Tracers").enabled;
 
-            bool LocalTagged = VRRig.LocalRig.IsTagged();
-            bool NoInfected = InfectedList().Count == 0;
+            List<NetPlayer> infected = InfectedList();
+            bool LocalTagged = IsInfected(infected, VRRig.LocalRig);
+            bool NoInfected = infected.Count == 0;
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
@@ -5895,12 +5944,12 @@ namespace Nova.Mods
                 {
                     if (LocalTagged)
                     {
-                        if (playerRig.IsTagged())
+                        if (IsInfected(infected, playerRig))
                             continue;
                     }
                     else
                     {
-                        if (!playerRig.IsTagged())
+                        if (!IsInfected(infected, playerRig))
                             continue;
 
                         lineColor = playerRig.GetColor();
@@ -6030,7 +6079,7 @@ namespace Nova.Mods
                 nameTagText.gameObject.transform.position = playerRig.transform.position + new Vector3(0f, -0.2f, 0f);
                 nameTagText.color = tagColor;
 
-                _ = $"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m";
+                nameTagText.SafeSetText($"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m");
 
                 foreach (Transform transform in nameTagText.gameObject.GetComponentsInChildren<Transform>()) //background color
                 {
@@ -6055,8 +6104,9 @@ namespace Nova.Mods
             bool transparentTheme = Buttons.GetIndex("Transparent Theme").enabled;
             bool hiddenOnCamera = Buttons.GetIndex("Hidden on Camera").enabled;
 
-            bool LocalTagged = VRRig.LocalRig.IsTagged();
-            bool NoInfected = InfectedList().Count == 0;
+            List<NetPlayer> infected = InfectedList();
+            bool LocalTagged = IsInfected(infected, VRRig.LocalRig);
+            bool NoInfected = infected.Count == 0;
 
             Color menuColor = backgroundColor.GetCurrentColor();
 
@@ -6072,12 +6122,12 @@ namespace Nova.Mods
                 {
                     if (LocalTagged)
                     {
-                        if (playerRig.IsTagged())
+                        if (IsInfected(infected, playerRig))
                             continue;
                     }
                     else
                     {
-                        if (!playerRig.IsTagged())
+                        if (!IsInfected(infected, playerRig))
                             continue;
 
                         backgroundColor = playerRig.GetColor();
@@ -6098,7 +6148,7 @@ namespace Nova.Mods
                 nameTagText.gameObject.transform.position = playerRig.transform.position + new Vector3(0f, -0.2f, 0f);
                 nameTagText.color = tagColor;
 
-                _ = $"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m";
+                nameTagText.SafeSetText($"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m");
 
                 foreach (Transform transform in nameTagText.gameObject.GetComponentsInChildren<Transform>()) //background color
                 {
@@ -6162,7 +6212,7 @@ namespace Nova.Mods
                     nameTagText.gameObject.transform.position = playerRig.transform.position + new Vector3(0f, -0.2f, 0f);
                     nameTagText.color = tagColor;
 
-                    _ = $"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m";
+                    nameTagText.SafeSetText($"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m");
 
                     foreach (Transform transform in nameTagText.gameObject.GetComponentsInChildren<Transform>()) // Background color
                     {
@@ -6192,7 +6242,7 @@ namespace Nova.Mods
                     nameTagText.gameObject.transform.position = playerRig.transform.position + new Vector3(0f, -0.2f, 0f);
                     nameTagText.color = tagColor;
 
-                    _ = $"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m";
+                    nameTagText.SafeSetText($"{Vector3.Distance(Camera.main.transform.position, playerRig.transform.position):F1}m");
 
                     foreach (Transform transform in nameTagText.gameObject.GetComponentsInChildren<Transform>()) // Background color
                     {
@@ -6269,8 +6319,8 @@ namespace Nova.Mods
                 finalTextMeshPro = newMesh;
             }
 
-            finalTextMeshPro.gameObject.layer = hideOnCamera ? 19 : // What does 19 actually do?
-                nameTagHolder.layer;
+            // Layer 19 is left out of the desktop camera; the "bg" child renders too, so it gets the layer as well.
+            SetLayerRecursively(finalTextMeshPro.gameObject, hideOnCamera ? 19 : nameTagHolder.layer);
 
             return finalTextMeshPro;
         }
