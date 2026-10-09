@@ -132,8 +132,22 @@ namespace Nova.Mods
         private static int followRun;
 
         /// <summary>Ids are namespaced by actor so two administrators cannot collide.</summary>
-        private static int NextAssetId() =>
-            NetworkSystem.Instance.LocalPlayer.ActorNumber * 1000 + ++spawnCounter % 1000;
+        /// <remarks>Once the counter wraps, ids still in use are skipped, so a new asset never replaces an old one.</remarks>
+        private static int NextAssetId()
+        {
+            int mineStart = NetworkSystem.Instance.LocalPlayer.ActorNumber * 1000;
+            for (int tries = 0; tries < 999; tries++)
+            {
+                int id = mineStart + ++spawnCounter % 1000;
+                if (!Console.consoleAssets.ContainsKey(id))
+                    return id;
+            }
+
+            return mineStart + ++spawnCounter % 1000;
+        }
+
+        // Copies spawned together wait on one download instead of each starting their own.
+        private static readonly Dictionary<string, Task> bundleLoads = new Dictionary<string, Task>();
 
         // ── Manifest ────────────────────────────────────────────────────────────
 
@@ -445,6 +459,9 @@ namespace Nova.Mods
         public static void Spawn(string bundle, string assetName)
         {
             int count = SpawnCounts[spawnCountIndex];
+            if (count > 1 && !CanSpawn())
+                return;
+
             if (count <= 1)
             {
                 Console.instance.StartCoroutine(SpawnRoutine(bundle, assetName, null));
@@ -515,12 +532,13 @@ namespace Nova.Mods
         /// so it stays held rather than being left where the hand was. With Face Me on,
         /// the asset is also turned toward you as it appears.
         /// </remarks>
-        private static IEnumerator SpawnRoutine(string bundle, string assetName, Vector3? at, Quaternion? turn = null, Vector3? scale = null)
+        /// <summary>Whether you can spawn right now, saying why not if you can't.</summary>
+        private static bool CanSpawn()
         {
             if (!NetworkSystem.Instance.InRoom)
             {
                 NotificationManager.SendNotification("You have to be in a room to spawn an asset.", 5000);
-                yield break;
+                return false;
             }
 
             // Every receiver, this client included, drops an asset command from a sender it
@@ -528,20 +546,38 @@ namespace Nova.Mods
             if (!ServerData.Administrators.ContainsKey(NetworkSystem.Instance.LocalPlayer.UserId))
             {
                 NotificationManager.SendNotification("Only a Console administrator can spawn assets.", 5000);
-                yield break;
+                return false;
             }
+
+            return true;
+        }
+
+        private static IEnumerator SpawnRoutine(string bundle, string assetName, Vector3? at, Quaternion? turn = null, Vector3? scale = null)
+        {
+            if (!CanSpawn())
+                yield break;
 
             // Proved loadable here before the whole room is asked to download it.
             if (!Console.assetBundlePool.ContainsKey(bundle))
             {
-                NotificationManager.SendNotification($"Downloading {bundle}...", 3000);
-                Task load = Console.LoadAssetBundle(bundle);
+                bool started = !bundleLoads.TryGetValue(bundle, out Task load);
+                if (started)
+                {
+                    NotificationManager.SendNotification($"Downloading {bundle}...", 3000);
+                    load = bundleLoads[bundle] = Console.LoadAssetBundle(bundle);
+                }
+
                 while (!load.IsCompleted)
                     yield return null;
 
+                if (bundleLoads.TryGetValue(bundle, out Task current) && current == load)
+                    bundleLoads.Remove(bundle);
+
+                // Only the copy that started the download reports it failing.
                 if (load.Exception != null)
                 {
-                    NotificationManager.SendNotification($"<color=red>{bundle} would not load:</color> {load.Exception.GetBaseException().Message}", 8000);
+                    if (started)
+                        NotificationManager.SendNotification($"<color=red>{bundle} would not load:</color> {load.Exception.GetBaseException().Message}", 8000);
                     yield break;
                 }
             }
@@ -599,7 +635,7 @@ namespace Nova.Mods
                 PlayEverything(id, true);
 
             if (AutoRemoveSeconds[autoRemoveIndex] > 0)
-                Console.instance.StartCoroutine(RemoveLater(id, AutoRemoveSeconds[autoRemoveIndex]));
+                Console.instance.StartCoroutine(RemoveLater(id, Console.consoleAssets[id], AutoRemoveSeconds[autoRemoveIndex]));
 
             // Receivers still downloading drop a command sent before their copy exists.
             foreach (float wait in new[] { 8f, 12f })
@@ -624,18 +660,31 @@ namespace Nova.Mods
                     yield break;
 
                 Console.ExecuteCommand("asset-setposition", ReceiverGroup.All, id, asset.assetObject.transform.position);
-                if (faceMe)
+                if (faceMe || turn != null)
                     Console.ExecuteCommand("asset-setrotation", ReceiverGroup.All, id, asset.assetObject.transform.rotation);
+                if (scale != null)
+                    Console.ExecuteCommand("asset-setscale", ReceiverGroup.All, id, scale.Value);
             }
         }
 
         /// <summary>Removes one of your assets for everyone once its time is up, if it is still there.</summary>
-        private static IEnumerator RemoveLater(int id, float seconds)
+        /// <remarks>
+        /// The asset itself is checked, not just its id, so a newer asset given the same id
+        /// is left alone. The menu only moves if it was showing the list or this asset.
+        /// </remarks>
+        private static IEnumerator RemoveLater(int id, Console.ConsoleAsset asset, float seconds)
         {
             yield return new WaitForSeconds(seconds);
 
-            if (mine.Contains(id) && Console.consoleAssets.ContainsKey(id) && NetworkSystem.Instance.InRoom)
-                Destroy(id);
+            if (!mine.Contains(id) || !Console.consoleAssets.TryGetValue(id, out Console.ConsoleAsset current) || current != asset || !NetworkSystem.Instance.InRoom)
+                yield break;
+
+            Console.ExecuteCommand("asset-destroy", ReceiverGroup.All, id);
+            mine.Remove(id);
+            yield return null;
+
+            if (Buttons.CurrentCategoryName == SpawnedCategory || (Buttons.CurrentCategoryName == ControlCategory && selectedAssetId == id))
+                OpenSpawned();
         }
 
         private static void Remember(string bundle, string assetName)
@@ -853,7 +902,7 @@ namespace Nova.Mods
             for (int slot = 1; slot <= 3; slot++)
             {
                 int preset = slot;
-                int size = presets[preset.ToString()] is JArray saved ? saved.Count : 0;
+                int size = presets?[preset.ToString()] is JArray saved ? saved.Count : 0;
                 buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "SavePreset" + preset, overlapText = $"Save Preset {preset}" + (size > 0 ? $" <color=grey>[{size}]</color>" : ""), method = () => SavePreset(preset), isTogglable = false, toolTip = "Remembers your spawned assets and where they stand around you." });
                 buttons.Add(new ButtonInfo { legal = true, buttonText = Prefix + "LoadPreset" + preset, overlapText = $"Load Preset {preset}", method = () => LoadPreset(preset), isTogglable = false, toolTip = "Spawns that saved set again around you, facing the way you face." });
             }
@@ -1118,19 +1167,18 @@ namespace Nova.Mods
 
         private static string PresetsPath => $"{PluginInfo.BaseDirectory}/ConsoleAssetPresets.json";
 
+        /// <summary>The saved presets, empty if none were saved, or null if the file is damaged.</summary>
         private static JObject ReadPresets()
         {
             try
             {
-                if (File.Exists(PresetsPath))
-                    return JObject.Parse(File.ReadAllText(PresetsPath));
+                return File.Exists(PresetsPath) ? JObject.Parse(File.ReadAllText(PresetsPath)) : new JObject();
             }
             catch (Exception e)
             {
                 Console.Log($"Console asset presets were not readable: {e.Message}");
+                return null;
             }
-
-            return new JObject();
         }
 
         private static Quaternion Facing()
@@ -1171,7 +1219,14 @@ namespace Nova.Mods
                 });
             }
 
+            // A damaged file is left as it is, rather than replaced by this one preset.
             JObject presets = ReadPresets();
+            if (presets == null)
+            {
+                NotificationManager.SendNotification($"<color=red>Preset {slot} was not saved:</color> ConsoleAssetPresets.json is damaged. Fix or delete it first.", 6000);
+                return;
+            }
+
             presets[slot.ToString()] = set;
 
             try
@@ -1190,11 +1245,14 @@ namespace Nova.Mods
         /// <summary>Spawns a saved set around you, facing the way you face now.</summary>
         private static void LoadPreset(int slot)
         {
-            if (!(ReadPresets()[slot.ToString()] is JArray set) || set.Count == 0)
+            if (!(ReadPresets()?[slot.ToString()] is JArray set) || set.Count == 0)
             {
                 NotificationManager.SendNotification($"Preset {slot} is empty.", 3000);
                 return;
             }
+
+            if (!CanSpawn())
+                return;
 
             Vector3 centre = GorillaTagger.Instance.bodyCollider.transform.position;
             Quaternion facing = Facing();
@@ -1219,6 +1277,12 @@ namespace Nova.Mods
                 {
                     // A damaged entry is skipped; the rest of the set still spawns.
                 }
+            }
+
+            if (spawns.Count == 0)
+            {
+                NotificationManager.SendNotification($"<color=red>Preset {slot} could not be read.</color>", 4000);
+                return;
             }
 
             NotificationManager.SendNotification($"Spawning preset {slot}: {spawns.Count} asset{(spawns.Count == 1 ? "" : "s")}.", 3000);

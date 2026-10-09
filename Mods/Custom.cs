@@ -37,7 +37,7 @@ namespace Nova.Mods
     /// <summary>Nova's own mods, gathered in the Custom Mods category.</summary>
     /// <remarks>
     /// Everything here acts on you alone: how you move, and things only you see. The
-    /// class is split over three files; this one holds the shared helpers and the first
+    /// class is split over four files; this one holds the shared helpers and the first
     /// set of mods.
     /// </remarks>
     public static partial class Custom
@@ -198,6 +198,7 @@ namespace Nova.Mods
             airDashHeld = fireworkHeld = confettiHeld = true;
             carpetHeld = wandHeld = ballHeld = targetHeld = reactionHeld = pianoHeld = true;
             stopwatchHeld = stopwatchResetHeld = true;
+            fishHeld = splatHeld = true;
 
             lastLeftHand = GorillaTagger.Instance.leftHandTransform.position;
             lastRightHand = GorillaTagger.Instance.rightHandTransform.position;
