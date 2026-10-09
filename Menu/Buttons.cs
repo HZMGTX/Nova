@@ -1155,7 +1155,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Report Gun", method = Fun.ReportGun, toolTip = "Reports whoever your hand desires for cheating."},
                 new ButtonInfo { buttonText = "Report All", method = Fun.ReportAll, isTogglable = false, toolTip = "Reports everyone in the room for cheating."},
 
-                new ButtonInfo { buttonText = "Trigger Anti Report Gun", method = Fun.TriggerAntiReportGun, toolTip = "Triggers whoever your hand desires' anti report if enabled."},
+                new ButtonInfo { buttonText = "Trigger Anti Report Gun", method = Fun.TriggerAntiReportGun, disableMethod = Fun.DisableTriggerAntiReportGun, toolTip = "Triggers whoever your hand desires' anti report if enabled."},
                 new ButtonInfo { buttonText = "Trigger Anti Report All", method = Fun.TriggerAntiReportAll, disableMethod =() => VRRig.LocalRig.enabled = true, toolTip = "Triggers everyone in the room's anti report if enabled."},
                 new ButtonInfo { buttonText = "Bypass Anti Report", method = Fun.BypassAntiReport, disableMethod =() => SerializePatch.OverrideSerialization = null, toolTip = "Bypasses anti report mods when reporting players."},
 
@@ -1190,7 +1190,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Activate All Doors <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.ActivateAllDoors, toolTip = "Activates all doors when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Tap All Crystals <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.TapAllClass<GorillaCaveCrystal>, toolTip = "Taps all crystals when holding <color=green>grip</color>."},
                 new ButtonInfo { buttonText = "Tap All Bells <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.TapAllClass<TappableBell>, toolTip = "Taps all bells when holding <color=green>grip</color>."},
-                new ButtonInfo { buttonText = "Trigger Leaf Pile Gun", method = Fun.TriggerLeafPileGun, toolTip = "Shows the effects on whatever leaf pile you desire."},
+                new ButtonInfo { buttonText = "Trigger Leaf Pile Gun", method = Fun.TriggerLeafPileGun, disableMethod = Fun.DisableTriggerLeafPileGun, toolTip = "Shows the effects on whatever leaf pile you desire."},
 
                 new ButtonInfo { buttonText = "Get Bracelet <color=grey>[</color><color=green>G</color><color=grey>]</color>", method =() => Fun.GetBracelet(true), toolTip = "Gives you a party bracelet without needing to be in a party."},
                 new ButtonInfo { buttonText = "Spam Bracelet <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.BraceletSpam, toolTip = "Spams the party bracelet on and off."},
@@ -1645,7 +1645,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Run Rabbit Name Cycle", method =() => Fun.NameCycle(new[] { "RUN", "RABBIT" }), toolTip = "Sets your name on a loop to \"RUN\" and \"RABBIT\"." },
                 new ButtonInfo { buttonText = "Random Name Cycle", method = Fun.RandomNameCycle, toolTip = "Sets your name on a loop to a bunch of random characters." },
                 new ButtonInfo { buttonText = "Custom Name Cycle", enableMethod = Fun.EnableCustomNameCycle, method =() => Fun.NameCycle(Fun.names), toolTip = "Sets your name on a loop to whatever's in the file." },
-                new ButtonInfo { buttonText = "Animated Name", method = Fun.AnimatedName, disableMethod =() => { ChangeName(Fun.name); Fun.name = null;  }, toolTip = "Animates your current username." },
+                new ButtonInfo { buttonText = "Animated Name", method = Fun.AnimatedName, disableMethod = Fun.DisableAnimatedName, toolTip = "Animates your current username." },
 
                 new ButtonInfo { buttonText = "Flash Color", method = Fun.FlashColor, toolTip = "Makes your character flash." },
                 new ButtonInfo { buttonText = "Strobe Color", method = Fun.StrobeColor, toolTip = "Makes your character random colors." },
@@ -1680,7 +1680,7 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Disable Cosmetics on Tag", method = Fun.DisableCosmeticsOnTag, toolTip = "Disables your cosmetics when you get tagged, good for ambush." },
 
                 new ButtonInfo { buttonText = "Unlock Fan Club Subscription", aliases = new[] { "Unlock VIM", "Unlock Very Cool Monke", "Free VIM" }, enableMethod =() => SubscriptionPatches.enabled = true, disableMethod =() => SubscriptionPatches.enabled = false, toolTip = "Unlocks the Gorilla Tag fan club subscription." },
-                new ButtonInfo { buttonText = "Unlock All Cosmetics", method = Fun.UnlockAllCosmetics, toolTip = "Unlocks every cosmetic in the game. This mod is client-sided." },
+                new ButtonInfo { buttonText = "Unlock All Cosmetics", method = Fun.UnlockAllCosmetics, disableMethod =() => CosmeticPatch.enabled = false, toolTip = "Unlocks every cosmetic in the game. This mod is client-sided." },
                 new ButtonInfo { buttonText = "Unlimited Shiny Rocks", enableMethod =() => PurchasePatch.enabled = true, method =() => CosmeticsController.instance.currencyBalance = int.MaxValue, disableMethod =() => PurchasePatch.enabled = false, toolTip = "Gives you 2 billion shiny rocks. This mod is client sided." },
 
                 new ButtonInfo { buttonText = "Sticky Holdables", method = Fun.StickyHoldables, toolTip = "Makes your holdables sticky.", legal = true},
@@ -1689,8 +1689,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Get ID Self", method = Fun.CopySelfID, isTogglable = false, toolTip = "Gets your player ID and copies it to the clipboard.", legal = true},
                 new ButtonInfo { buttonText = "Get ID Gun", method = Fun.CopyIDGun, toolTip = "Gets the player ID of whoever your hand desires and copies it to the clipboard." },
                 new ButtonInfo { buttonText = "Get ID All", method = Fun.CopyIDAll, isTogglable = false, toolTip = "Gets the player IDs of everyone and copies them to the clipboard." },
-                new ButtonInfo { buttonText = "Get ID Aura", method = Fun.CopyIDAura, toolTip = "Gets the player ID of players nearby you and copies it to the clipboard." },
-                new ButtonInfo { buttonText = "Get ID On Touch", method = Fun.CopyIDOnTouch, toolTip = "Gets the player ID of players you touch and copies it to the clipboard." },
+                new ButtonInfo { buttonText = "Get ID Aura", method = Fun.CopyIDAura, disableMethod =() => Fun.copyIDAuraReported.Clear(), toolTip = "Gets the player ID of players nearby you and copies it to the clipboard." },
+                new ButtonInfo { buttonText = "Get ID On Touch", method = Fun.CopyIDOnTouch, disableMethod =() => Fun.copyIDOnTouchReported.Clear(), toolTip = "Gets the player ID of players you touch and copies it to the clipboard." },
 
                 new ButtonInfo { buttonText = "Narrate ID Self", method = Fun.NarrateSelfID, isTogglable = false, toolTip = "Gets your player ID and speaks it through your microphone."},
                 new ButtonInfo { buttonText = "Narrate ID Gun", method = Fun.NarrateIDGun, toolTip = "Gets the player ID of whoever your hand desires and speaks it through your microphone." },
@@ -1707,8 +1707,8 @@ namespace Nova.Menu
                 new ButtonInfo { buttonText = "Get Creation Date Self", method = Fun.CopyCreationDateSelf, isTogglable = false, toolTip = "Gets the creation date of your account and copies it to the clipboard."},
                 new ButtonInfo { buttonText = "Get Creation Date Gun", method = Fun.CopyCreationDateGun, toolTip = "Gets the creation date of whoever your hand desires' account and copies it to the clipboard." },
                 new ButtonInfo { buttonText = "Get Creation Date All", method = Fun.CopyCreationDateAll, isTogglable = false, toolTip = "Gets the creation date of everyones account and copies it to the clipboard." },
-                new ButtonInfo { buttonText = "Get Creation Date Aura", method = Fun.CopyCreationDateAura, toolTip = "Gets the creation date of nearby players accounts and copies it to the clipboard." },
-                new ButtonInfo { buttonText = "Get Creation Date On Touch", method = Fun.CopyCreationDateOnTouch, toolTip = "Gets the creation date of players you touch accounts and copies it to the clipboard." },
+                new ButtonInfo { buttonText = "Get Creation Date Aura", method = Fun.CopyCreationDateAura, disableMethod =() => Fun.copyCreationDateAuraReported.Clear(), toolTip = "Gets the creation date of nearby players accounts and copies it to the clipboard." },
+                new ButtonInfo { buttonText = "Get Creation Date On Touch", method = Fun.CopyCreationDateOnTouch, disableMethod =() => Fun.copyCreationDateOnTouchReported.Clear(), toolTip = "Gets the creation date of players you touch accounts and copies it to the clipboard." },
 
                 new ButtonInfo { buttonText = "Narrate Creation Date Self", method = Fun.NarrateCreationDateSelf, isTogglable = false, toolTip = "Gets the creation date of your account and speaks it through your microphone." },
                 new ButtonInfo { buttonText = "Narrate Creation Date Gun", method = Fun.NarrateCreationDateGun, toolTip = "Gets the creation date of whoever your hand desires' account and speaks it through your microphone." },
@@ -1969,7 +1969,7 @@ namespace Nova.Menu
 
                 new ButtonInfo { buttonText = "Unlimited Building", enableMethod = Fun.UnlimitedBuilding, disableMethod = Fun.DisableUnlimitedBuilding, toolTip = "Unlimits building, disabling drop zones and letting you place on people's plots." },
 
-                new ButtonInfo { buttonText = "Shotgun <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.Shotgun, toolTip = "Spawns you a shotgun when you press <color=green>grip</color>."},
+                new ButtonInfo { buttonText = "Shotgun <color=grey>[</color><color=green>G</color><color=grey>]</color>", method = Fun.Shotgun, disableMethod = Fun.DisableShotgun, toolTip = "Spawns you a shotgun when you press <color=green>grip</color>."},
 
                 new ButtonInfo { buttonText = "Building Block Crash Gun", method = Overpowered.BlockCrashGun, toolTip = "Crashes whoever your hand desires if they are inside of the block map."},
                 new ButtonInfo { buttonText = "Building Block Crash All <color=grey>[</color><color=green>T</color><color=grey>]</color>", method = Overpowered.BlockCrashAll, toolTip = "Crashes everybody inside of the block map."},

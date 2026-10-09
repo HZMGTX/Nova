@@ -74,6 +74,10 @@ namespace Nova.Mods
 {
     public static class Fun
     {
+        // A gun ray that hits nothing has a null collider
+        private static T GetGunHit<T>(RaycastHit ray) where T : Component =>
+            ray.collider == null ? null : ray.collider.GetComponentInParent<T>();
+
         public static void FixHead()
         {
             VRRig.LocalRig.head.trackingRotationOffset.x = 0f;
@@ -366,7 +370,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -749,16 +753,18 @@ namespace Nova.Mods
             jumpscareMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             jumpscareMaterial.renderQueue = (int)RenderQueue.Transparent;
 
-            jumpscareObject.GetComponent<Renderer>().material = jumpscareMaterial;
-            jumpscareObject.GetComponent<Renderer>().material.mainTexture = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Fun/jumpscare.png", "Images/Mods/Fun/jumpscare.png");
+            Renderer jumpscareRenderer = jumpscareObject.GetComponent<Renderer>();
+            jumpscareRenderer.material = jumpscareMaterial;
+            jumpscareMaterial.mainTexture = LoadTextureFromURL($"{PluginInfo.ServerResourcePath}/Images/Mods/Fun/jumpscare.png", "Images/Mods/Fun/jumpscare.png");
 
             for (int i = 0; i < 10; i++)
             {
-                jumpscareObject.GetComponent<Renderer>().material.color = Color.white * ((i + 1) % 2);
+                jumpscareMaterial.color = Color.white * ((i + 1) % 2);
                 yield return new WaitForSeconds(0.05f);
             }
 
             Object.Destroy(jumpscareObject);
+            Object.Destroy(jumpscareMaterial);
 
             HueShift(Color.clear);
         }
@@ -789,7 +795,7 @@ namespace Nova.Mods
 
                     if (GetGunInput(true))
                     {
-                        VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                        VRRig gunTarget = GetGunHit<VRRig>(Ray);
                         if (gunTarget && !gunTarget.IsLocal())
                         {
                             gunLocked = true;
@@ -843,12 +849,15 @@ namespace Nova.Mods
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
-                    rig.voiceAudio.volume = rig != lockTarget ? 0.1f : 2f;
+                if (gunLocked && lockTarget != null)
+                {
+                    foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+                        rig.voiceAudio.volume = rig != lockTarget ? 0.1f : 2f;
+                }
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -867,12 +876,15 @@ namespace Nova.Mods
                 var GunData = RenderGun();
                 RaycastHit Ray = GunData.Ray;
 
-                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
-                    rig.voiceAudio.volume = rig != lockTarget ? 1f : 0.1f;
+                if (gunLocked && lockTarget != null)
+                {
+                    foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+                        rig.voiceAudio.volume = rig != lockTarget ? 1f : 0.1f;
+                }
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -900,7 +912,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > muteDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.linePlayer == GetPlayerFromVRRig(gunTarget)))
@@ -917,7 +929,7 @@ namespace Nova.Mods
 
         public static void MuteAll()
         {
-            foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => !line.muteButton.isAutoOn))
+            foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => !line.muteButton.isAutoOn && !line.muteButton.isOn))
             {
                 line.muteButton.isOn = true;
                 line.PressButton(true, GorillaPlayerLineButton.ButtonType.Mute);
@@ -926,7 +938,7 @@ namespace Nova.Mods
 
         public static void UnmuteAll()
         {
-            foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.muteButton.isAutoOn))
+            foreach (var line in GorillaScoreboardTotalUpdater.allScoreboardLines.Where(line => line.muteButton.isOn && !line.muteButton.isAutoOn))
             {
                 line.muteButton.isOn = false;
                 line.PressButton(false, GorillaPlayerLineButton.ButtonType.Mute);
@@ -942,7 +954,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true) && Time.time > muteDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         NetPlayer player = GetPlayerFromVRRig(gunTarget);
@@ -993,7 +1005,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1008,6 +1020,15 @@ namespace Nova.Mods
                     VRRig.LocalRig.enabled = true;
                     gunLocked = false;
                 }
+            }
+        }
+
+        public static void DisableTriggerAntiReportGun()
+        {
+            if (gunLocked)
+            {
+                VRRig.LocalRig.enabled = true;
+                gunLocked = false;
             }
         }
 
@@ -1099,7 +1120,7 @@ namespace Nova.Mods
             switch (add)
             {
                 case true:
-                    modsToSpoof.Add(key, value);
+                    modsToSpoof[key] = value;
                     break;
                 case false:
                     modsToSpoof.Remove(key);
@@ -1192,6 +1213,7 @@ namespace Nova.Mods
             }
         }
 
+        private static bool leafPileRigDisabled;
         public static void TriggerLeafPileGun()
         {
             if (GetGunInput(false))
@@ -1202,6 +1224,7 @@ namespace Nova.Mods
                 if (GetGunInput(true))
                 {
                     VRRig.LocalRig.enabled = false;
+                    leafPileRigDisabled = true;
 
                     VRRig.LocalRig.transform.position = NewPointer.transform.position + (Vector3.up * (Time.frameCount % 2 == 1 ? 10f : -10f));
                     SendSerialize(VRRig.LocalRig.GetPhotonView());
@@ -1209,7 +1232,18 @@ namespace Nova.Mods
                     VRRig.LocalRig.transform.position = NewPointer.transform.position + (Vector3.up * (Time.frameCount % 2 == 1 ? 10f : 0f));
                 }
                 else
-                    VRRig.LocalRig.enabled = true;
+                    DisableTriggerLeafPileGun();
+            }
+            else
+                DisableTriggerLeafPileGun();
+        }
+
+        public static void DisableTriggerLeafPileGun()
+        {
+            if (leafPileRigDisabled)
+            {
+                VRRig.LocalRig.enabled = true;
+                leafPileRigDisabled = false;
             }
         }
 
@@ -1303,10 +1337,9 @@ namespace Nova.Mods
         {
             if (Time.time > braceletSpamDelay)
             {
-                GetBracelet(Time.frameCount % 2 == 0);
-                braceletSpamDelay = Time.time + 0.1f;
-
                 previousBraceletSpamState = !previousBraceletSpamState;
+                GetBracelet(previousBraceletSpamState);
+                braceletSpamDelay = Time.time + 0.1f;
             }
         }
 
@@ -1318,6 +1351,7 @@ namespace Nova.Mods
         }
 
         public static float isDirtyDelay;
+        private static readonly List<Color> rainbowBraceletColors = new List<Color>();
         public static void RainbowBracelet()
         {
             BraceletPatch.enabled = true;
@@ -1328,7 +1362,8 @@ namespace Nova.Mods
 
                 VRRig.LocalRig.nonCosmeticRightHandItem.EnableItem(true);
             }
-            List<Color> rgbColors = new List<Color>();
+            List<Color> rgbColors = rainbowBraceletColors;
+            rgbColors.Clear();
             for (int i = 0; i < 10; i++)
                 rgbColors.Add(Color.HSVToRGB((Time.frameCount / 180f + i / 10f) % 1f, 1f, 1f));
 
@@ -1347,7 +1382,7 @@ namespace Nova.Mods
         public static void RemoveRainbowBracelet()
         {
             BraceletPatch.enabled = false;
-            if (!VRRig.LocalRig.nonCosmeticRightHandItem.IsEnabled)
+            if (VRRig.LocalRig.nonCosmeticRightHandItem.IsEnabled)
             {
                 SetBraceletState(false, false);
                 RPCProtection();
@@ -1478,7 +1513,7 @@ namespace Nova.Mods
         {
             if (Time.time > spamDelay)
             {
-                delay = Time.time + 0.1f;
+                spamDelay = Time.time + 0.1f;
                 openOrClose = !openOrClose;
 
                 GRElevatorManager.ElevatorButtonPressed(openOrClose ? GRElevator.ButtonType.Open : GRElevator.ButtonType.Close, GRElevatorManager._instance.currentLocation);
@@ -1487,13 +1522,20 @@ namespace Nova.Mods
         }
 
         private static VirtualStumpAd virtualStumpAd;
-        public static void CustomVirtualStumpVideo() =>
-            virtualStumpAd ??= new GameObject("Nova_VirtualStumpAd").AddComponent<VirtualStumpAd>();
+        public static void CustomVirtualStumpVideo()
+        {
+            if (virtualStumpAd == null)
+                virtualStumpAd = new GameObject("Nova_VirtualStumpAd").AddComponent<VirtualStumpAd>();
+        }
 
         public static void DisableCustomVirtualStumpVideo()
         {
+            if (virtualStumpAd == null)
+                return;
+
             virtualStumpAd.enabled = false;
             Object.Destroy(virtualStumpAd.gameObject);
+            virtualStumpAd = null;
         }
 
         public static void ApplyCustomQuestScore(int index) => targetQuestScore = index;
@@ -1529,7 +1571,7 @@ namespace Nova.Mods
         {
             if (Time.time > purchaseDelay)
             {
-                ManagerRegistry.GhostReactor.GhostReactorManager.ToolPurchaseStationRequest(Random.Range(0, ManagerRegistry.GhostReactor.GhostReactorManager.reactor.toolPurchasingStations.Count - 1), GhostReactorManager.ToolPurchaseStationAction.TryPurchase);
+                ManagerRegistry.GhostReactor.GhostReactorManager.ToolPurchaseStationRequest(Random.Range(0, ManagerRegistry.GhostReactor.GhostReactorManager.reactor.toolPurchasingStations.Count), GhostReactorManager.ToolPurchaseStationAction.TryPurchase);
                 purchaseDelay = Time.time + 0.1f;
             }
         }
@@ -1549,7 +1591,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -1587,7 +1629,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -1625,7 +1667,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (PhotonNetwork.IsMasterClient)
@@ -1693,7 +1735,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -1710,7 +1752,13 @@ namespace Nova.Mods
 
         public static void GhostReactorFreezeAll()
         {
+            if (PhotonNetwork.PlayerListOthers.Length == 0)
+                return;
+
             VRRig randomPlayer = GetRandomVRRig();
+            if (randomPlayer == null)
+                return;
+
             Overpowered.CreateItem(randomPlayer.GetPlayer(), Overpowered.ObjectByName["GhostReactorEnergyCostGate"], randomPlayer.headMesh.transform.position + RandomVector3(), RandomQuaternion(), Vector3.zero, Vector3.zero);
         }
 
@@ -1785,7 +1833,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                         SetPlayerState(gunTarget, (GRPlayer.GRPlayerState)state);
                 }
@@ -1812,7 +1860,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > killDelay)
                     {
                         killDelay = Time.time + 0.1f;
@@ -1841,7 +1889,7 @@ namespace Nova.Mods
         {
             if (Time.time > purchaseDelay)
             {
-                ManagerRegistry.GhostReactor.GhostReactorManager.ToolPurchaseStationRequest(Random.Range(0, ManagerRegistry.GhostReactor.GhostReactorManager.reactor.toolPurchasingStations.Count - 1), (GhostReactorManager.ToolPurchaseStationAction)Random.Range(0, 2));
+                ManagerRegistry.GhostReactor.GhostReactorManager.ToolPurchaseStationRequest(Random.Range(0, ManagerRegistry.GhostReactor.GhostReactorManager.reactor.toolPurchasingStations.Count), (GhostReactorManager.ToolPurchaseStationAction)Random.Range(0, 2));
                 purchaseDelay = Time.time + 0.1f;
             }
         }
@@ -2090,6 +2138,7 @@ namespace Nova.Mods
             else
             {
                 VoiceManager.Get().PostProcessors.Remove("Glitch");
+                VoiceManager.Get().PostProcessClip = false;
             }
         }
 
@@ -2099,7 +2148,7 @@ namespace Nova.Mods
             if (button.enabled)
             {
                 NotificationManager.SendNotification("<color=grey>[</color><color=red>ERROR</color><color=grey>]</color> You are using Legacy Microphone. This mod does not support using the old microphone system.");
-                button.enabled = false;
+                Buttons.GetIndex("Laggy Microphone").SetEnabled(false);
                 return;
             }
 
@@ -2190,7 +2239,7 @@ namespace Nova.Mods
 
                 if (gunLocked && lockTarget != null)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         if (RecorderPatch.enabled)
@@ -2295,7 +2344,7 @@ namespace Nova.Mods
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2315,6 +2364,7 @@ namespace Nova.Mods
         public static void DisableCopyVoice()
         {
             factory?.Dispose();
+            factory = null;
 
             VoiceManager.Get().PostProcessors.Remove("CopyVoice");
 
@@ -2324,7 +2374,12 @@ namespace Nova.Mods
 
             RecorderPatch.enabled = !Buttons.GetIndex("Legacy Microphone").enabled;
 
-            NetworkSystem.Instance.VoiceConnection.PrimaryRecorder.DebugEchoMode = false;
+            // FixMicrophone skips this outside a room, and the factory it would read from is gone
+            Recorder recorder = NetworkSystem.Instance.VoiceConnection.PrimaryRecorder;
+            if (!RecorderPatch.enabled && recorder.SourceType == Recorder.InputSourceType.Factory)
+                recorder.SourceType = Recorder.InputSourceType.Microphone;
+
+            recorder.DebugEchoMode = false;
         }
 
         public static void SaveNarration(string text)
@@ -2344,9 +2399,16 @@ namespace Nova.Mods
             ButtonInfo mod = Buttons.GetIndex("Mask Voice");
 
             if (Application.platform == RuntimePlatform.WindowsPlayer && Environment.OSVersion.Version.Major < 10)
+            {
                 PromptSingle("Your version of Windows is too old for this mod to run.", () => mod.SetEnabled(false));
-            else if (Application.platform != RuntimePlatform.WindowsPlayer)
+                return;
+            }
+
+            if (Application.platform != RuntimePlatform.WindowsPlayer)
+            {
                 PromptSingle("You must be on Windows 10 or greater for this mod to run.", () => mod.SetEnabled(false));
+                return;
+            }
 
             drec = new DictationRecognizer();
             drec.DictationResult += (text, confidence) =>
@@ -2397,7 +2459,7 @@ namespace Nova.Mods
         }
 
         public static void ProcessFrameBuffer(float[] data) =>
-            factory.Feed(data);
+            factory?.Feed(data);
 
         public static void ReloadMicrophone()
         {
@@ -2555,7 +2617,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    BuilderPiece gunTarget = Ray.collider.GetComponentInParent<BuilderPiece>();
+                    BuilderPiece gunTarget = GetGunHit<BuilderPiece>(Ray);
                     if (gunTarget && Time.time > gbgd)
                     {
                         gbgd = Time.time + 0.1f;
@@ -2575,7 +2637,7 @@ namespace Nova.Mods
 
                 if (GetGunInput(true))
                 {
-                    BuilderPiece gunTarget = Ray.collider.GetComponentInParent<BuilderPiece>();
+                    BuilderPiece gunTarget = GetGunHit<BuilderPiece>(Ray);
                     if (gunTarget && Time.time > gbgd)
                     {
                         gbgd = Time.time + 0.1f;
@@ -2656,6 +2718,8 @@ Piece Name: {gunTarget.name}";
         public static void SetRespawnDistance(string objectName, float respawnDistance = float.MaxValue)
         {
             ThrowableBug bugObject = GetBugObject(objectName);
+            if (bugObject == null)
+                return;
 
             bugObject.maxDistanceFromOriginBeforeRespawn = respawnDistance;
             bugObject.maxDistanceFromTargetPlayerBeforeRespawn = respawnDistance;
@@ -2673,7 +2737,7 @@ Piece Name: {gunTarget.name}";
                 return;
             }
 
-            if (!bugObject.IsMyItem())
+            if (bugObject == null || !bugObject.IsMyItem())
                 return;
 
             if (bugObject.targetRig != VRRig.LocalRig)
@@ -2728,8 +2792,11 @@ Piece Name: {gunTarget.name}";
                 SlingshotProjectile projectileInstance = projectileArray[index].projectileInstance;
                 if (projectileInstance == null || !projectileInstance.gameObject.activeSelf) continue;
 
-                foreach (var rig in VRRigExtensions.ActiveRigs.Where(rig => !rig.IsLocal()).Where(rig => rig.Distance(projectileInstance.transform.position) < 0.5f))
-                    projectileInstance.transform.position = rig.headMesh.transform.position;
+                foreach (VRRig rig in VRRigExtensions.ActiveRigs)
+                {
+                    if (!rig.IsLocal() && rig.Distance(projectileInstance.transform.position) < 0.5f)
+                        projectileInstance.transform.position = rig.headMesh.transform.position;
+                }
             }
         }
 
@@ -2854,7 +2921,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -2884,7 +2951,11 @@ Piece Name: {gunTarget.name}";
 
                     foreach (NetPlayer Player in NetworkSystem.Instance.PlayerListOthers)
                     {
-                        HoverboardScreenTarget(GetVRRigFromPlayer(Player), color);
+                        VRRig rig = GetVRRigFromPlayer(Player);
+                        if (rig == null)
+                            continue;
+
+                        HoverboardScreenTarget(rig, color);
                         SendSerialize(VRRig.LocalRig.GetPhotonView(), new RaiseEventOptions { TargetActors = new[] { Player.ActorNumber } });
                     }
 
@@ -3083,8 +3154,8 @@ Piece Name: {gunTarget.name}";
             {
                 if (!paintbrawlTriggerLine.gameObject.activeSelf)
                 {
-                    paintbrawlTriggerLine = null;
                     Object.Destroy(paintbrawlTriggerLine.gameObject);
+                    paintbrawlTriggerLine = null;
                 }
                 else
                     paintbrawlTriggerLine.gameObject.SetActive(false);
@@ -3145,7 +3216,7 @@ Piece Name: {gunTarget.name}";
             get
             {
                 if (_firefly == null)
-                    _firefly = GetAllType<ThrowableBug>().Where(bug => bug.gameObject.activeInHierarchy && bug.gameObject.name == "Floating Bug Holdable").ToArray()[0];
+                    _firefly = GetAllType<ThrowableBug>().FirstOrDefault(bug => bug.gameObject.activeInHierarchy && bug.gameObject.name == "Floating Bug Holdable");
 
                 return _firefly;
             }
@@ -3155,12 +3226,21 @@ Piece Name: {gunTarget.name}";
         public static ThrowableBug GetBugObject(string name)
         {
             GameObject bugObject;
-            bugObject = name == "Firefly" ? Firefly.gameObject : GetObject(name);
+            if (name == "Firefly")
+            {
+                ThrowableBug firefly = Firefly;
+                if (firefly == null)
+                    return null;
+
+                bugObject = firefly.gameObject;
+            }
+            else
+                bugObject = GetObject(name);
+
             if (bugObject == null)
                 return null;
 
-            ThrowableBug bug = bugObject.GetComponent<ThrowableBug>();
-            return bug ?? null;
+            return bugObject.GetComponent<ThrowableBug>();
         }
 
         public static ThrowableBug GetBug(string name)
@@ -3250,12 +3330,12 @@ Piece Name: {gunTarget.name}";
         {
             ThrowableBug bugObject = GetBugObject("Floating Bug Holdable");
 
-            if ((!bugObject.IsMyItem() || (bugObject.currentState != TransferrableObject.PositionState.Dropped && bugObject.currentState != TransferrableObject.PositionState.None)) && bugObject.GetComponent<ClampPosition>() != null)
+            if (bugObject != null && (!bugObject.IsMyItem() || (bugObject.currentState != TransferrableObject.PositionState.Dropped && bugObject.currentState != TransferrableObject.PositionState.None)) && bugObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(bugObject.GetComponent<ClampPosition>());
 
             ThrowableBug fireflyObject = GetBugObject("Firefly");
 
-            if ((!fireflyObject.IsMyItem() || (fireflyObject.currentState != TransferrableObject.PositionState.Dropped && fireflyObject.currentState != TransferrableObject.PositionState.None)) && fireflyObject.GetComponent<ClampPosition>() != null)
+            if (fireflyObject != null && (!fireflyObject.IsMyItem() || (fireflyObject.currentState != TransferrableObject.PositionState.Dropped && fireflyObject.currentState != TransferrableObject.PositionState.None)) && fireflyObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(fireflyObject.GetComponent<ClampPosition>());
 
             ThrowableBug bug = GetBug("Floating Bug Holdable");
@@ -3269,6 +3349,8 @@ Piece Name: {gunTarget.name}";
                     bugSpamDelay = Time.time + 0.5f;
 
                     ThrowableBug targetBug = bugSpamToggle ? bug : firefly;
+                    if (targetBug == null)
+                        return;
 
                     GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
                     bugSpamObject.transform.localScale = Vector3.one * 0.2f;
@@ -3358,12 +3440,12 @@ Piece Name: {gunTarget.name}";
         {
             ThrowableBug bugObject = GetBugObject("Floating Bug Holdable");
 
-            if ((!bugObject.IsMyItem() || (bugObject.currentState != TransferrableObject.PositionState.Dropped && bugObject.currentState != TransferrableObject.PositionState.None)) && bugObject.GetComponent<ClampPosition>() != null)
+            if (bugObject != null && (!bugObject.IsMyItem() || (bugObject.currentState != TransferrableObject.PositionState.Dropped && bugObject.currentState != TransferrableObject.PositionState.None)) && bugObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(bugObject.GetComponent<ClampPosition>());
 
             ThrowableBug fireflyObject = GetBugObject("Firefly");
 
-            if ((!fireflyObject.IsMyItem() || (fireflyObject.currentState != TransferrableObject.PositionState.Dropped && fireflyObject.currentState != TransferrableObject.PositionState.None)) && fireflyObject.GetComponent<ClampPosition>() != null)
+            if (fireflyObject != null && (!fireflyObject.IsMyItem() || (fireflyObject.currentState != TransferrableObject.PositionState.Dropped && fireflyObject.currentState != TransferrableObject.PositionState.None)) && fireflyObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(fireflyObject.GetComponent<ClampPosition>());
 
             ThrowableBug bug = GetBug("Floating Bug Holdable");
@@ -3382,6 +3464,9 @@ Piece Name: {gunTarget.name}";
                     case 0:
                         {
                             ThrowableBug targetBug = bug;
+                            if (targetBug == null)
+                                break;
+
                             GameObject bugSpamObject = new GameObject("Nova_BugSpamObject");
                             bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                             bugSpamObject.layer = 3;
@@ -3416,6 +3501,9 @@ Piece Name: {gunTarget.name}";
                     case 1:
                         {
                             ThrowableBug targetBug = firefly;
+                            if (targetBug == null)
+                                break;
+
                             GameObject bugSpamObject = new GameObject("Nova_FireflySpamObject");
                             bugSpamObject.transform.localScale = Vector3.one * 0.2f;
                             bugSpamObject.layer = 3;
@@ -3551,10 +3639,11 @@ Piece Name: {gunTarget.name}";
 
         public static void DisableCameraSpam()
         {
-            LckSocialCamera camera = LckSocialCameraManager.Instance._networkedCococam;
-
-            if (camera.GetComponent<ClampPosition>() != null)
-                Object.Destroy(camera.GetComponent<ClampPosition>());
+            foreach (LckSocialCamera camera in new[] { LckSocialCameraManager.Instance._networkedCococam, LckSocialCameraManager.Instance._networkedTablet })
+            {
+                if (camera != null && camera.GetComponent<ClampPosition>() != null)
+                    Object.Destroy(camera.GetComponent<ClampPosition>());
+            }
         }
 
         public static void DisableEverythingSpam()
@@ -3567,12 +3656,12 @@ Piece Name: {gunTarget.name}";
         {
             ThrowableBug bugObject = GetBugObject("Floating Bug Holdable");
 
-            if (bugObject.GetComponent<ClampPosition>() != null)
+            if (bugObject != null && bugObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(bugObject.GetComponent<ClampPosition>());
 
             ThrowableBug fireflyObject = GetBugObject("Firefly");
 
-            if (fireflyObject.GetComponent<ClampPosition>() != null)
+            if (fireflyObject != null && fireflyObject.GetComponent<ClampPosition>() != null)
                 Object.Destroy(fireflyObject.GetComponent<ClampPosition>());
         }
 
@@ -3614,7 +3703,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -3658,7 +3747,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4028,6 +4117,9 @@ Piece Name: {gunTarget.name}";
                         .Where(piece => piece.gameObject.activeInHierarchy)
                         .Where(piece => Vector3.Distance(piece.transform.position, GorillaTagger.Instance.leftHandTransform.position) < 2.5f).ToArray();
 
+                if (totalPieces.Length == 0)
+                    return;
+
                 for (int i = 0; i < 100; i++)
                 {
                     BuilderPiece piece = totalPieces[Random.Range(0, totalPieces.Length)];
@@ -4134,6 +4226,9 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
+                    if (DisableThrowableCoroutine != null)
+                        CoroutineManager.instance.StopCoroutine(DisableThrowableCoroutine);
+
                     DisableThrowableCoroutine = CoroutineManager.instance.StartCoroutine(DisableThrowable(index));
                     TransferrableObject transferrableObject = VRRig.LocalRig.myBodyDockPositions.allObjects[index];
 
@@ -4172,6 +4267,9 @@ Piece Name: {gunTarget.name}";
         public static void WhiteColorTarget(VRRig rig)
         {
             int index = 629;
+            if (DisableThrowableCoroutine != null)
+                CoroutineManager.instance.StopCoroutine(DisableThrowableCoroutine);
+
             DisableThrowableCoroutine = CoroutineManager.instance.StartCoroutine(DisableThrowable(index));
             TransferrableObject transferrableObject = VRRig.LocalRig.myBodyDockPositions.allObjects[index];
 
@@ -4215,7 +4313,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4248,7 +4346,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4269,6 +4367,9 @@ Piece Name: {gunTarget.name}";
         public static void ChickenTarget(VRRig rig)
         {
             int index = 651;
+            if (DisableThrowableCoroutine != null)
+                CoroutineManager.instance.StopCoroutine(DisableThrowableCoroutine);
+
             DisableThrowableCoroutine = CoroutineManager.instance.StartCoroutine(DisableThrowable(index));
             TransferrableObject transferrableObject = VRRig.LocalRig.myBodyDockPositions.allObjects[index];
 
@@ -4309,7 +4410,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4484,7 +4585,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4503,6 +4604,9 @@ Piece Name: {gunTarget.name}";
         {
             if (rightTrigger > 0.5f)
             {
+                if (PhotonNetwork.PlayerListOthers.Length == 0)
+                    return;
+
                 Player target = GetRandomPlayer(false);
 
                 if (!PhotonNetwork.IsMasterClient)
@@ -4510,6 +4614,9 @@ Piece Name: {gunTarget.name}";
                 else
                 {
                     GetVRRigFromPlayer(target);
+                    if (lockTarget == null)
+                        return;
+
                     RequestCreatePiece(-566818631, lockTarget.headMesh.transform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
                     RequestCreatePiece(-566818631, lockTarget.leftHandTransform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
                     RequestCreatePiece(-566818631, lockTarget.rightHandTransform.position + RandomVector3(0.4f), RandomQuaternion(), 0, target, true);
@@ -4539,7 +4646,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4574,7 +4681,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4609,7 +4716,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4644,7 +4751,7 @@ Piece Name: {gunTarget.name}";
                 }
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         gunLocked = true;
@@ -4709,6 +4816,8 @@ Piece Name: {gunTarget.name}";
             yield return null;
             RequestDropPiece(bullet, ControllerUtilities.GetTrueRightHand().position + ControllerUtilities.GetTrueRightHand().forward * 0.65f + ControllerUtilities.GetTrueRightHand().right * 0.03f + ControllerUtilities.GetTrueRightHand().up * 0.05f, ControllerUtilities.GetTrueRightHand().rotation, ControllerUtilities.GetTrueRightHand().forward * 19.9f, Vector3.zero);
             yield return null;
+
+            isFiring = false;
         }
 
         public static void UnlimitedBuilding()
@@ -4732,8 +4841,8 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    BuilderPiece gunTarget = Ray.collider.GetComponentInParent<BuilderPiece>();
-                    if (gunTarget)
+                    BuilderPiece gunTarget = GetGunHit<BuilderPiece>(Ray);
+                    if (gunTarget && PlacePatch._piece != null)
                     {
                         RequestPlacePiece(PlacePatch._piece, gunTarget, PlacePatch._bumpOffsetX, PlacePatch._bumpOffsetZ, PlacePatch._twist, PlacePatch._parentPiece, PlacePatch._attachIndex, PlacePatch._parentAttachIndex);
                         RPCProtection();
@@ -4751,7 +4860,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    BuilderPiece gunTarget = Ray.collider.GetComponentInParent<BuilderPiece>();
+                    BuilderPiece gunTarget = GetGunHit<BuilderPiece>(Ray);
                     if (gunTarget)
                     {
                         RequestRecyclePiece(gunTarget, true, 2);
@@ -4985,10 +5094,14 @@ Piece Name: {gunTarget.name}";
                     if (Overpowered.basePosition == null)
                         Overpowered.basePosition = NewPointer.transform.position + Vector3.up;
 
-                    if (Time.time > Overpowered.textDelay)
+                    if (Time.time > Overpowered.textDelay && Overpowered.textToRender != null && Overpowered.characterIndex < Overpowered.textToRender.Length)
                     {
                         Overpowered.textDelay = Time.time + 0.1f;
-                        bool[][] characterData = Overpowered.Letters[Overpowered.textToRender[Overpowered.characterIndex].ToString()];
+                        if (!Overpowered.Letters.TryGetValue(Overpowered.textToRender[Overpowered.characterIndex].ToString(), out bool[][] characterData))
+                        {
+                            Overpowered.characterIndex++;
+                            return;
+                        }
 
                         List<Vector3> positions = new List<Vector3>();
                         for (int i = 0; i < characterData.Length; i++)
@@ -5102,7 +5215,7 @@ Piece Name: {gunTarget.name}";
 
         public static void OrbitTablet()
         {
-            LckSocialCamera camera = LckSocialCameraManager.Instance._networkedCococam;
+            LckSocialCamera camera = LckSocialCameraManager.Instance._networkedTablet;
             camera.visible = true;
             camera.recording = true;
 
@@ -5214,7 +5327,9 @@ Piece Name: {gunTarget.name}";
 
         public static void RideObject(string objectName)
         {
-            GameObject bugObject = GetBugObject(objectName).gameObject;
+            ThrowableBug bugObject = GetBugObject(objectName);
+            if (bugObject == null)
+                return;
 
             TeleportPlayer(bugObject.transform.position);
             GorillaTagger.Instance.rigidbody.linearVelocity = Vector3.zero;
@@ -5314,11 +5429,12 @@ Piece Name: {gunTarget.name}";
 
             yield return null;
 
+            int createdId = pieceId;
             pieceId = -1;
             CreatePatch.enabled = false;
             CreatePatch.pieceTypeSearch = 0;
 
-            onComplete?.Invoke(ManagerRegistry.BuilderTable.GetPiece(pieceId)); // so bad
+            onComplete?.Invoke(ManagerRegistry.BuilderTable.GetPiece(createdId));
         }
 
         public static IEnumerator CreateShotgun()
@@ -5561,6 +5677,9 @@ Piece Name: {gunTarget.name}";
             previousGripDown = rightGrab;
             previousTriggerDown = rightTrigger > 0.5f;
         }
+
+        public static void DisableShotgun() =>
+            isFiring = false;
 
         public static IEnumerator CreateMassiveBlock()
         {
@@ -5974,18 +6093,38 @@ Piece Name: {gunTarget.name}";
         }
 
         public static string name;
+        private static int animatedNameLength = -1;
         public static void AnimatedName()
         {
             if (!NetworkSystem.Instance.InRoom)
             {
-                ChangeName(name);
+                // Restore the full name once after leaving, rather than every frame
+                if (animatedNameLength != -1 && !string.IsNullOrEmpty(name))
+                    ChangeName(name);
+
+                animatedNameLength = -1;
                 return;
             }
             if (string.IsNullOrEmpty(name))
                 name = PhotonNetwork.LocalPlayer.NickName;
-            int length = Mathf.Clamp((int)Mathf.PingPong(Time.time / 0.25f, name.Length) + 1, 1, name.Length);
+            if (string.IsNullOrEmpty(name))
+                return;
 
+            int length = Mathf.Clamp((int)Mathf.PingPong(Time.time / 0.25f, name.Length) + 1, 1, name.Length);
+            if (length == animatedNameLength)
+                return;
+
+            animatedNameLength = length;
             ChangeName(name[..length]);
+        }
+
+        public static void DisableAnimatedName()
+        {
+            if (!string.IsNullOrEmpty(name))
+                ChangeName(name);
+
+            name = null;
+            animatedNameLength = -1;
         }
 
         public static float colorChangerDelay;
@@ -6077,7 +6216,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true) && Time.time > stealIdentityDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         ChangeName(GetPlayerFromVRRig(gunTarget).NickName);
@@ -6098,7 +6237,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true) && Time.time > stealCosmeticsDelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         CopyCosmeticsFrom(gunTarget);
@@ -6241,16 +6380,11 @@ Piece Name: {gunTarget.name}";
             lastHitRS = rightSecondary;
         }
 
-        private static readonly Dictionary<string[], int[]> cachePacked = new Dictionary<string[], int[]>();
+        // Not cached: callers mostly pass freshly built random arrays, so a cache only grew forever
         public static int[] PackCosmetics(string[] unpackedCosmetics)
         {
-            if (cachePacked.TryGetValue(unpackedCosmetics, out var cosmetics))
-                return cosmetics;
-
             CosmeticsController.CosmeticSet Set = new CosmeticsController.CosmeticSet(unpackedCosmetics, CosmeticsController.instance);
-            int[] packedIDs = Set.ToPackedIDArray();
-            cachePacked.Add(unpackedCosmetics, packedIDs);
-            return packedIDs;
+            return Set.ToPackedIDArray();
         }
 
         private static List<string> ownedArchive;
@@ -6273,25 +6407,27 @@ Piece Name: {gunTarget.name}";
             return tryOnCosmetics.ToArray();
         }
 
+        private static List<string> tryOnBalloons;
         private static string[] GetTryOnBalloons()
         {
-            if (tryOnCosmetics != null) return tryOnCosmetics.ToArray();
-            tryOnCosmetics = new List<string>();
+            if (tryOnBalloons != null) return tryOnBalloons.ToArray();
+            tryOnBalloons = new List<string>();
             foreach (var cosmeticItem in CosmeticsController.instance.allCosmetics.Where(cosmeticItem => cosmeticItem.canTryOn && cosmeticItem.overrideDisplayName.ToLower().Contains("balloon")))
-                tryOnCosmetics.Add(cosmeticItem.itemName);
+                tryOnBalloons.Add(cosmeticItem.itemName);
 
-            return tryOnCosmetics.ToArray();
+            return tryOnBalloons.ToArray();
         }
 
+        private static List<string> ownedBalloons;
         private static string[] GetOwnedBalloons()
         {
-            if (ownedArchive == null)
+            if (ownedBalloons == null)
             {
-                ownedArchive = new List<string>();
+                ownedBalloons = new List<string>();
                 foreach (var cosmeticItem in CosmeticsController.instance.allCosmetics.Where(cosmeticItem => VRRig.LocalRig._playerOwnedCosmetics.Contains(cosmeticItem.itemName) && cosmeticItem.overrideDisplayName.ToLower().Contains("balloon")))
-                    ownedArchive.Add(cosmeticItem.itemName);
+                    ownedBalloons.Add(cosmeticItem.itemName);
             }
-            return ownedArchive.ToArray();
+            return ownedBalloons.ToArray();
         }
 
 
@@ -6319,7 +6455,8 @@ Piece Name: {gunTarget.name}";
                         CosmeticsController.instance.currentWornSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                         VRRig.LocalRig.cosmeticSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                     }
-                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, PackCosmetics(randomCosmetics.ToArray()), PackCosmetics(randomCosmetics.ToArray()), false);
+                    int[] packedCosmetics = PackCosmetics(randomCosmetics.ToArray());
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, packedCosmetics, packedCosmetics, false);
                     RPCProtection();
                 }
             }
@@ -6348,7 +6485,8 @@ Piece Name: {gunTarget.name}";
                         CosmeticsController.instance.currentWornSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                         VRRig.LocalRig.cosmeticSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                     }
-                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, PackCosmetics(randomCosmetics.ToArray()), PackCosmetics(randomCosmetics.ToArray()), false);
+                    int[] packedCosmetics = PackCosmetics(randomCosmetics.ToArray());
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, packedCosmetics, packedCosmetics, false);
                     RPCProtection();
                 }
             }
@@ -6376,7 +6514,8 @@ Piece Name: {gunTarget.name}";
                         CosmeticsController.instance.currentWornSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                         VRRig.LocalRig.cosmeticSet = new CosmeticsController.CosmeticSet(randomCosmetics.ToArray(), CosmeticsController.instance);
                     }
-                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, PackCosmetics(randomCosmetics.ToArray()), PackCosmetics(randomCosmetics.ToArray()), false);
+                    int[] packedCosmetics = PackCosmetics(randomCosmetics.ToArray());
+                    GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.All, packedCosmetics, packedCosmetics, false);
                     RPCProtection();
                 }
             }
@@ -6543,7 +6682,8 @@ Piece Name: {gunTarget.name}";
             {
                 string[] cosmetics = { "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null", "null" };
 
-                GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.Others, PackCosmetics(cosmetics), PackCosmetics(cosmetics), false);
+                int[] packedCosmetics = PackCosmetics(cosmetics);
+                GorillaTagger.Instance.myVRRig.SendRPC("RPC_UpdateCosmeticsWithTryonPacked", RpcTarget.Others, packedCosmetics, packedCosmetics, false);
                 RPCProtection();
             }
             if (lasttagged && !VRRig.LocalRig.IsTagged())
@@ -6583,7 +6723,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true) && Time.time > idgundelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         idgundelay = Time.time + 0.5f;
@@ -6595,54 +6735,50 @@ Piece Name: {gunTarget.name}";
             }
         }
 
-        public static void CopyIDAura()
+        // Each player is reported once when they come into range (or touch), not every frame they stay there
+        private static readonly List<string> playersInRange = new List<string>();
+        private static void ReportPlayersOnce(HashSet<string> reported, Func<VRRig, bool> inRange, Action<string> report)
         {
-            if (!NetworkSystem.Instance.InRoom) return;
-            List<VRRig> nearbyPlayers = new List<VRRig>();
-
-            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
-            {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
-                    nearbyPlayers.Add(vrrig);
-                else if (nearbyPlayers.Contains(vrrig))
-                    nearbyPlayers.Remove(vrrig);
-            }
-
-            if (nearbyPlayers.Count > 0)
-            {
-                foreach (var id in nearbyPlayers.Select(nearbyPlayer => GetPlayerFromVRRig(nearbyPlayer).UserId))
-                {
-                    NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> " + id, 5000);
-                    GUIUtility.systemCopyBuffer = id;
-                }
-            }
-        }
-
-        public static void CopyIDOnTouch()
-        {
-            if (!NetworkSystem.Instance.InRoom) return;
-
-            List<VRRig> touchedPlayers = new List<VRRig>();
+            playersInRange.Clear();
 
             foreach (VRRig rig in VRRigExtensions.ActiveRigs)
             {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
+                if (rig.IsLocal() || !inRange(rig))
+                    continue;
+
+                NetPlayer player = GetPlayerFromVRRig(rig);
+                if (player == null || string.IsNullOrEmpty(player.UserId))
+                    continue;
+
+                playersInRange.Add(player.UserId);
+                if (reported.Add(player.UserId))
+                    report(player.UserId);
             }
 
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (var id in touchedPlayers.Select(rig => rig.GetPlayer().UserId))
-                {
-                    NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> " + id, 5000);
-                    GUIUtility.systemCopyBuffer = id;
-                }
-            }
+            reported.IntersectWith(playersInRange);
+        }
+
+        private static bool IsNearLocalRig(VRRig rig) =>
+            Vector3.Distance(rig.transform.position, VRRig.LocalRig.transform.position) < 4;
+
+        private static void CopyID(string id)
+        {
+            NotificationManager.SendNotification("<color=grey>[</color><color=green>SUCCESS</color><color=grey>]</color> " + id, 5000);
+            GUIUtility.systemCopyBuffer = id;
+        }
+
+        public static readonly HashSet<string> copyIDAuraReported = new HashSet<string>();
+        public static void CopyIDAura()
+        {
+            if (!NetworkSystem.Instance.InRoom) return;
+            ReportPlayersOnce(copyIDAuraReported, rig => IsNearLocalRig(rig), id => CopyID(id));
+        }
+
+        public static readonly HashSet<string> copyIDOnTouchReported = new HashSet<string>();
+        public static void CopyIDOnTouch()
+        {
+            if (!NetworkSystem.Instance.InRoom) return;
+            ReportPlayersOnce(copyIDOnTouchReported, rig => rig.IsBeingTouched(), id => CopyID(id));
         }
 
         public static void CopyIDAll()
@@ -6670,7 +6806,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true) && Time.time > idgundelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         idgundelay = Time.time + 0.5f;
@@ -6756,7 +6892,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true) && Time.time > idgundelay)
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal())
                     {
                         idgundelay = Time.time + 0.5f;
@@ -6849,7 +6985,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > creationDateDelay)
                     {
                         creationDateDelay = Time.time + 0.5f;
@@ -6862,46 +6998,26 @@ Piece Name: {gunTarget.name}";
             }
         }
 
-        public static void CopyCreationDateAura()
+        // A date that is still loading is copied by the GetCreationDate callback once it arrives
+        private static void CopyCreationDateForID(string id)
         {
-            if (!NetworkSystem.Instance.InRoom) return;
-            List<VRRig> nearbyPlayers = new List<VRRig>();
-
-            foreach (VRRig vrrig in VRRigExtensions.ActiveRigs)
-            {
-                if (Vector3.Distance(vrrig.transform.position, VRRig.LocalRig.transform.position) < 4 && !vrrig.IsLocal())
-                    nearbyPlayers.Add(vrrig);
-                else if (nearbyPlayers.Contains(vrrig))
-                    nearbyPlayers.Remove(vrrig);
-            }
-
-            if (nearbyPlayers.Count <= 0) return;
-            foreach (var date in nearbyPlayers.Select(nearbyPlayer => GetCreationDate(GetPlayerFromVRRig(nearbyPlayer).UserId, CopyCreationDate)).Where(date => date != "Loading..."))
+            string date = GetCreationDate(id, CopyCreationDate);
+            if (date != "Loading...")
                 CopyCreationDate(date);
         }
 
+        public static readonly HashSet<string> copyCreationDateAuraReported = new HashSet<string>();
+        public static void CopyCreationDateAura()
+        {
+            if (!NetworkSystem.Instance.InRoom) return;
+            ReportPlayersOnce(copyCreationDateAuraReported, rig => IsNearLocalRig(rig), id => CopyCreationDateForID(id));
+        }
+
+        public static readonly HashSet<string> copyCreationDateOnTouchReported = new HashSet<string>();
         public static void CopyCreationDateOnTouch()
         {
             if (!NetworkSystem.Instance.InRoom) return;
-
-            List<VRRig> touchedPlayers = new List<VRRig>();
-
-            foreach (VRRig rig in VRRigExtensions.ActiveRigs)
-            {
-                if (!rig.IsLocal())
-                {
-                    if (rig.IsBeingTouched())
-                    {
-                        touchedPlayers.Add(rig);
-                    }
-                }
-            }
-
-            if (touchedPlayers.Count > 0)
-            {
-                foreach (var date in touchedPlayers.Select(rig => GetCreationDate(rig.GetPlayer().UserId, CopyCreationDate)).Where(date => date != "Loading..."))
-                    CopyCreationDate(date);
-            }
+            ReportPlayersOnce(copyCreationDateOnTouchReported, rig => rig.IsBeingTouched(), id => CopyCreationDateForID(id));
         }
 
         public static void CopyCreationDateAll()
@@ -6973,7 +7089,7 @@ Piece Name: {gunTarget.name}";
 
                 if (GetGunInput(true))
                 {
-                    VRRig gunTarget = Ray.collider.GetComponentInParent<VRRig>();
+                    VRRig gunTarget = GetGunHit<VRRig>(Ray);
                     if (gunTarget && !gunTarget.IsLocal() && Time.time > creationDateDelay)
                     {
                         creationDateDelay = Time.time + 0.5f;
