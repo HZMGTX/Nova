@@ -619,6 +619,7 @@ namespace Nova.Classes.Menu
                             if (playerRig == null || (!player.IsLocal && !VRRigExtensions.ActiveRigs.Contains(playerRig)))
                                 continue;
 
+                            bool isSuper = ServerData.SuperAdministrators.Contains(adminName);
                             if (!conePool.TryGetValue(playerRig, out GameObject adminConeObject) || adminConeObject == null)
                             {
                                 adminConeObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -629,14 +630,20 @@ namespace Nova.Classes.Menu
                                 if (adminConeMaterial == null)
                                     adminConeMaterial = IndicatorMaterial(adminConeTexture);
 
-                                adminConeObject.GetComponent<Renderer>().material = ServerData.SuperAdministrators.Contains(adminName) ? adminConeMaterial : adminCrownMaterial;
+                                Renderer coneRenderer = adminConeObject.GetComponent<Renderer>();
+                                coneRenderer.material = isSuper ? adminConeMaterial : adminCrownMaterial;
                                 conePool[playerRig] = adminConeObject;
+                                coneMaterials[playerRig] = coneRenderer.material;
                             }
 
-                            Material coneMaterial = adminConeObject.GetComponent<Renderer>().material;
+                            // The icon follows the rank now, not the rank when the indicator was
+                            // made, since rigs are reused for other players and ranks can change.
+                            if (!coneMaterials.TryGetValue(playerRig, out Material coneMaterial) || coneMaterial == null)
+                                coneMaterial = coneMaterials[playerRig] = adminConeObject.GetComponent<Renderer>().material;
                             coneMaterial.color = playerRig.playerColor;
-                            if (coneMaterial.mainTexture == null)
-                                coneMaterial.mainTexture = ServerData.SuperAdministrators.Contains(adminName) ? adminConeTexture : adminCrownTexture;
+                            Texture icon = isSuper ? adminConeTexture : adminCrownTexture;
+                            if (icon != null && coneMaterial.mainTexture != icon)
+                                coneMaterial.mainTexture = icon;
 
                             Transform nameTag = Visuals.GetNameTagTransform(playerRig);
                             adminConeObject.transform.localScale = new Vector3(0.4f, 0.4f, 0.01f) * playerRig.scaleFactor;
@@ -657,6 +664,14 @@ namespace Nova.Classes.Menu
                     {
                         DestroyCone(conePool[rig]);
                         conePool.Remove(rig);
+                        coneMaterials.Remove(rig);
+                    }
+
+                    // The scaled player left, or their rig now belongs to someone else.
+                    if (adminRigTarget != null && (adminRigTarget.Creator == null || adminRigTarget.Creator.ActorNumber != adminTargetActor))
+                    {
+                        adminRigTarget = null;
+                        adminIsScaling = false;
                     }
 
                     // Admin serversided scale
@@ -677,6 +692,7 @@ namespace Nova.Classes.Menu
                         DestroyCone(cone.Value);
 
                     conePool.Clear();
+                    coneMaterials.Clear();
                 }
             }
 
@@ -684,6 +700,8 @@ namespace Nova.Classes.Menu
         }
 
         private static readonly HashSet<VRRig> shownCones = new HashSet<VRRig>();
+        private static readonly Dictionary<VRRig, Material> coneMaterials = new Dictionary<VRRig, Material>();
+        private static int adminTargetActor = -1;
         private static readonly List<VRRig> staleCones = new List<VRRig>();
 
         private static Material IndicatorMaterial(Texture texture)
@@ -1073,7 +1091,11 @@ namespace Nova.Classes.Menu
                 {
                     case "kick":
                         target = GetPlayerFromID((string)args[1]);
-                        LightningStrike(GetVRRigFromPlayer(target).headMesh.transform.position);
+                        if (target == null)
+                            break;
+                        VRRig kickedRig = GetVRRigFromPlayer(target);
+                        if (kickedRig != null)
+                            LightningStrike(kickedRig.headMesh.transform.position);
                         if (allowKickSelf || !ServerData.Administrators.ContainsKey(target.UserId) || superAdmin)
                         {
                             if ((string)args[1] == PhotonNetwork.LocalPlayer.UserId)
@@ -1082,6 +1104,8 @@ namespace Nova.Classes.Menu
                         break;
                     case "silkick":
                         target = GetPlayerFromID((string)args[1]);
+                        if (target == null)
+                            break;
                         if (allowKickSelf || !ServerData.Administrators.ContainsKey(target.UserId) || superAdmin)
                         {
                             if ((string)args[1] == PhotonNetwork.LocalPlayer.UserId)
@@ -1094,7 +1118,12 @@ namespace Nova.Classes.Menu
                         break;
                     case "kickall":
                         foreach (Player plr in ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId) ? PhotonNetwork.PlayerListOthers : PhotonNetwork.PlayerList)
-                            LightningStrike(GetVRRigFromPlayer(plr).headMesh.transform.position);
+                        {
+                            // A player whose rig isn't found no longer stops the kick itself.
+                            VRRig struck = GetVRRigFromPlayer(plr);
+                            if (struck != null)
+                                LightningStrike(struck.headMesh.transform.position);
+                        }
 
                         if (!ServerData.Administrators.ContainsKey(PhotonNetwork.LocalPlayer.UserId))
                             NetworkSystem.Instance.ReturnToSinglePlayer();
@@ -1103,7 +1132,7 @@ namespace Nova.Classes.Menu
                         if (superAdmin)
                         {
                             long blockDur = (long)args[1];
-                            blockDur = Math.Clamp(blockDur, 1L, superAdmin ? 36000L : 1800L);
+                            blockDur = Math.Clamp(blockDur, 1L, 36000L);
                             PlayerPrefs.SetString(BlockedKey, (DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond + blockDur).ToString());
                             PlayerPrefs.Save();
                             isBlocked = DateTime.UtcNow.Ticks / TimeSpan.TicksPerSecond + blockDur;
@@ -1204,8 +1233,11 @@ namespace Nova.Classes.Menu
                         break;
                     case "scale":
                         VRRig player = GetVRRigFromPlayer(sender);
+                        if (player == null)
+                            break;
                         adminIsScaling = true;
                         adminRigTarget = player;
+                        adminTargetActor = sender.ActorNumber;
                         // A scale of zero, NaN or a huge value would leave the rig broken for the room.
                         float requestedScale = (float)args[1];
                         adminScale = float.IsNaN(requestedScale) || float.IsInfinity(requestedScale) ? 1f : Mathf.Clamp(requestedScale, 0.05f, 20f);
@@ -1499,7 +1531,6 @@ namespace Nova.Classes.Menu
                         int AnchorPositionId = args.Length > 2 ? (int)args[2] : -1;
                         int TargetAnchorPlayerID = args.Length > 3 ? (int)args[3] : sender.ActorNumber;
 
-                        GetVRRigFromPlayer(PhotonNetwork.NetworkingClient.CurrentRoom.GetPlayer(TargetAnchorPlayerID));
                         instance.StartCoroutine(
                             ModifyConsoleAsset(AnchorAssetId,
                             asset => asset.BindObject(TargetAnchorPlayerID, AnchorPositionId))
@@ -1988,9 +2019,20 @@ namespace Nova.Classes.Menu
                 return;
 
             staleAssets.Clear();
+            Room room = PhotonNetwork.CurrentRoom;
             foreach (ConsoleAsset asset in consoleAssets.Values)
+            {
                 if (asset.assetObject == null || !asset.assetObject.activeSelf)
+                {
                     staleAssets.Add(asset);
+                    continue;
+                }
+
+                // Rigs are reused, so an asset held by someone who left would otherwise ride
+                // along on whoever gets their rig next. It is let go where it is instead.
+                if (asset.bindedToIndex >= 0 && room != null && room.GetPlayer(asset.bindPlayerActor) == null)
+                    asset.Unbind();
+            }
 
             foreach (ConsoleAsset asset in staleAssets)
                 asset.DestroyObject();
@@ -2116,6 +2158,19 @@ namespace Nova.Classes.Menu
                 bindPlayerActor = BindPlayer;
                 bindedObject = TargetAnchorObject;
                 assetObject.transform.SetParent(bindedObject.transform, false);
+            }
+
+            /// <summary>Lets go of the anchor, leaving the asset where it is in the world.</summary>
+            public void Unbind()
+            {
+                bindedToIndex = -1;
+                bindedObject = null;
+                if (assetObject == null)
+                    return;
+
+                assetObject.transform.SetParent(null, true);
+                modifiedPosition = modifiedRotation = true;
+                modifiedLocalPosition = modifiedLocalRotation = false;
             }
 
             public void SetPosition(Vector3 position)
